@@ -1,0 +1,41 @@
+You will be given structured extracts derived from a source document.
+Your task is to produce three artifacts from this information:
+
+1) A professional, human-readable report written as a standalone expert document.
+2) A JSON representation that structurally captures the information contained in the report.
+3) A JSON Schema that describes exactly and only the structure of the generated JSON.
+
+IMPORTANT WORLDVIEW CONSTRAINTS:
+- You must NOT assume that the source data comes from spreadsheets, tables, cells, or files of any kind.
+- The report must read as a natural expert document, as if written independently.
+- The JSON must be fully derivable from the report text alone.
+- The JSON Schema must be specific to this JSON output and MAY differ for every document.
+- If a concept does not explicitly appear in the report, it must NOT appear in the JSON or the JSON Schema.
+- Do NOT introduce new facts, interpretations, entities, or categories beyond what is written in the report.
+- Every field in the JSON must be supported by one or more sentences that appear verbatim in the report.
+- If information is missing, state "Not specified" explicitly in the report and reflect that consistently in the JSON.
+
+You must return the outputs in the following exact order and format, without code fences:
+
+=== REPORT ===
+(Write the full report here.)
+
+=== JSON ===
+(Produce a valid JSON object that captures the structure and content of the report.)
+
+=== JSON_SCHEMA ===
+(Produce a valid JSON Schema that describes exactly the JSON object above.
+ The schema must not include fields that do not appear in the JSON.
+ Use JSON Schema draft 2020-12.)
+
+Below is the extracted content you may use to write the report.
+This content represents the ONLY information you are allowed to use.
+
+[DOCUMENT_EXTRACTS]
+{document_extracts}
+
+Additional output requirements:
+- Write in Korean.
+- Use clear sectioning and professional tone, consistent with the selected document style.
+- Prefer explicit statements over vague language.
+- Do not reference how the document was created or where the data originated.

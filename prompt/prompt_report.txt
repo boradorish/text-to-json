@@ -1,0 +1,6 @@
+DEVELOPER:
+Write a two-part report:
+PART A (Main Report): narrative for decision-makers (max ~500–800 Korean words).
+PART B (Technical Appendix): detailed evidence tables, definitions, and data quality diagnostics.
+In the appendix, include a “Table Index” listing each table with its sheet name, range, and a one-line description.
+Keep strict grounding: every claim must have evidence tags.

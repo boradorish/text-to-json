@@ -1,0 +1,6 @@
+DEVELOPER:
+Write as an audit/verification memo.
+Primary goal: identify data integrity risks, inconsistencies, and reproducibility issues.
+Include: Summary of Checks, Findings (Issues), Severity (High/Medium/Low), Evidence, Recommended Fixes.
+Do NOT attempt to ‘smooth over’ missing data; emphasize uncertainty and verification steps.
+If formulas vs values mismatch is reported in DATA_QUALITY, prioritize it.

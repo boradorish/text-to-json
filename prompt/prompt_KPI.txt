@@ -1,0 +1,6 @@
+DEVELOPER:
+Write as an operations KPI report meant for an internal dashboard update.
+Use short sections and bullet lists.
+Include: KPI Snapshot (table-like bullets), Notable Changes, Drivers/Hypotheses, Next Actions.
+KPI Snapshot must list 6–12 metrics from DERIVED_METRICS if available, each with evidence tags.
+Avoid narrative fluff; maximize scanability.

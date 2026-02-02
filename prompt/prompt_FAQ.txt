@@ -1,0 +1,6 @@
+DEVELOPER:
+Write as a user-facing FAQ / explanatory guide for someone unfamiliar with the spreadsheet.
+Include 8–15 Q&A pairs.
+Each answer should reference evidence tags where relevant.
+Cover: what the dataset is, how to read rows/columns, units, time coverage, common pitfalls, and how to reproduce key figures.
+Use simple Korean, but do not oversimplify or invent definitions.
