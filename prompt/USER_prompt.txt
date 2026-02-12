@@ -28,11 +28,8 @@ You must return the outputs in the following exact order and format, without cod
  The schema must not include fields that do not appear in the JSON.
  Use JSON Schema draft 2020-12.)
 
-Below is the extracted content you may use to write the report.
+You will be given a document as an attached file.
 This content represents the ONLY information you are allowed to use.
-
-[DOCUMENT_EXTRACTS]
-{document_extracts}
 
 Additional output requirements:
 - Write in Korean.
