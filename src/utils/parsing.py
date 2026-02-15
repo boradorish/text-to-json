@@ -120,3 +120,99 @@ def parse_raw_data(
         md_path.write_text(markdown_table, encoding="utf-8")
 
     return markdown_table
+
+def parse_workbook_all_sheets_to_markdown(
+    input_path: str | os.PathLike,
+    *,
+    # Size control
+    max_total_chars: int = 80_000,          # 전체 마크다운 최대 길이(문자 수)
+    max_rows_per_sheet: int | None = 200,   # 시트별 row 제한 (LLM 입력용)
+    # Optional: sheet filter
+    include_sheets: list[str] | None = None,
+    exclude_sheets: list[str] | None = None,
+    # Debug save (combined markdown)
+    save_combined_markdown: bool = False,
+    combined_markdown_path: str | os.PathLike | None = None,
+    # Pass-through options to parse_raw_data (common ones)
+    usecols: str | list[str] | None = None,
+    skiprows: int | list[int] | None = None,
+    nrows: int | None = None,
+    dtype: dict | None = None,
+) -> str:
+    """
+    For an Excel workbook, parse all sheets using parse_raw_data(sheet_name=...),
+    then concatenate each sheet's markdown until max_total_chars would be exceeded.
+
+    Returns:
+        combined_markdown (str)
+    """
+    path = Path(input_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Input file not found: {path}")
+
+    ext = path.suffix.lower()
+    if ext not in {".xlsx", ".xls", ".xlsm", ".xlsb"}:
+        raise ValueError(
+            f"This function is for Excel workbooks with multiple sheets. "
+            f"Got extension={ext}. If you need CSV, call parse_raw_data() directly."
+        )
+
+    # Get sheet names efficiently without loading everything
+    xls = pd.ExcelFile(path)
+    sheet_names = list(xls.sheet_names)
+
+    # Apply include/exclude filters
+    if include_sheets is not None:
+        include_set = set(include_sheets)
+        sheet_names = [s for s in sheet_names if s in include_set]
+    if exclude_sheets is not None:
+        exclude_set = set(exclude_sheets)
+        sheet_names = [s for s in sheet_names if s not in exclude_set]
+
+    parts: list[str] = []
+    total_len = 0
+
+    for sheet in sheet_names:
+        # Parse this sheet to markdown (no intermediate save per-sheet here)
+        sheet_md = parse_raw_data(
+            path,
+            sheet_name=sheet,
+            usecols=usecols,
+            skiprows=skiprows,
+            nrows=nrows,
+            dtype=dtype,
+            max_rows_for_markdown=max_rows_per_sheet,
+            save_intermediate_markdown=False,
+        )
+
+        # Add a clear delimiter/header per sheet
+        block = f"\n\n## Sheet: {sheet}\n\n{sheet_md}\n"
+
+        # Stop before exceeding max_total_chars
+        if total_len + len(block) > max_total_chars:
+            # Optional: add a truncation note if there is still space
+            note = (
+                f"\n\n---\n"
+                f"*Stopped concatenation before adding sheet '{sheet}' "
+                f"because it would exceed max_total_chars={max_total_chars}.*\n"
+            )
+            if total_len + len(note) <= max_total_chars:
+                parts.append(note)
+                total_len += len(note)
+            break
+
+        parts.append(block)
+        total_len += len(block)
+
+    combined = "".join(parts).lstrip()
+
+    # Optionally save combined markdown
+    if save_combined_markdown:
+        if combined_markdown_path is None:
+            combined_markdown_path = path.with_suffix(".all_sheets.parsed.md")
+
+        md_path = Path(combined_markdown_path)
+        md_path.parent.mkdir(parents=True, exist_ok=True)
+        md_path.write_text(combined, encoding="utf-8")
+
+    return combined
