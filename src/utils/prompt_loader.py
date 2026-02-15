@@ -2,9 +2,22 @@
 import random
 from pathlib import Path
 
-PROMPT_DIR = Path("prompt")
+
+def find_project_root(start: Path | None = None) -> Path:
+    """
+    Find project root by walking upward until pyproject.toml (preferred) or .git is found.
+    """
+    here = (start or Path(__file__)).resolve()
+    for p in [here, *here.parents]:
+        if (p / "pyproject.toml").exists() or (p / ".git").exists():
+            return p
+    raise FileNotFoundError("Project root not found (pyproject.toml or .git missing).")
+
+PROJECT_ROOT = find_project_root()
+PROMPT_DIR = PROJECT_ROOT / "prompt"
 
 def load_json_generator_prompts():
+    print(PROMPT_DIR)
     system_prompt = (PROMPT_DIR / "json_SYSTEM_prompt.txt").read_text(encoding="utf-8")
 
     return system_prompt
