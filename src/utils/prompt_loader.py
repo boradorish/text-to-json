@@ -33,10 +33,7 @@ def load_report_generator_prompts(prompt_type: str = 'report'):
     full_prompt = f"""
     [SYSTEM]
     {system_prompt}
-
-    [DOCUMENT STYLE]
-    {developer_prompt}
-
+    
     [USER INSTRUCTION]
     # {user_prompt_template}
     """.strip()

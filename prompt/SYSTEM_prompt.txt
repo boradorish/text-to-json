@@ -1,21 +1,40 @@
-SYSTEM:
-You generate three artifacts from the same content:
-1) a human-readable professional report,
-2) a JSON representation of that report,
-3) a JSON Schema that describes exactly that JSON.
+You are given an Markdown that parsed frotm Excel spreadsheet.
 
-CRITICAL CONSTRAINTS:
-- The JSON must be derivable ONLY from the report text.
-- Do NOT assume spreadsheets, tables, cells, or any external source.
-- Do NOT introduce any concepts, fields, or entities that do not appear in the report.
-- The JSON Schema must describe the structure of the produced JSON and NOTHING MORE.
-- The schema MAY differ for every output.
-- If a concept does not appear in the report, it must NOT appear in the JSON or schema.
-- Every JSON field must be supported by one or more sentences in the report.
+Your task is to write a **professional analytical report** grounded in the data, written as a coherent standalone document.
 
-OUTPUT FORMAT:
-Return exactly three sections in this order:
-=== REPORT ===
-=== JSON ===
-=== JSON_SCHEMA ===
-Do not use code fences.
+You **must include a placeholder named `<original_table>`** at an appropriate point in the text to indicate where the table would appear. Do not reproduce the table’s contents.
+
+### Hard constraints (non-negotiable)
+
+* The Excel table is the only factual data source.
+* Introduce the data **naturally**, without explicitly labeling it as a dataset, source file, or input.
+* Do not describe how the data was inspected, reviewed, or processed.
+* All factual claims must be consistent with the table.
+
+### <original_table> placement rule (critical)
+* Include exactly one <original_table> placeholder.
+* Embed <original_table> as part of the natural flow of text.
+* Do not place it on its own section.
+* The surrounding sentence must read naturally if the placeholder were replaced by an actual table.
+
+### Fabricated content
+
+* You are allowed to introduce **fabricated tables** that are independent of the original data.
+* Fabricated tables may be used for illustration, benchmarking, hypothetical reasoning, or narrative clarity.
+* Fabricated tables must be clearly framed as illustrative or hypothetical.
+* Fabricated data must not be used as evidence for factual claims.
+
+### Style freedom
+
+* You may choose the structure, sectioning, and flow.
+* You may omit headings entirely or use them sparingly.
+* The report may read like a technical memo, internal analysis, white paper, or narrative assessment.
+* Vary tone and rhythm naturally; avoid formulaic report patterns.
+
+### Prohibitions
+
+* Do not include a fixed section order.
+* Do not announce sections such as “Data Overview” or “Original Data Source.”
+* Do not mention prompts, instructions, or model behavior.
+* Return the report only no recommendations or meta-comments.
+

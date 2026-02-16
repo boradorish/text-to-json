@@ -88,4 +88,4 @@ def main(keyword: str, pages: int = 2):
         browser.close()
 
 if __name__ == "__main__":
-    main("통계", pages=2)
+    main("실적", pages=2)
