@@ -1,60 +1,81 @@
 === REPORT ===
-## 프로젝트 상태 보고서
+## 폐강 확정 강좌 분석 보고서
 
-본 보고서는 현재 진행 중인 프로젝트의 상태를 분석하고 주요 지표를 평가하여 프로젝트의 성공적인 완료를 위한 통찰력을 제공합니다. 프로젝트의 다양한 측면을 검토하고 있으며, 데이터 기반의 분석을 통해 개선 영역을 식별하고 있습니다.
+본 보고서는 특정 기준에 따라 폐강이 확정된 강좌에 대한 분석 결과를 담고 있다. 폐강 기준 인원과 실제 수강인원을 비교하여 폐강 여부가 결정되었으며, 승인원 검토 결과는 폐강으로 나타났다. 분석 대상 강좌는 학년, 과정구분, 수강번호, 과목명, 학점, 담당교수, 개설대학, 개설학과, 주관대학, 주관학과, 수업형태 등의 정보를 포함하고 있다. <original_table>는 폐강 확정 강좌의 상세 내역을 보여준다.
 
-### 주요 지표 분석
+구체적인 사례를 살펴보면 다음과 같다. ‘소통-행복과변화로가는길’ 과목(수강번호 319)은 폐강 기준 인원이 60명이었으나, 실제 수강인원은 30명으로 폐강되었다. ‘교육학개론’ 과목(수강번호 363)은 폐강 기준 인원이 20명이었으나, 수강인원은 11명이었다. ‘교육과정’ 과목(수강번호 2407)은 폐강 기준 20명에 수강인원 4명으로 폐강되었다. ‘인물로본중국사’ 과목(수강번호 214)은 폐강 기준 인원 20명에 수강인원 14명으로 폐강되었으며, 역사학과 수강이 불가하다. ‘지방자치의이해’ 과목(수강번호 231)은 폐강 기준 인원 20명에 수강인원 4명으로 폐강되었고, 행정학과 및 새마을국제개발학과 수강이 불가하다. ‘피드백을통한논문작성의실제’ 과목(수강번호 271)은 폐강 기준 인원 20명에 수강인원 12명으로 폐강되었다.
 
-프로젝트의 주요 지표는 다음과 같습니다. 시작 날짜는 2023년 3월 1일이고, 종료 날짜는 2024년 2월 29일입니다. 프로젝트의 총 예산은 1,000,000달러로 책정되었습니다. 현재까지 지출된 금액은 750,000달러입니다. 프로젝트 진척률은 75%로 평가됩니다. <original_table>는 이러한 주요 지표를 요약하여 보여줍니다.
+강좌별 폐강 기준 인원, 수강 인원 및 기타 정보 외에, 폐강과 관련된 추가적인 정보는 확인되지 않았다. 예를 들어, 각 강좌의 수업 형태(인터넷 강의 또는 일반 강의)가 명시되어 있으나, 이것이 폐강 결정에 미치는 영향은 명확히 나타나 있지 않다.
 
-### 예산 관리 평가
+다음은 가상의 폐강 분석 시나리오를 나타내는 표이다.
 
-총 예산 1,000,000달러 중 750,000달러가 지출되어, 예산 대비 75% 소진율을 보이고 있습니다. 잔여 예산은 250,000달러입니다.
+| 폐강 기준 인원 | 실제 수강 인원 | 폐강 여부 | 추가 고려 사항 |
+|---|---|---|---|
+| 30 | 15 | 예 | 수강 희망 학생 수 |
+| 50 | 40 | 아니오 | 강의 평가 점수 |
+| 20 | 5 | 예 | 유사 과목 개설 여부 |
 
-### 일정 관리 평가
-
-프로젝트는 2023년 3월 1일에 시작하여 2024년 2월 29일에 종료될 예정입니다. 현재 진척률은 75%로 평가됩니다.
-
-### 추가 분석
-
-프로젝트의 성공적인 완료를 위해 다음과 같은 사항을 고려해야 합니다.
-
-*   **잔여 예산 관리:** 잔여 예산 250,000달러를 효율적으로 관리하여 예상치 못한 추가 비용 발생에 대비해야 합니다.
-*   **일정 준수 노력:** 현재 진척률을 유지하고, 지연 발생 시 만회 방안을 수립하여 종료일을 준수해야 합니다.
-
-### 결론
-
-프로젝트는 현재까지 예산 및 일정 측면에서 계획대로 진행되고 있습니다. 그러나 잔여 예산 관리 및 일정 준수에 대한 지속적인 관심과 노력이 필요합니다.
+이 표는 폐강 여부를 결정할 때 고려할 수 있는 추가적인 요소들을 보여준다.
 
 === JSON ===
 ```json
 {
-  "프로젝트_상태_보고서": {
-    "개요": "본 보고서는 현재 진행 중인 프로젝트의 상태를 분석하고 주요 지표를 평가하여 프로젝트의 성공적인 완료를 위한 통찰력을 제공합니다. 프로젝트의 다양한 측면을 검토하고 있으며, 데이터 기반의 분석을 통해 개선 영역을 식별하고 있습니다.",
-    "주요_지표_분석": {
-      "시작_날짜": "2023년 3월 1일",
-      "종료_날짜": "2024년 2월 29일",
-      "총_예산": "1,000,000달러",
-      "현재까지_지출된_금액": "750,000달러",
-      "프로젝트_진척률": "75%"
+  "reportTitle": "폐강 확정 강좌 분석 보고서",
+  "reportSummary": "본 보고서는 특정 기준에 따라 폐강이 확정된 강좌에 대한 분석 결과를 담고 있다.",
+  "cancellationCriteria": {
+    "factor": "폐강 기준 인원과 실제 수강인원을 비교하여 폐강 여부가 결정되었으며, 승인원 검토 결과는 폐강으로 나타났다.",
+    "courseInformation": "분석 대상 강좌는 학년, 과정구분, 수강번호, 과목명, 학점, 담당교수, 개설대학, 개설학과, 주관대학, 주관학과, 수업형태 등의 정보를 포함하고 있다."
+  },
+  "courseExamples": [
+    {
+      "courseName": "소통-행복과변화로가는길",
+      "courseNumber": 319,
+      "cancellationStandard": 60,
+      "actualEnrollment": 30,
+      "cancellationResult": "폐강"
     },
-    "예산_관리_평가": {
-      "총_예산": "1,000,000달러",
-      "지출_금액": "750,000달러",
-      "예산_소진율": "75%",
-      "잔여_예산": "250,000달러"
+    {
+      "courseName": "교육학개론",
+      "courseNumber": 363,
+      "cancellationStandard": 20,
+      "actualEnrollment": 11,
+      "cancellationResult": "폐강"
     },
-    "일정_관리_평가": {
-      "시작일": "2023년 3월 1일",
-      "종료일": "2024년 2월 29일",
-      "진척률": "75%"
+    {
+      "courseName": "교육과정",
+      "courseNumber": 2407,
+      "cancellationStandard": 20,
+      "actualEnrollment": 4,
+      "cancellationResult": "폐강"
     },
-    "추가_분석": {
-      "잔여_예산_관리": "잔여 예산 250,000달러를 효율적으로 관리하여 예상치 못한 추가 비용 발생에 대비해야 합니다.",
-      "일정_준수_노력": "현재 진척률을 유지하고, 지연 발생 시 만회 방안을 수립하여 종료일을 준수해야 합니다."
+    {
+      "courseName": "인물로본중국사",
+      "courseNumber": 214,
+      "cancellationStandard": 20,
+      "actualEnrollment": 14,
+      "cancellationResult": "폐강",
+      "restriction": "역사학과 수강 불가"
     },
-    "결론": "프로젝트는 현재까지 예산 및 일정 측면에서 계획대로 진행되고 있습니다. 그러나 잔여 예산 관리 및 일정 준수에 대한 지속적인 관심과 노력이 필요합니다."
-  }
+    {
+      "courseName": "지방자치의이해",
+      "courseNumber": 231,
+      "cancellationStandard": 20,
+      "actualEnrollment": 4,
+      "cancellationResult": "폐강",
+      "restriction": "행정학과 및 새마을국제개발학과 수강 불가"
+    },
+    {
+      "courseName": "피드백을통한논문작성의실제",
+      "courseNumber": 271,
+      "cancellationStandard": 20,
+      "actualEnrollment": 12,
+      "cancellationResult": "폐강"
+    }
+  ],
+  "additionalInformation": "강좌별 폐강 기준 인원, 수강 인원 및 기타 정보 외에, 폐강과 관련된 추가적인 정보는 확인되지 않았다.",
+  "exampleClassType": "각 강좌의 수업 형태(인터넷 강의 또는 일반 강의)가 명시되어 있으나, 이것이 폐강 결정에 미치는 영향은 명확히 나타나 있지 않다.",
+   "hypotheticalScenarioDisclosure":"다음은 가상의 폐강 분석 시나리오를 나타내는 표이다.",
+  "additionalFactors": "이 표는 폐강 여부를 결정할 때 고려할 수 있는 추가적인 요소들을 보여준다."
 }
 ```
 
@@ -62,114 +83,145 @@
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "폐강 확정 강좌 분석 보고서 JSON 스키마",
+  "description": "폐강 확정 강좌 분석 보고서의 JSON 구조",
   "type": "object",
   "properties": {
-    "프로젝트_상태_보고서": {
+    "reportTitle": {
+      "type": "string",
+      "description": "보고서 제목",
+      "examples": [
+        "폐강 확정 강좌 분석 보고서"
+      ]
+    },
+    "reportSummary": {
+      "type": "string",
+      "description": "보고서 요약",
+      "examples": [
+        "본 보고서는 특정 기준에 따라 폐강이 확정된 강좌에 대한 분석 결과를 담고 있다."
+      ]
+    },
+    "cancellationCriteria": {
       "type": "object",
+      "description": "폐강 기준",
       "properties": {
-        "개요": {
-          "type": "string"
-        },
-        "주요_지표_분석": {
-          "type": "object",
-          "properties": {
-            "시작_날짜": {
-              "type": "string"
-            },
-            "종료_날짜": {
-              "type": "string"
-            },
-            "총_예산": {
-              "type": "string"
-            },
-            "현재까지_지출된_금액": {
-              "type": "string"
-            },
-            "프로젝트_진척률": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "시작_날짜",
-            "종료_날짜",
-            "총_예산",
-            "현재까지_지출된_금액",
-            "프로젝트_진척률"
+        "factor": {
+          "type": "string",
+          "description": "폐강 결정 요인",
+          "examples": [
+            "폐강 기준 인원과 실제 수강인원을 비교하여 폐강 여부가 결정되었으며, 승인원 검토 결과는 폐강으로 나타났다."
           ]
         },
-        "예산_관리_평가": {
-          "type": "object",
-          "properties": {
-            "총_예산": {
-              "type": "string"
-            },
-            "지출_금액": {
-              "type": "string"
-            },
-            "예산_소진율": {
-              "type": "string"
-            },
-            "잔여_예산": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "총_예산",
-            "지출_금액",
-            "예산_소진율",
-            "잔여_예산"
+        "courseInformation": {
+          "type": "string",
+          "description": "강좌 정보",
+          "examples": [
+            "분석 대상 강좌는 학년, 과정구분, 수강번호, 과목명, 학점, 담당교수, 개설대학, 개설학과, 주관대학, 주관학과, 수업형태 등의 정보를 포함하고 있다."
           ]
-        },
-        "일정_관리_평가": {
-          "type": "object",
-          "properties": {
-            "시작일": {
-              "type": "string"
-            },
-            "종료일": {
-              "type": "string"
-            },
-            "진척률": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "시작일",
-            "종료일",
-            "진척률"
-          ]
-        },
-        "추가_분석": {
-          "type": "object",
-          "properties": {
-            "잔여_예산_관리": {
-              "type": "string"
-            },
-            "일정_준수_노력": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "잔여_예산_관리",
-            "일정_준수_노력"
-          ]
-        },
-        "결론": {
-          "type": "string"
         }
       },
       "required": [
-        "개요",
-        "주요_지표_분석",
-        "예산_관리_평가",
-        "일정_관리_평가",
-        "추가_분석",
-        "결론"
+        "factor",
+        "courseInformation"
+      ]
+    },
+    "courseExamples": {
+      "type": "array",
+      "description": "강좌 예시",
+      "items": {
+        "type": "object",
+        "properties": {
+          "courseName": {
+            "type": "string",
+            "description": "과목명",
+            "examples": [
+              "소통-행복과변화로가는길"
+            ]
+          },
+          "courseNumber": {
+            "type": "integer",
+            "description": "수강번호",
+            "examples": [
+              319
+            ]
+          },
+          "cancellationStandard": {
+            "type": "integer",
+            "description": "폐강 기준 인원",
+            "examples": [
+              60
+            ]
+          },
+          "actualEnrollment": {
+            "type": "integer",
+            "description": "실제 수강인원",
+            "examples": [
+              30
+            ]
+          },
+          "cancellationResult": {
+            "type": "string",
+            "description": "폐강 결과",
+            "examples": [
+              "폐강"
+            ]
+          },
+          "restriction": {
+            "type": "string",
+            "description": "제한 사항",
+            "examples": [
+              "역사학과 수강 불가",
+              "행정학과 및 새마을국제개발학과 수강 불가"
+            ]
+          }
+        },
+        "required": [
+          "courseName",
+          "courseNumber",
+          "cancellationStandard",
+          "actualEnrollment",
+          "cancellationResult"
+        ]
+      }
+    },
+    "additionalInformation": {
+      "type": "string",
+      "description": "추가 정보",
+      "examples": [
+        "강좌별 폐강 기준 인원, 수강 인원 및 기타 정보 외에, 폐강과 관련된 추가적인 정보는 확인되지 않았다."
+      ]
+    },
+     "exampleClassType": {
+      "type": "string",
+      "description": "강좌 종류 예시",
+      "examples": [
+        "각 강좌의 수업 형태(인터넷 강의 또는 일반 강의)가 명시되어 있으나, 이것이 폐강 결정에 미치는 영향은 명확히 나타나 있지 않다."
+      ]
+    },
+        "hypotheticalScenarioDisclosure": {
+      "type": "string",
+      "description": "가상의 시나리오 표",
+      "examples": [
+        "다음은 가상의 폐강 분석 시나리오를 나타내는 표이다."
+      ]
+    },
+    "additionalFactors": {
+      "type": "string",
+      "description": "추가 요인",
+      "examples": [
+        "이 표는 폐강 여부를 결정할 때 고려할 수 있는 추가적인 요소들을 보여준다."
       ]
     }
   },
   "required": [
-    "프로젝트_상태_보고서"
+    "reportTitle",
+    "reportSummary",
+    "cancellationCriteria",
+    "courseExamples",
+    "additionalInformation",
+    "exampleClassType",
+    "hypotheticalScenarioDisclosure",
+    "additionalFactors"
   ]
 }
 ```

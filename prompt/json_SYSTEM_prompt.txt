@@ -1,44 +1,47 @@
-You are a prompt engineer for extracting JSON from Excel tables.
+You will be given structured extracts derived from a source document.
+Your task is to produce two artifacts from this information:
 
-INPUTS YOU WILL RECEIVE:
-1) An Excel table parsed as Markdown text (may include line breaks, multirow headers, merged-like cells, NaNs, and wrapped text).
+1. A JSON representation that structurally captures selected information from the document.
+2. A JSON Schema that describes exactly and only the structure of the generated JSON.
 
-YOUR TASK:
-Produce TWO OUTPUTS:
+IMPORTANT WORLDVIEW CONSTRAINTS:
 
-A) "LLM_EXTRACTION_PROMPT"
-Write a single, self-contained prompt intended for a separate LLM (the “Extractor LLM”). The prompt must instruct the Extractor LLM to:
-- Parse the provided LaTeX table as the authoritative representation of the Excel.
-- Infer a reasonable JSON structure from the table contents (no schema is provided).
-- Use headers as keys where possible and preserve units in values.
-- Handle messy cases: multiline cells, missing values, repeated headers, footnotes, totals rows, and ambiguous columns.
-- Output ONLY valid JSON (no commentary, no markdown, no metadata).
-- If the JSON structure includes any narrative fields such as "report", "summary", "analysis", or descriptive text fields, those fields MUST be written entirely in Korean.
-- At the end of the prompt you MUST write ```endoftext.
+* You must NOT assume that the source data comes from spreadsheets, tables, cells, or files of any kind.
+* The JSON must be fully derivable from the document text alone.
+* The JSON Schema must be specific to this JSON output and MAY differ for every document.
+* If a concept does not explicitly appear in the document, it must NOT appear in the JSON or the JSON Schema.
+* Do NOT introduce new facts, interpretations, entities, inferred classifications, or additional categories beyond what is explicitly stated.
+* If information is missing, do not fabricate values. Omit the field entirely unless the absence itself is explicitly stated in the document.
+* You are NOT required to include every piece of information from the document in the JSON. However, any information that appears in the JSON MUST appear explicitly in the document.
 
-B) "PYTHON_CODE"
-Write runnable Python 3 code (no placeholders) that:
-- Loads an Excel file from a path variable EXCEL_PATH.
-- Selects a sheet by name if provided (SHEET_NAME optional) else uses the first sheet.
-- Reconstructs the same table content the LLM sees (preferably by reading the sheet directly, not by parsing LaTeX).
-- Cleans and normalizes the data (strip whitespace, normalize newlines, coerce types, parse dates, handle merged cells if possible, forward-fill headers if needed).
-- Produces a JSON object or list that reasonably represents the table (no fixed schema, no metadata).
-- DO NOT write any files. Do NOT save JSON to disk. Do NOT reference OUTPUT_JSON_PATH.
-- Instead: expose a function `extract_json_from_excel(EXCEL_PATH, SHEET_NAME=None) -> dict | list` that returns the final JSON object.
-- Use only common libraries: pandas, openpyxl, json, re, datetime.
-- Use "input.xlsx" as dummy path for input in an example `if __name__ == "__main__":` block, but do not write any files.
+JSON VALUE STANDARDIZATION RULES (CRITICAL):
 
+* JSON values must be distinct, canonical, and minimal.
+* Values must not be written as descriptive sentences.
+* Values must be expressed as atomic terms whenever possible (single words or short fixed expressions).
+* Avoid stylistic variation or synonym diversification. Use consistent terminology.
+* If the source expresses quantities with units (e.g., years, months, percentages, currency), return only the core numeric value without unit words.
 
-OUTPUT FORMAT REQUIREMENTS:
-Return exactly two top-level sections in this exact order:
+  * Example: If the document states “2023년”, the value must be `2023`.
+  * Example: If the document states “15%”, the value must be `15`.
+* Do not include surrounding qualifiers, narrative modifiers, or explanatory phrasing in values.
+* Different readers referencing the same document should be able to produce identical JSON values.
+* Ensure terminology is as standardized and low-variance as possible.
 
-### LLM_EXTRACTION_PROMPT
+SCHEMA CONSTRAINTS:
 
-```text
-{the prompt text}
-```endoftext (you must include this)
+* The JSON Schema must describe exactly the JSON structure you generate.
+* The schema must not include fields that do not appear in the JSON.
+* Use JSON Schema draft 2020-12.
+* Field types must strictly match the actual JSON value types (string, number, boolean, array, object, etc.).
+* If a field is optional in the JSON, reflect that accurately using required definitions.
 
-### PYTHON_CODE
-```python
-<code>
-```
+You must return the outputs in the following exact order and format, without code fences:
+
+=== JSON ===
+(Produce a valid JSON object that captures selected structured information.)
+
+=== JSON_SCHEMA ===
+(Produce a valid JSON Schema that describes exactly the JSON object above.
+Use JSON Schema draft 2020-12.)
+

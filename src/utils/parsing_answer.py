@@ -6,7 +6,6 @@ from typing import TypedDict, Any
 
 
 class ParsedDoc(TypedDict):
-    report: str
     json_obj: Any          # dict | list
     json_schema: dict
 
@@ -69,12 +68,9 @@ def _extract_json_from_chunk(chunk: str) -> Any:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON: {e}") from e
 
-
-def parse_report_json_schema(text: str) -> ParsedDoc:
+def parse_json_and_schema(text: str) -> ParsedDoc:
     """
     Parse a document shaped like:
-      === REPORT ===
-      ...report...
       === JSON ===
       ```json
       {...}
@@ -83,17 +79,10 @@ def parse_report_json_schema(text: str) -> ParsedDoc:
       ```json
       {...}
       ```
-
     Returns:
-      report (str), json_obj (dict|list), json_schema (dict)
+      json_obj (dict|list), json_schema (dict)
     """
     s = _normalize_newlines(text)
-
-    report_chunk = _extract_between(
-        s,
-        _SECTION_PATTERNS["report"],
-        _SECTION_PATTERNS["json"],
-    )
 
     json_chunk = _extract_between(
         s,
@@ -114,10 +103,14 @@ def parse_report_json_schema(text: str) -> ParsedDoc:
         raise ValueError("JSON_SCHEMA must be a JSON object (dict).")
 
     return {
-        "report": report_chunk.strip(),
         "json_obj": json_obj,
         "json_schema": json_schema,
     }
 
 
-
+def replace_original_table_in_report(text:str, parsed_md:str) -> str:
+    """
+    보고서 텍스트의 '<original table>' 플레이스홀더를
+    제공된 마크다운 테이블(`parsed_md`)로 바꿉니다.
+    """
+    return text.replace("<original_table>", parsed_md)

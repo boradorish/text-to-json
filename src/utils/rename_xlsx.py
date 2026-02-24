@@ -89,7 +89,7 @@ def rename_xlsx_sequential(
 
 if __name__ == "__main__":
     rename_xlsx_sequential(
-        "downloads",
+        "downloads_google",
         prefix="data_",
         start=1,
         recursive=False,

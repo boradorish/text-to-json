@@ -1,4 +1,4 @@
-You are given an Markdown that parsed frotm Excel spreadsheet.
+You are given an Markdown that parsed from Excel spreadsheet.
 
 Your task is to write a **professional analytical report** grounded in the data, written as a coherent standalone document.
 
@@ -10,6 +10,7 @@ You **must include a placeholder named `<original_table>`** at an appropriate po
 * Introduce the data **naturally**, without explicitly labeling it as a dataset, source file, or input.
 * Do not describe how the data was inspected, reviewed, or processed.
 * All factual claims must be consistent with the table.
+* Write report in Korean
 
 ### <original_table> placement rule (critical)
 * Include exactly one <original_table> placeholder.
