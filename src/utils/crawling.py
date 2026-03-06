@@ -86,6 +86,7 @@ def main(keyword: str, pages: int = 2):
             time.sleep(1.2)
 
         browser.close()
+        
 
 if __name__ == "__main__":
-    main("실적", pages=2)
+    main("업무", pages=2)
