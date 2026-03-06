@@ -7,7 +7,7 @@ from typing import Iterable
 def rename_xlsx_sequential(
     target_dir: str | Path,
     *,
-    prefix: str = "data_",
+    prefix: str = "data__",
     start: int = 1,
     recursive: bool = False,
     dry_run: bool = True,
@@ -89,8 +89,8 @@ def rename_xlsx_sequential(
 
 if __name__ == "__main__":
     rename_xlsx_sequential(
-        "downloads_google",
-        prefix="data_",
+        "downloads",
+        prefix="data",
         start=1,
         recursive=False,
         dry_run=False,  

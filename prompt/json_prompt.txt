@@ -12,18 +12,49 @@ The JSON must be fully derivable from the document text alone.
 ## GENERAL CONSTRAINTS
 
 * Do NOT introduce facts, interpretations, inferred categories, reorganizations, or summaries.
+* Every element included in the JSON must be explicitly grounded in the document.
+* If information is not explicitly stated, omit it entirely.
 * Do not fabricate values.
 * Do not normalize, translate, or reinterpret identifiers.
 
 ---
 
+## KEY-AS-IDENTITY RULES (MANDATORY)
+
+This system uses identifier-driven JSON design.
+
+1. Whenever the document contains repeated entities with explicit identifiers
+   (e.g., university names, program names, tracks, product names, organization names),
+   represent them as OBJECT MAPS, not arrays.
+
+2. Use the identifier exactly as the JSON OBJECT KEY.
+
+3. Do NOT duplicate identifiers as value fields.
+   If "서울대" is the key, do NOT include {"university": "서울대"} inside it.
+
+4. Identifier keys must match the document text EXACTLY.
+
+   * No translation
+   * No normalization
+   * No abbreviation
+   * No paraphrasing
+
+5. Only identifiers explicitly present in the document may appear as keys.
+
+6. If the same identifier appears multiple times, consolidate all information under a single key.
+
+7. Prefer encoding semantic identity in the KEY rather than as a VALUE whenever possible.
+
+---
+
 ## STRUCTURE RULES
 
-* Avoid using arrays.
+* Avoid arrays unless the document explicitly requires ordered sequences.
 * Repeated conceptual entities must be modeled as object maps keyed by explicit identifiers.
 * Structure must be deterministic.
   Independent implementations must produce identical JSON from the same document.
 * Do not introduce structural grouping not explicitly supported by the document.
+* Preserve the explicit hierarchy as presented.
 
 ---
 
@@ -48,6 +79,10 @@ If a value cannot be expressed as:
 THEN:
 You MUST omit that key entirely.
 
+Do NOT attempt to summarize.
+Do NOT compress a sentence into a short phrase.
+Do NOT approximate.
+
 If strict lexical atomicity is not possible, remove the key.
 
 Numeric rules:
@@ -56,6 +91,12 @@ Numeric rules:
   “2023년” → 2023
   “15%” → 15
   “3년 과정” → 3
+
+* Do NOT include unit words.
+
+* Do NOT include explanatory modifiers.
+
+* Do NOT include null, "", 0, false, or placeholders unless explicitly stated.
 
 ---
 
@@ -82,12 +123,15 @@ Before finalizing the response, internally verify:
 4. There is no text before the first header.
 5. There is no text after the schema.
 6. No Markdown or code fences exist.
-7. No inferred data has been introduced.
-8. Every value is either:
+7. All identifier-as-key rules are respected.
+8. No arrays are used unless explicitly required by the document.
+9. No inferred data has been introduced.
+10. Every value is either:
+
     * a single atomic word, OR
     * a pure number
-9. No value contains sentence structure.
-10. If any value required explanation, the key has been removed.
+11. No value contains sentence structure.
+12. If any value required explanation, the key has been removed.
 
 Only after validation, produce the final output.
 
@@ -102,3 +146,11 @@ The output MUST consist of exactly two top-level sections:
 === JSON_SCHEMA ===
 <valid JSON Schema Draft 2020-12 object>
 
+Rules:
+
+* Do not wrap in code fences.
+* Do not indent headers.
+* Do not add blank lines before the first line.
+* Do not add commentary.
+* Do not add trailing text.
+* Output must begin with "=== JSON ==="
