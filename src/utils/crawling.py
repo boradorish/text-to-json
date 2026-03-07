@@ -6,7 +6,7 @@ from tqdm import tqdm
 from playwright.sync_api import sync_playwright
 
 BASE = "https://www.data.go.kr"
-OUT = "downloads"
+OUT = "downloads_google"
 os.makedirs(OUT, exist_ok=True)
 
 UA = {"User-Agent": "Mozilla/5.0"}
@@ -54,6 +54,9 @@ def download_from_detail(page, detail_url: str):
                     target.click()
                 download = d.value
                 suggested = download.suggested_filename or "file.xlsx"
+                if suggested.lower().endswith(".csv"):
+                    download.cancel()
+                    break
                 save_path = os.path.join(OUT, suggested)
                 download.save_as(save_path)
                 return ("downloaded", save_path)
@@ -86,7 +89,7 @@ def main(keyword: str, pages: int = 2):
             time.sleep(1.2)
 
         browser.close()
-        
+
 
 if __name__ == "__main__":
     main("업무", pages=2)

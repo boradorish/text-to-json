@@ -119,5 +119,5 @@ if __name__ == "__main__":
     # 2. dry_run=False: 실제로 '내용 부족 파일'만 삭제
     # 3. dry_run=False, delete_unopenable=True: '내용 부족 파일'과 '읽기 실패 파일' 모두 삭제
     clean_sparse_xlsx_files(
-        "downloads_google_2", threshold=0.2, recursive=False, dry_run=False, delete_unopenable=True
+        "download_processed", threshold=0.2, recursive=False, dry_run=False, delete_unopenable=True
     )

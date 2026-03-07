@@ -7,26 +7,29 @@ from typing import Iterable
 def rename_xlsx_sequential(
     target_dir: str | Path,
     *,
-    prefix: str = "data__",
+    prefix: str = "data_",
     start: int = 1,
     recursive: bool = False,
     dry_run: bool = True,
     sort_by: str = "name",  # "name" | "mtime"
+    extensions: Iterable[str] = (".xlsx",),
 ) -> list[tuple[Path, Path]]:
     """
-    Rename .xlsx files in target_dir to prefix{n}.xlsx (e.g., data_1.xlsx, data_2.xlsx...).
+    Rename spreadsheet files in target_dir to prefix{n}.ext (e.g., data_1.xlsx, data_2.csv...).
 
     Safety:
       - Uses a 2-step rename via temporary filenames to avoid collisions.
       - Returns list of (old_path, new_path).
 
     Args:
-      target_dir: Directory containing xlsx files.
+      target_dir: Directory containing files.
       prefix: New filename prefix.
       start: Starting index.
       recursive: If True, includes subdirectories.
       dry_run: If True, print plan only and do not rename.
       sort_by: "name" (alphabetical) or "mtime" (modified time ascending).
+      extensions: File extensions to include (default: ('.xlsx',)).
+                  e.g. ('.xlsx', '.csv') to handle both.
 
     Returns:
       List of (old_path, new_path) renames.
@@ -35,8 +38,12 @@ def rename_xlsx_sequential(
     if not d.exists() or not d.is_dir():
         raise NotADirectoryError(f"Not a directory: {d}")
 
-    pattern = "**/*.xlsx" if recursive else "*.xlsx"
-    files = [p for p in d.glob(pattern) if p.is_file()]
+    exts = {ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions}
+
+    glob_prefix = "**/*" if recursive else "*"
+    files: list[Path] = []
+    for ext in exts:
+        files.extend(p for p in d.glob(f"{glob_prefix}{ext}") if p.is_file())
 
     # Exclude temporary/lock files if any (optional)
     files = [p for p in files if not p.name.startswith("~$")]
@@ -88,11 +95,20 @@ def rename_xlsx_sequential(
 
 
 if __name__ == "__main__":
+    # xlsx만 처리
     rename_xlsx_sequential(
-        "downloads",
+        "download_processed",
         prefix="data",
         start=1,
         recursive=False,
-        dry_run=False,  
+        dry_run=False,
         sort_by="name",
     )
+
+    # xlsx + csv 함께 처리
+    # rename_xlsx_sequential(
+    #     "downloads",
+    #     prefix="data",
+    #     extensions=(".xlsx", ".csv"),
+    #     dry_run=True,
+    # )
