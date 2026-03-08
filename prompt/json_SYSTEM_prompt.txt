@@ -5,7 +5,13 @@ Your task is to produce two artifacts from this information:
 1. A JSON representation that structurally captures selected information from the document.
 2. A JSON Schema (Draft 2020-12) that describes exactly and only the structure of the generated JSON.
 
-The JSON must be fully derivable from the document text alone.
+---
+
+## LANGUAGE REQUIREMENT (MANDATORY)
+
+* All keys and values in the JSON output MUST be written in Korean.
+* If the source document is mostly not in Korean, and it is difficult to produce meaningful Korean output, return null instead of the JSON object.
+* Do NOT translate or convert values from the source language into Korean. If a value cannot be expressed in Korean using words already present in the document, omit that key or return null.
 
 ---
 
@@ -13,13 +19,53 @@ The JSON must be fully derivable from the document text alone.
 
 * Do NOT introduce facts, interpretations, inferred categories, reorganizations, or summaries.
 * Do not fabricate values.
-* Do not normalize, translate, or reinterpret identifiers.
+
+---
+
+## KEY RULES
+
+* Keys MAY be derived, processed, abbreviated, or reformatted from the markdown content.
+* Keys do NOT need to appear verbatim in the source document.
+* Keys must be meaningful and accurately reflect the data they describe.
+* Keys must be written in Korean.
+
+---
+
+## VALUE RULES (CRITICAL – STRICT LEXICAL CONSTRAINT)
+
+Values are subject to a strict verbatim constraint:
+
+* A value MUST be a word or phrase taken directly from the markdown source.
+* A value MUST NOT be fabricated, inferred, translated, summarized, or reworded.
+* The only permitted modification to a value is adjusting whitespace or spacing.
+* A value must NOT be a sentence, clause, or explanatory phrase.
+* A value must NOT contain commas, periods, conjunctions, or connective expressions.
+* A value must NOT describe, summarize, interpret, or elaborate.
+
+If a value cannot be taken verbatim (with only whitespace adjustment) from the markdown:
+
+* THEN: omit that key entirely.
+
+Stripping rules:
+
+* Remove leading numbering, bullets, or punctuation from words before using them as keys or values.
+  "2. 가격" → "가격"
+  "① 신청방법" → "신청방법"
+  "- 서울" → "서울"
+* Only the meaningful word or phrase remains after stripping.
+
+Numeric rules:
+
+* If a numeric value includes units, return only the numeric core.
+  "2023년" → 2023
+  "15%" → 15
+  "3년 과정" → 3
 
 ---
 
 ## STRUCTURE RULES
 
-* Avoid using arrays.
+* Avoid using arrays unless necessary.
 * Repeated conceptual entities must be modeled as object maps keyed by explicit identifiers.
 * Structure must be deterministic.
   Independent implementations must produce identical JSON from the same document.
@@ -27,35 +73,19 @@ The JSON must be fully derivable from the document text alone.
 
 ---
 
-## VALUE STANDARDIZATION RULES (CRITICAL – STRICT LEXICAL CONSTRAINT)
+## ARRAY COMPLETENESS RULES (CRITICAL)
 
-All values MUST obey the following lexical constraint:
+When using arrays, the following rule MUST be satisfied — choose one of the two options:
 
-1. A value must be a single atomic word OR a numeric value.
-2. A value must NOT be a sentence.
-3. A value must NOT be a clause.
-4. A value must NOT contain explanatory phrasing.
-5. A value must NOT contain commas, periods, conjunctions, or connective expressions.
-6. A value must NOT describe, summarize, interpret, or elaborate.
-7. A value must NOT restate the source text in prose form.
-8. A value must NOT contain multiple descriptive words forming a sentence-like structure.
+**Option A: Full representation**
+If the JSON Schema cannot deterministically infer the exact number of items in an array (e.g., the schema uses a generic `"items"` definition), then the array MUST include ALL items from the source table or list — no truncation is allowed.
 
-If a value cannot be expressed as:
+For example, if a table has 10 rows, the array must contain exactly 10 elements. Producing only 5 is a violation.
 
-* a single word (lexical token), OR
-* a pure number
+**Option B: Schema-derivable structure**
+If every item and its position can be unambiguously determined from the JSON Schema alone (e.g., using `"prefixItems"` with a fixed-length tuple), truncation is not an issue because the schema itself encodes the full structure.
 
-THEN:
-You MUST omit that key entirely.
-
-If strict lexical atomicity is not possible, remove the key.
-
-Numeric rules:
-
-* If a numeric value includes units, return only the numeric core.
-  “2023년” → 2023
-  “15%” → 15
-  “3년 과정” → 3
+If neither option is satisfied, do NOT use an array. Use an object map instead.
 
 ---
 
@@ -83,13 +113,20 @@ Before finalizing the response, internally verify:
 5. There is no text after the schema.
 6. No Markdown or code fences exist.
 7. No inferred data has been introduced.
-8. Every value is either:
-    * a single atomic word, OR
-    * a pure number
-9. No value contains sentence structure.
-10. If any value required explanation, the key has been removed.
+8. Every value is taken verbatim from the markdown source (whitespace changes only).
+9. No value contains sentence structure or explanatory phrasing.
+10. If any value required fabrication or translation, the key has been removed.
+11. All keys and values are written in Korean. If not possible, null is returned.
+12. If arrays are used, either all items from the source are included, or the schema fully encodes the structure.
 
 Only after validation, produce the final output.
+
+---
+
+## INPUT FORMAT
+
+The markdown data to be processed will be provided immediately after this prompt.
+Apply all rules above to that markdown content.
 
 ---
 

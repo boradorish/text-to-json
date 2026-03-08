@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Iterable
 
@@ -15,24 +16,12 @@ def rename_xlsx_sequential(
     extensions: Iterable[str] = (".xlsx",),
 ) -> list[tuple[Path, Path]]:
     """
-    Rename spreadsheet files in target_dir to prefix{n}.ext (e.g., data_1.xlsx, data_2.csv...).
+    이미 {prefix}{숫자}.xlsx 규칙에 맞는 파일은 건드리지 않고,
+    규칙에 맞지 않는 파일만 기존 번호와 겹치지 않는 다음 번호로 rename합니다.
 
     Safety:
       - Uses a 2-step rename via temporary filenames to avoid collisions.
       - Returns list of (old_path, new_path).
-
-    Args:
-      target_dir: Directory containing files.
-      prefix: New filename prefix.
-      start: Starting index.
-      recursive: If True, includes subdirectories.
-      dry_run: If True, print plan only and do not rename.
-      sort_by: "name" (alphabetical) or "mtime" (modified time ascending).
-      extensions: File extensions to include (default: ('.xlsx',)).
-                  e.g. ('.xlsx', '.csv') to handle both.
-
-    Returns:
-      List of (old_path, new_path) renames.
     """
     d = Path(target_dir).resolve()
     if not d.exists() or not d.is_dir():
@@ -45,7 +34,6 @@ def rename_xlsx_sequential(
     for ext in exts:
         files.extend(p for p in d.glob(f"{glob_prefix}{ext}") if p.is_file())
 
-    # Exclude temporary/lock files if any (optional)
     files = [p for p in files if not p.name.startswith("~$")]
 
     if sort_by == "mtime":
@@ -53,25 +41,39 @@ def rename_xlsx_sequential(
     else:
         files.sort(key=lambda p: p.name.lower())
 
-    # Plan new names (in the SAME directory as each file)
+    # 이미 규칙에 맞는 파일의 번호를 수집
+    pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$", re.IGNORECASE)
+    used_ids: set[int] = set()
+    already_named: set[Path] = set()
+    for p in files:
+        m = pattern.match(p.stem)
+        if m:
+            used_ids.add(int(m.group(1)))
+            already_named.add(p)
+
+    # 이상한 이름 파일들만 추림
+    to_rename = [p for p in files if p not in already_named]
+
+    # 겹치지 않는 번호 순서대로 할당
+    def next_id(current: int) -> int:
+        while current in used_ids:
+            current += 1
+        return current
+
     plan: list[tuple[Path, Path]] = []
     n = start
-    for p in files:
+    for p in to_rename:
+        n = next_id(n)
         new_name = f"{prefix}{n}.xlsx"
         new_path = p.with_name(new_name)
         plan.append((p, new_path))
+        used_ids.add(n)
         n += 1
 
-    # Detect collisions with existing files not in the rename set
-    target_set = {new for _, new in plan}
-    existing_conflicts = [new for new in target_set if new.exists() and new not in {old for old, _ in plan}]
-    if existing_conflicts:
-        raise FileExistsError(
-            "Some target filenames already exist and are not part of the rename set:\n"
-            + "\n".join(str(p) for p in existing_conflicts)
-        )
+    if not plan:
+        print("rename할 파일이 없습니다. (모두 이미 규칙에 맞는 이름)")
+        return plan
 
-    # Print plan
     for old, new in plan:
         print(f"{old.name}  ->  {new.name}")
 
@@ -86,7 +88,6 @@ def rename_xlsx_sequential(
         old.rename(temp)
         temp_paths.append((temp, old))
 
-    # Now temp -> final
     for (temp, _old), (_old2, final) in zip(temp_paths, plan):
         temp.rename(final)
 

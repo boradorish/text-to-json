@@ -16,7 +16,9 @@ build/
 develop-eggs/
 dist/
 downloads/
+download_processed/
 eggs/
+data_stashed/
 .eggs/
 lib/
 lib64/
@@ -177,3 +179,4 @@ pyrightconfig.json
 
 data/
 downloads_google/
+downloads_google_2/
