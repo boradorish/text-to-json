@@ -98,7 +98,8 @@ def rename_xlsx_sequential(
 if __name__ == "__main__":
     # xlsx만 처리
     rename_xlsx_sequential(
-        "download_processed",
+        # "download_processed",
+         "downloads",
         prefix="data",
         start=1,
         recursive=False,
