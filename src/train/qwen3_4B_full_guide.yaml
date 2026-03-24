@@ -1,7 +1,7 @@
 ### arguments: https://llamafactory.readthedocs.io/en/latest/advanced/arguments.html
 
 ### model
-model_name_or_path: Qwen/Qwen3-0.6B
+model_name_or_path: Qwen/Qwen3-1.7B
 trust_remote_code: true
 
 ### method
@@ -9,10 +9,10 @@ stage: sft
 do_train: true
 disable_shuffling: false
 finetuning_type: full
-deepspeed: examples/deepspeed/ds_z0_config.json  # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
+deepspeed: examples/deepspeed/ds_z0_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
 
 ### dataset
-dataset: gson_reasoning
+dataset: sunny_reasoning
 template: qwen3
 # full list of available chat-templates
 # from src.llamafactory.data.template import TEMPLATES
@@ -30,7 +30,7 @@ save_steps: 500
 plot_loss: true
 overwrite_output_dir: true
 save_only_model: false
-report_to: wandb  # choices: [none, wandb, tensorboard, swanlab, mlflow]
+report_to: wandb # choices: [none, wandb, tensorboard, swanlab, mlflow]
 
 ### train
 per_device_train_batch_size: 1
