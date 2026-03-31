@@ -1,18 +1,19 @@
 import os
 import time
+from dotenv import load_dotenv
 import requests
 import serpapi
 
 # 1. 설정
-API_KEY = "Key"
-SEARCH_QUERY = "고객 filetype:xlsx"
-SAVE_DIR = "downloads_google"
+load_dotenv()
+SEARCH_QUERY = "문서 filetype:xlsx"
+SAVE_DIR = "downloads_google_2"
 TOTAL_PAGES = 10  # 가져올 페이지 수 (페이지당 100개)
 
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-client = serpapi.Client(api_key=API_KEY)
+client = serpapi.Client()
 
 # 2. 페이지 반복 루프
 for page in range(TOTAL_PAGES):

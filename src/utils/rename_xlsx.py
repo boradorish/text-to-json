@@ -84,7 +84,7 @@ def rename_xlsx_sequential(
     # Two-step rename to avoid collisions (old -> temp -> final)
     temp_paths: list[tuple[Path, Path]] = []
     for i, (old, _) in enumerate(plan, start=1):
-        temp = old.with_name(f".__renaming_tmp__{i}__{old.name}")
+        temp = old.with_name(f"data{i}.xlsx")
         old.rename(temp)
         temp_paths.append((temp, old))
 
@@ -98,10 +98,11 @@ def rename_xlsx_sequential(
 if __name__ == "__main__":
     # xlsx만 처리
     rename_xlsx_sequential(
-        "download_processed",
+        # "download_processed",
         #  "downloads",
+        "sheetpedia_xlsx",
         prefix="data",
-        start=1,
+        start=20000,
         recursive=False,
         dry_run=False,
         sort_by="name",
