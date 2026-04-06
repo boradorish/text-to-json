@@ -7,6 +7,14 @@ Your task is to produce two artifacts from this information:
 
 ---
 
+## LANGUAGE REQUIREMENT (MANDATORY)
+
+* All keys and values in the JSON output MUST be written in Korean.
+* If the source document is mostly not in Korean, and it is difficult to produce meaningful Korean output, return null instead of the JSON object.
+* Do NOT translate or convert values from the source language into Korean. If a value cannot be expressed in Korean using words already present in the document, omit that key or return null.
+
+---
+
 ## GENERAL CONSTRAINTS
 
 * Do NOT introduce facts, interpretations, inferred categories, reorganizations, or summaries.
@@ -19,6 +27,7 @@ Your task is to produce two artifacts from this information:
 * Keys MAY be derived, processed, abbreviated, or reformatted from the markdown content.
 * Keys do NOT need to appear verbatim in the source document.
 * Keys must be meaningful and accurately reflect the data they describe.
+* Keys must be written in Korean.
 
 ---
 
@@ -40,15 +49,17 @@ If a value cannot be taken verbatim (with only whitespace adjustment) from the m
 Stripping rules:
 
 * Remove leading numbering, bullets, or punctuation from words before using them as keys or values.
-  "2. Price" → "price"
-  "① Method" → "Method"
-  "- NewYork" → "NewYork"
+  "2. 가격" → "가격"
+  "① 신청방법" → "신청방법"
+  "- 서울" → "서울"
 * Only the meaningful word or phrase remains after stripping.
 
 Numeric rules:
 
 * If a numeric value includes units, return only the numeric core.
+  "2023년" → 2023
   "15%" → 15
+  "3년 과정" → 3
 
 ---
 
@@ -105,7 +116,8 @@ Before finalizing the response, internally verify:
 8. Every value is taken verbatim from the markdown source (whitespace changes only).
 9. No value contains sentence structure or explanatory phrasing.
 10. If any value required fabrication or translation, the key has been removed.
-11. If arrays are used, either all items from the source are included, or the schema fully encodes the structure.
+11. All keys and values are written in Korean. If not possible, null is returned.
+12. If arrays are used, either all items from the source are included, or the schema fully encodes the structure.
 
 Only after validation, produce the final output.
 

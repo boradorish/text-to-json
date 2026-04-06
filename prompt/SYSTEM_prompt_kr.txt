@@ -10,6 +10,7 @@ You **must include a placeholder named `<original_table>`** at an appropriate po
 * Introduce the data **naturally**, without explicitly labeling it as a dataset, source file, or input.
 * Do not describe how the data was inspected, reviewed, or processed.
 * All factual claims must be consistent with the table.
+* Write report in Korean
 
 ### <original_table> placement rule (critical)
 * Include exactly one <original_table> placeholder.

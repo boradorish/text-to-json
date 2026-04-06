@@ -370,14 +370,24 @@ def _print_summary(summary: dict) -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    import argparse
     from dotenv import load_dotenv
     load_dotenv()
 
-    # 사용 예시:
-    # evaluate_batch(
-    #     pred_dir="data/model_output",   # 모델이 생성한 JSON 파일들
-    #     gold_dir="data/json",           # 정답 JSON
-    #     schema_dir="data/json_schema",  # JSON Schema
-    #     use_llm=False,
-    #     output_path="data/eval_result.json",
-    # )
+    parser = argparse.ArgumentParser(description="JSON 추론 결과 평가")
+    parser.add_argument("--pred", default="data/json_infer", help="모델 출력 JSON 디렉토리")
+    parser.add_argument("--gold", default="data/json", help="정답 JSON 디렉토리")
+    parser.add_argument("--schema", default="data/json_schema", help="JSON Schema 디렉토리")
+    parser.add_argument("--output", default="data/eval_result.json", help="결과 저장 경로")
+    parser.add_argument("--llm", action="store_true", help="LLM 기반 value_match 사용")
+    parser.add_argument("--llm-model", default="gemini/gemini-2.0-flash", help="LLM 모델")
+    args = parser.parse_args()
+
+    evaluate_batch(
+        pred_dir=args.pred,
+        gold_dir=args.gold,
+        schema_dir=args.schema,
+        use_llm=args.llm,
+        llm_model=args.llm_model,
+        output_path=args.output,
+    )
