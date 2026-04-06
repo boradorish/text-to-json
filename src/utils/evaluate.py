@@ -133,15 +133,22 @@ def value_match_rule(pred_obj: Any, gold_obj: Any) -> dict:
 def value_match_llm(
     pred_text: str,
     gold_obj: Any,
-    model: str = "gemini/gemini-2.0-flash",
+    model: str = "gpt-4o-mini",
 ) -> dict:
     """
-    LLM(gemini-flash)으로 pred_text와 gold_obj를 비교해 1-5 점수를 반환합니다.
+    OpenAI API로 pred_text와 gold_obj를 비교해 1-5 점수를 반환합니다.
 
     Returns:
         { "score_raw": float, "score_normalized": float }  (0-1 정규화)
     """
-    import litellm
+    import os
+    from openai import OpenAI
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return {"score_raw": None, "score_normalized": None, "error": "OPENAI_API_KEY 환경변수가 설정되지 않았습니다."}
+
+    client = OpenAI(api_key=api_key)
 
     gold_str = json.dumps(gold_obj, ensure_ascii=False, indent=2)
     prompt = f"""You are evaluating a JSON output against a ground truth JSON.
@@ -162,7 +169,7 @@ Score from 1 to 5 based on value-level match:
 Reply with ONLY a single integer 1-5."""
 
     try:
-        response = litellm.completion(
+        response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=10,
@@ -186,7 +193,7 @@ def evaluate_single(
     gold_obj: Any,
     schema: dict,
     use_llm: bool = False,
-    llm_model: str = "gemini/gemini-2.0-flash",
+    llm_model: str = "gpt-4o-mini",
 ) -> dict:
     """
     단일 샘플에 대한 전체 평가를 수행합니다.
@@ -240,7 +247,7 @@ def evaluate_batch(
     gold_dir: str | Path,
     schema_dir: str | Path,
     use_llm: bool = False,
-    llm_model: str = "gemini/gemini-2.0-flash",
+    llm_model: str = "gpt-4o-mini",
     output_path: str | Path | None = None,
 ) -> dict:
     """
@@ -371,8 +378,6 @@ def _print_summary(summary: dict) -> None:
 
 if __name__ == "__main__":
     import argparse
-    from dotenv import load_dotenv
-    load_dotenv()
 
     parser = argparse.ArgumentParser(description="JSON 추론 결과 평가")
     parser.add_argument("--pred", default="data/json_infer", help="모델 출력 JSON 디렉토리")
@@ -380,7 +385,7 @@ if __name__ == "__main__":
     parser.add_argument("--schema", default="data/json_schema", help="JSON Schema 디렉토리")
     parser.add_argument("--output", default="data/eval_result.json", help="결과 저장 경로")
     parser.add_argument("--llm", action="store_true", help="LLM 기반 value_match 사용")
-    parser.add_argument("--llm-model", default="gemini/gemini-2.0-flash", help="LLM 모델")
+    parser.add_argument("--llm-model", default="gpt-4o-mini", help="OpenAI 모델 이름")
     args = parser.parse_args()
 
     evaluate_batch(

@@ -1,22 +1,22 @@
 """
-학습된 로컬 모델로 user_prompt → JSON 추론을 수행합니다.
+OpenAI API로 user_prompt → JSON 추론을 수행합니다.
 
 사용법:
     python src/infer.py                          # data/user_prompt/ 전체 처리
     python src/infer.py --input data/user_prompt/data1.txt
-    python src/infer.py --model model/qwen3-0.6b-finetuned
+    python src/infer.py --model gpt-4o-mini
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from openai import OpenAI
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.prompt_loader import find_project_root
@@ -26,50 +26,15 @@ SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "json_SYSTEM_prompt.txt").read_text(e
 
 
 # ---------------------------------------------------------------------------
-# 모델 로드
-# ---------------------------------------------------------------------------
-
-def load_model(model_path: str | Path):
-    model_path = str(model_path)
-    print(f"모델 로드 중: {model_path}")
-    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        trust_remote_code=True,
-        dtype=torch.bfloat16,
-    )
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    model = model.to(device)
-    model.eval()
-    print(f"모델 로드 완료. (device: {device})")
-    return model, tokenizer
-
-
-# ---------------------------------------------------------------------------
 # 추론
 # ---------------------------------------------------------------------------
 
-def build_prompt(user_text: str, tokenizer) -> str:
-    """user_prompt 텍스트로 chat 프롬프트를 구성합니다."""
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_text},
-    ]
-    return tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
-
-
 def extract_json_from_output(text: str) -> Any | None:
     """
-    모델 출력 (<think>...</think>\n{json}) 에서 JSON 객체를 파싱합니다.
+    모델 출력에서 JSON 객체를 파싱합니다.
     성공 시 dict/list 반환, 실패 시 None 반환.
     """
-    # </think> 이후 텍스트만 사용
-    parts = re.split(r"</think>", text, maxsplit=1)
-    content = parts[-1].strip()
+    content = text.strip()
 
     # ```json ... ``` 코드 블록 우선 시도
     m = re.search(r"```json\s*([\s\S]+?)\s*```", content)
@@ -90,26 +55,20 @@ def extract_json_from_output(text: str) -> Any | None:
     return None
 
 
-def run_inference(model, tokenizer, user_text: str, max_new_tokens: int = 4096) -> dict:
+def run_inference(client: OpenAI, model: str, user_text: str) -> dict:
     """
-    user_prompt 텍스트 → 모델 → { "raw_output", "json_obj" } 반환.
+    user_prompt 텍스트 → OpenAI API → { "raw_output", "json_obj" } 반환.
     json_obj: 파싱된 dict 또는 None.
     """
-    prompt = build_prompt(user_text, tokenizer)
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_text},
+        ],
+    )
 
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
-            temperature=None,
-            top_p=None,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-
-    generated_ids = outputs[0][inputs["input_ids"].shape[1]:]
-    raw_output = tokenizer.decode(generated_ids, skip_special_tokens=True)
+    raw_output = response.choices[0].message.content or ""
     json_obj = extract_json_from_output(raw_output)
 
     return {"raw_output": raw_output, "json_obj": json_obj}
@@ -119,7 +78,7 @@ def run_inference(model, tokenizer, user_text: str, max_new_tokens: int = 4096) 
 # 파일 처리
 # ---------------------------------------------------------------------------
 
-def process_file(file_path: Path, model, tokenizer, output_dir: Path, max_new_tokens: int = 4096) -> None:
+def process_file(file_path: Path, client: OpenAI, model: str, output_dir: Path) -> None:
     stem = file_path.stem
     out_json = output_dir / f"{stem}.json"
 
@@ -129,7 +88,7 @@ def process_file(file_path: Path, model, tokenizer, output_dir: Path, max_new_to
 
     print(f"[PROCESSING] {file_path.name}")
     user_text = file_path.read_text(encoding="utf-8")
-    result = run_inference(model, tokenizer, user_text, max_new_tokens=max_new_tokens)
+    result = run_inference(client, model, user_text)
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -150,18 +109,20 @@ def process_file(file_path: Path, model, tokenizer, output_dir: Path, max_new_to
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="로컬 모델로 user_prompt → JSON 추론")
-    parser.add_argument("--model", default="model/qwen3-0.6b-finetuned", help="모델 경로")
+    parser = argparse.ArgumentParser(description="OpenAI API로 user_prompt → JSON 추론")
+    parser.add_argument("--model", default="gpt-4o-mini", help="OpenAI 모델 이름")
     parser.add_argument("--input", default=None, help="txt 파일 또는 디렉토리 (기본: data/user_prompt/)")
     parser.add_argument("--output", default="data/json_infer", help="출력 디렉토리")
-    parser.add_argument("--max-new-tokens", type=int, default=4096)
     args = parser.parse_args()
 
-    model_path = PROJECT_ROOT / args.model
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        print("[ERROR] OPENAI_API_KEY 환경변수가 설정되지 않았습니다.")
+        sys.exit(1)
+
+    client = OpenAI(api_key=api_key)
     output_dir = PROJECT_ROOT / args.output
     input_path = Path(args.input) if args.input else PROJECT_ROOT / "data" / "user_prompt"
-
-    model, tokenizer = load_model(model_path)
 
     if input_path.is_file():
         files = [input_path]
@@ -171,9 +132,9 @@ def main():
         print(f"[ERROR] 경로를 찾을 수 없음: {input_path}")
         sys.exit(1)
 
-    print(f"\n총 {len(files)}개 파일 처리 시작\n")
+    print(f"\n총 {len(files)}개 파일 처리 시작 (model: {args.model})\n")
     for file_path in files:
-        process_file(file_path, model, tokenizer, output_dir, max_new_tokens=args.max_new_tokens)
+        process_file(file_path, client, args.model, output_dir)
     print("\n모든 파일 처리 완료.")
 
 
