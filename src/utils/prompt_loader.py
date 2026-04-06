@@ -5,13 +5,15 @@ from pathlib import Path
 
 def find_project_root(start: Path | None = None) -> Path:
     """
-    Find project root by walking upward until pyproject.toml (preferred) or .git is found.
+    Find project root by walking upward until pyproject.toml or .git is found.
+    Falls back to the directory two levels above this file (src/utils/ -> project root).
     """
     here = (start or Path(__file__)).resolve()
     for p in [here, *here.parents]:
         if (p / "pyproject.toml").exists() or (p / ".git").exists():
             return p
-    raise FileNotFoundError("Project root not found (pyproject.toml or .git missing).")
+    # fallback: src/utils/prompt_loader.py -> project root
+    return Path(__file__).resolve().parent.parent.parent
 
 PROJECT_ROOT = find_project_root()
 PROMPT_DIR = PROJECT_ROOT / "prompt"
