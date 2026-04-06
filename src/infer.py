@@ -4,7 +4,8 @@
 사용법:
     python src/infer.py                          # data/user_prompt/ 전체 처리
     python src/infer.py --input data/user_prompt/data1.txt
-    python src/infer.py --model model/qwen3-0.6b-finetuned
+    python src/infer.py --model models/qwen3-0.6b-finetuned
+    python src/infer.py --batch-size 32          # 배치 크기 조정
 """
 from __future__ import annotations
 
@@ -33,10 +34,14 @@ def load_model(model_path: str | Path):
     model_path = str(model_path)
     print(f"모델 로드 중: {model_path}")
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"  # 배치 생성 시 left padding 필요
+
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         trust_remote_code=True,
-        dtype=torch.bfloat16,
+        torch_dtype=torch.bfloat16,
     )
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     model = model.to(device)
@@ -50,7 +55,6 @@ def load_model(model_path: str | Path):
 # ---------------------------------------------------------------------------
 
 def build_prompt(user_text: str, tokenizer) -> str:
-    """user_prompt 텍스트로 chat 프롬프트를 구성합니다."""
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_text},
@@ -63,15 +67,9 @@ def build_prompt(user_text: str, tokenizer) -> str:
 
 
 def extract_json_from_output(text: str) -> Any | None:
-    """
-    모델 출력 (<think>...</think>\n{json}) 에서 JSON 객체를 파싱합니다.
-    성공 시 dict/list 반환, 실패 시 None 반환.
-    """
-    # </think> 이후 텍스트만 사용
     parts = re.split(r"</think>", text, maxsplit=1)
     content = parts[-1].strip()
 
-    # ```json ... ``` 코드 블록 우선 시도
     m = re.search(r"```json\s*([\s\S]+?)\s*```", content)
     if m:
         try:
@@ -79,7 +77,6 @@ def extract_json_from_output(text: str) -> Any | None:
         except json.JSONDecodeError:
             pass
 
-    # 첫 번째 { ... } 블록 추출
     m2 = re.search(r"(\{[\s\S]*\})", content)
     if m2:
         try:
@@ -90,13 +87,19 @@ def extract_json_from_output(text: str) -> Any | None:
     return None
 
 
-def run_inference(model, tokenizer, user_text: str, max_new_tokens: int = 4096) -> dict:
+def run_batch_inference(
+    model, tokenizer, user_texts: list[str], max_new_tokens: int = 4096
+) -> list[dict]:
     """
-    user_prompt 텍스트 → 모델 → { "raw_output", "json_obj" } 반환.
-    json_obj: 파싱된 dict 또는 None.
+    여러 user_prompt를 배치로 추론합니다.
     """
-    prompt = build_prompt(user_text, tokenizer)
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    prompts = [build_prompt(t, tokenizer) for t in user_texts]
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+    ).to(model.device)
 
     with torch.no_grad():
         outputs = model.generate(
@@ -108,41 +111,45 @@ def run_inference(model, tokenizer, user_text: str, max_new_tokens: int = 4096) 
             pad_token_id=tokenizer.eos_token_id,
         )
 
-    generated_ids = outputs[0][inputs["input_ids"].shape[1]:]
-    raw_output = tokenizer.decode(generated_ids, skip_special_tokens=True)
-    json_obj = extract_json_from_output(raw_output)
-
-    return {"raw_output": raw_output, "json_obj": json_obj}
+    input_len = inputs["input_ids"].shape[1]
+    results = []
+    for output in outputs:
+        raw_output = tokenizer.decode(output[input_len:], skip_special_tokens=True)
+        results.append({
+            "raw_output": raw_output,
+            "json_obj": extract_json_from_output(raw_output),
+        })
+    return results
 
 
 # ---------------------------------------------------------------------------
 # 파일 처리
 # ---------------------------------------------------------------------------
 
-def process_file(file_path: Path, model, tokenizer, output_dir: Path, max_new_tokens: int = 4096) -> None:
-    stem = file_path.stem
-    out_json = output_dir / f"{stem}.json"
-
-    if out_json.exists():
-        print(f"[SKIP] {stem}: 이미 존재함")
-        return
-
-    print(f"[PROCESSING] {file_path.name}")
-    user_text = file_path.read_text(encoding="utf-8")
-    result = run_inference(model, tokenizer, user_text, max_new_tokens=max_new_tokens)
-
+def process_batch(
+    file_paths: list[Path],
+    model,
+    tokenizer,
+    output_dir: Path,
+    max_new_tokens: int = 4096,
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir = output_dir.parent / "json_infer_raw"
 
-    if result["json_obj"] is not None:
-        out_json.write_text(
-            json.dumps(result["json_obj"], ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-        print(f"  [OK] {out_json}")
-    else:
-        raw_dir = output_dir.parent / "json_infer_raw"
-        raw_dir.mkdir(parents=True, exist_ok=True)
-        (raw_dir / f"{stem}.txt").write_text(result["raw_output"], encoding="utf-8")
-        print(f"  [WARN] JSON 파싱 실패. raw 저장: {raw_dir / f'{stem}.txt'}")
+    user_texts = [p.read_text(encoding="utf-8") for p in file_paths]
+    results = run_batch_inference(model, tokenizer, user_texts, max_new_tokens=max_new_tokens)
+
+    for file_path, result in zip(file_paths, results):
+        stem = file_path.stem
+        if result["json_obj"] is not None:
+            (output_dir / f"{stem}.json").write_text(
+                json.dumps(result["json_obj"], ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            print(f"  [OK] {stem}")
+        else:
+            raw_dir.mkdir(parents=True, exist_ok=True)
+            (raw_dir / f"{stem}.txt").write_text(result["raw_output"], encoding="utf-8")
+            print(f"  [WARN] {stem}: JSON 파싱 실패. raw 저장")
 
 
 # ---------------------------------------------------------------------------
@@ -150,11 +157,12 @@ def process_file(file_path: Path, model, tokenizer, output_dir: Path, max_new_to
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="로컬 모델로 user_prompt → JSON 추론")
-    parser.add_argument("--model", default="model/qwen3-0.6b-finetuned", help="모델 경로")
+    parser = argparse.ArgumentParser(description="로컬 모델로 user_prompt → JSON 배치 추론")
+    parser.add_argument("--model", default="models/qwen3-0.6b-finetuned", help="모델 경로")
     parser.add_argument("--input", default=None, help="txt 파일 또는 디렉토리 (기본: data/user_prompt/)")
     parser.add_argument("--output", default="data/json_infer", help="출력 디렉토리")
     parser.add_argument("--max-new-tokens", type=int, default=4096)
+    parser.add_argument("--batch-size", type=int, default=32, help="배치 크기 (기본: 32)")
     args = parser.parse_args()
 
     model_path = PROJECT_ROOT / args.model
@@ -164,16 +172,26 @@ def main():
     model, tokenizer = load_model(model_path)
 
     if input_path.is_file():
-        files = [input_path]
+        all_files = [input_path]
     elif input_path.is_dir():
-        files = sorted(input_path.glob("*.txt"))
+        all_files = sorted(input_path.glob("*.txt"))
     else:
         print(f"[ERROR] 경로를 찾을 수 없음: {input_path}")
         sys.exit(1)
 
-    print(f"\n총 {len(files)}개 파일 처리 시작\n")
-    for file_path in files:
-        process_file(file_path, model, tokenizer, output_dir, max_new_tokens=args.max_new_tokens)
+    # 이미 처리된 파일 스킵
+    files = [f for f in all_files if not (output_dir / f"{f.stem}.json").exists()]
+    skipped = len(all_files) - len(files)
+    if skipped:
+        print(f"[SKIP] 이미 처리된 {skipped}개 파일 건너뜀")
+
+    print(f"\n총 {len(files)}개 파일 처리 시작 (batch_size={args.batch_size})\n")
+
+    for i in range(0, len(files), args.batch_size):
+        batch = files[i:i + args.batch_size]
+        print(f"[{i + 1}~{min(i + args.batch_size, len(files))}/{len(files)}] 처리 중...")
+        process_batch(batch, model, tokenizer, output_dir, max_new_tokens=args.max_new_tokens)
+
     print("\n모든 파일 처리 완료.")
 
 
