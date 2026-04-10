@@ -9,7 +9,7 @@ stage: sft
 do_train: true
 disable_shuffling: false
 finetuning_type: full
-deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z0_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
+deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z2_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
 
 ### dataset
 dataset_dir: /LLaMA-Factory/data  # prepare_dataset.ipynb가 dataset_info.json을 등록하는 위치
@@ -19,7 +19,7 @@ template: qwen3
 # from src.llamafactory.data.template import TEMPLATES
 # for name in sorted(TEMPLATES.keys()):
 #     print(name)
-cutoff_len: 16384 # 8192, 8192*4, 8192*2
+cutoff_len: 4096 # OOM 발생 시 줄이기: 16384 → 8192 → 4096
 max_samples: 50000
 preprocessing_num_workers: 16
 dataloader_num_workers: 4
@@ -30,7 +30,7 @@ logging_steps: 1
 save_steps: 500
 plot_loss: true
 overwrite_output_dir: true
-save_only_model: false
+save_only_model: true  # optimizer state 저장 스킵 (디스크 절약)
 report_to: wandb # choices: [none, wandb, tensorboard, swanlab, mlflow]
 
 ### train
@@ -51,7 +51,7 @@ optim: adamw_torch_fused #adam -> adamw -> adafactor, 4bit-optim
 ### acceleration
 flash_attn: fa2
 enable_liger_kernel: true
-disable_gradient_checkpointing: true
+disable_gradient_checkpointing: false # 24GB GPU에서 4B full 학습 시 메모리 절약 필요
 
 ### eval
 # eval_dataset: alpaca_en_demo
