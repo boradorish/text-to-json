@@ -12,6 +12,7 @@ finetuning_type: full
 deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z0_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
 
 ### dataset
+dataset_dir: /LLaMA-Factory/data  # prepare_dataset.ipynb가 dataset_info.json을 등록하는 위치
 dataset: sunny_reasoning
 template: qwen3
 # full list of available chat-templates

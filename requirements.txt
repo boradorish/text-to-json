@@ -20,7 +20,8 @@ accelerate>=0.27       # transformers 학습 가속
 # unsloth는 pip로 직접 설치:
 #   pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 deepspeed>=0.9.3       # LLaMA-Factory 학습 시 필요
-wandb>=0.16            # finetune_unsloth.py 로깅 (선택)
+liger-kernel           # LLaMA-Factory enable_liger_kernel 옵션 사용 시 필요
+wandb>=0.16            # 학습 로깅 (선택)
 
 # ── Web crawling ──────────────────────────────────────────────────────────────
 requests>=2.31
