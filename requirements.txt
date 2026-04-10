@@ -1,0 +1,32 @@
+# ── Core data processing ──────────────────────────────────────────────────────
+pandas>=2.0
+openpyxl>=3.1          # pandas Excel 읽기/쓰기
+tabulate>=0.9          # DataFrame.to_markdown()
+
+# ── LLM API clients ───────────────────────────────────────────────────────────
+litellm>=1.0           # process_data.py, generate_user_prompts.py
+openai>=1.0            # evaluate.py (LLM-based evaluation)
+python-dotenv>=1.0
+
+# ── HuggingFace ───────────────────────────────────────────────────────────────
+huggingface-hub>=0.20  # get_model.py
+transformers>=4.40     # infer.py
+torch>=2.0             # infer.py, finetune_unsloth.py
+datasets>=2.0          # finetune_unsloth.py
+trl>=0.8               # finetune_unsloth.py (SFTTrainer)
+accelerate>=0.27       # transformers 학습 가속
+
+# ── Fine-tuning (선택) ────────────────────────────────────────────────────────
+# unsloth는 pip로 직접 설치:
+#   pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+wandb>=0.16            # finetune_unsloth.py 로깅 (선택)
+
+# ── Web crawling ──────────────────────────────────────────────────────────────
+requests>=2.31
+beautifulsoup4>=4.12   # crawling.py
+tqdm>=4.66
+playwright>=1.40       # crawling.py (chromium 자동화)
+serpapi>=0.1           # crawling_google.py
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+jsonschema>=4.20       # evaluate.py, validate_json_with_schema.py
