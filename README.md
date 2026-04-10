@@ -22,6 +22,7 @@ cp .env.example .env   # 없으면 아래 내용으로 직접 생성
 ```
 
 `.env` 파일:
+
 ```
 OPENAI_API_KEY=sk-...
 LLM_MODEL=gpt-4.1-mini
@@ -130,7 +131,10 @@ git clone https://github.com/hiyouga/LLaMA-Factory.git /LLaMA-Factory
 cd /LLaMA-Factory && pip install -e ".[torch,metrics]"
 
 # 추가 패키지 설치 (wandb, liger-kernel 등)
-bash /path/to/text-to-json/src/train/extra_install.sh
+bash /workspace/text-to-json/src/train/extra_install.sh
+
+# wandb 로그인 (학습 로그 기록용, 최초 1회)
+wandb login  # 프롬프트에 API 키 입력 (https://wandb.ai/authorize 에서 발급)
 
 # 학습 실행 (DeepSpeed는 FORCE_TORCHRUN=1 필수)
 FORCE_TORCHRUN=1 llamafactory-cli train /workspace/text-to-json/src/train/qwen3_4B_full_guide.yaml
@@ -138,13 +142,13 @@ FORCE_TORCHRUN=1 llamafactory-cli train /workspace/text-to-json/src/train/qwen3_
 
 주요 YAML 설정:
 
-| 항목 | 기본값 | 설명 |
-|------|--------|------|
-| `model_name_or_path` | `Qwen/Qwen3-1.7B` | 베이스 모델 |
-| `dataset` | `sunny_reasoning` | 학습 데이터셋 이름 |
-| `output_dir` | `saves/qwen3-4b/full/sft` | 체크포인트 저장 위치 |
-| `num_train_epochs` | `3.0` | 에폭 수 |
-| `deepspeed` | `ds_z0_config.json` | 1.7B: z0 / 4B+: z2 권장 |
+| 항목                 | 기본값                    | 설명                    |
+| -------------------- | ------------------------- | ----------------------- |
+| `model_name_or_path` | `Qwen/Qwen3-1.7B`         | 베이스 모델             |
+| `dataset`            | `sunny_reasoning`         | 학습 데이터셋 이름      |
+| `output_dir`         | `saves/qwen3-4b/full/sft` | 체크포인트 저장 위치    |
+| `num_train_epochs`   | `3.0`                     | 에폭 수                 |
+| `deepspeed`          | `ds_z0_config.json`       | 1.7B: z0 / 4B+: z2 권장 |
 
 ---
 
@@ -183,6 +187,7 @@ python src/infer.py \
 ```
 
 출력:
+
 - `data/json_infer/{stem}.json` — JSON 파싱 성공
 - `data/json_infer_raw/{stem}.txt` — 파싱 실패 시 raw 텍스트
 
@@ -207,14 +212,14 @@ python src/utils/evaluate.py --llm --llm-model gpt-4o-mini
 
 출력 메트릭:
 
-| 메트릭 | 설명 |
-|--------|------|
-| `no_output_rate` | JSON 파싱 실패 비율 |
-| `exact_match_rate` | 정답과 완전히 동일한 비율 |
-| `schema_match_rate` | JSON Schema 검증 통과 비율 |
-| `mean_noise_ratio` | Schema에 없는 여분 key 비율 |
+| 메트릭                  | 설명                           |
+| ----------------------- | ------------------------------ |
+| `no_output_rate`        | JSON 파싱 실패 비율            |
+| `exact_match_rate`      | 정답과 완전히 동일한 비율      |
+| `schema_match_rate`     | JSON Schema 검증 통과 비율     |
+| `mean_noise_ratio`      | Schema에 없는 여분 key 비율    |
 | `mean_value_match_rule` | leaf value 정확 매칭 비율 평균 |
-| `mean_value_match_llm` | LLM 채점 결과 (0–1 정규화) |
+| `mean_value_match_llm`  | LLM 채점 결과 (0–1 정규화)     |
 
 결과는 `data/eval_result.json` 에 저장됩니다.
 
@@ -227,8 +232,8 @@ python src/utils/evaluate.py --llm --llm-model gpt-4o-mini
 ```json
 {
   "messages": [
-    { "role": "system",    "content": "<json_SYSTEM_prompt>" },
-    { "role": "user",      "content": "<user_prompt 텍스트>" },
+    { "role": "system", "content": "<json_SYSTEM_prompt>" },
+    { "role": "user", "content": "<user_prompt 텍스트>" },
     { "role": "assistant", "content": "<think>\n{report}\n</think>\n{json}" }
   ]
 }
@@ -238,8 +243,8 @@ python src/utils/evaluate.py --llm --llm-model gpt-4o-mini
 
 ## HuggingFace 리소스
 
-| 종류 | 경로 |
-|------|------|
-| 데이터셋 | [boradorish/text-to-json-data](https://huggingface.co/datasets/boradorish/text-to-json-data) |
-| 모델 (0.6B) | [boradorish/qwen3-0.6b-finetuned](https://huggingface.co/boradorish/qwen3-0.6b-finetuned) |
-| 모델 (4B) | [boradorish/qwen3-4b-finetuned](https://huggingface.co/boradorish/qwen3-4b-finetuned) |
+| 종류        | 경로                                                                                         |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| 데이터셋    | [boradorish/text-to-json-data](https://huggingface.co/datasets/boradorish/text-to-json-data) |
+| 모델 (0.6B) | [boradorish/qwen3-0.6b-finetuned](https://huggingface.co/boradorish/qwen3-0.6b-finetuned)    |
+| 모델 (4B)   | [boradorish/qwen3-4b-finetuned](https://huggingface.co/boradorish/qwen3-4b-finetuned)        |
