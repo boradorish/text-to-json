@@ -133,8 +133,9 @@ cd /LLaMA-Factory && pip install -e ".[torch,metrics]"
 bash /path/to/text-to-json/src/train/extra_install.sh
 
 # 학습 실행
+# yaml의 deepspeed 경로가 LLaMA-Factory 기준 상대경로이므로 /LLaMA-Factory에서 실행
 cd /LLaMA-Factory
-llamafactory-cli train /path/to/text-to-json/src/train/qwen3_4B_full_guide.yaml
+llamafactory-cli train /workspace/text-to-json/src/train/qwen3_4B_full_guide.yaml
 ```
 
 주요 YAML 설정:

@@ -9,7 +9,7 @@ stage: sft
 do_train: true
 disable_shuffling: false
 finetuning_type: full
-deepspeed: examples/deepspeed/ds_z0_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
+deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z0_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
 
 ### dataset
 dataset: sunny_reasoning
