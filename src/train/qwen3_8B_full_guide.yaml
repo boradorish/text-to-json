@@ -9,13 +9,13 @@ stage: sft
 do_train: true
 disable_shuffling: false
 finetuning_type: full
-deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z2_config.json # 8B는 z2 권장
+deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z2_config.json
 
 ### dataset
 dataset_dir: /LLaMA-Factory/data
 dataset: sunny_reasoning
 template: qwen3
-cutoff_len: 16384
+cutoff_len: 8192 # OOM 시 4096으로 줄이기
 max_samples: 20000
 preprocessing_num_workers: 16
 dataloader_num_workers: 4
@@ -31,7 +31,7 @@ report_to: wandb
 
 ### train
 per_device_train_batch_size: 1
-gradient_accumulation_steps: 4 # effective batch = 1 x GPU수 x 4
+gradient_accumulation_steps: 4 # effective batch = 1 x 2 x 4 = 8
 learning_rate: 2.0e-5
 num_train_epochs: 3.0
 lr_scheduler_type: cosine
@@ -44,7 +44,7 @@ optim: adamw_torch_fused
 ### acceleration
 flash_attn: fa2
 enable_liger_kernel: true
-disable_gradient_checkpointing: false # 8B는 메모리 절약을 위해 gradient checkpointing 활성화
+disable_gradient_checkpointing: false
 
 ### eval
 val_size: 0.05
