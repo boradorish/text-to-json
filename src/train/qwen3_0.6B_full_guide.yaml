@@ -1,7 +1,7 @@
 ### arguments: https://llamafactory.readthedocs.io/en/latest/advanced/arguments.html
 
 ### model
-model_name_or_path: Qwen/Qwen3-1.7B
+model_name_or_path: Qwen/Qwen3-0.6B
 trust_remote_code: true
 
 ### method
@@ -12,7 +12,7 @@ finetuning_type: full
 deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z2_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
 
 ### dataset
-dataset_dir: /LLaMA-Factory/data  # prepare_dataset.ipynb가 dataset_info.json을 등록하는 위치
+dataset_dir: /LLaMA-Factory/data # prepare_dataset.ipynb가 dataset_info.json을 등록하는 위치
 dataset: sunny_reasoning
 template: qwen3
 # full list of available chat-templates
@@ -25,12 +25,12 @@ preprocessing_num_workers: 16
 dataloader_num_workers: 4
 
 ### output
-output_dir: saves/qwen3-4b/full/sft
+output_dir: saves/qwen3-0.6b/full/sft
 logging_steps: 1
 save_steps: 500
 plot_loss: true
 overwrite_output_dir: true
-save_only_model: true  # optimizer state 저장 스킵 (디스크 절약)
+save_only_model: true # optimizer state 저장 스킵 (디스크 절약)
 report_to: wandb # choices: [none, wandb, tensorboard, swanlab, mlflow]
 
 ### train

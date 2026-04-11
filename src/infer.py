@@ -163,6 +163,7 @@ def main():
     parser.add_argument("--output", default="data/json_infer", help="출력 디렉토리")
     parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--batch-size", type=int, default=32, help="배치 크기 (기본: 32)")
+    parser.add_argument("--test-only", action="store_true", help="data/test_stems.txt에 있는 파일만 추론")
     args = parser.parse_args()
 
     model_path = PROJECT_ROOT / args.model
@@ -178,6 +179,16 @@ def main():
     else:
         print(f"[ERROR] 경로를 찾을 수 없음: {input_path}")
         sys.exit(1)
+
+    # test_stems.txt 필터링
+    if args.test_only:
+        test_stems_path = PROJECT_ROOT / "data" / "test_stems.txt"
+        if not test_stems_path.exists():
+            print(f"[ERROR] test_stems.txt 없음: {test_stems_path}")
+            sys.exit(1)
+        test_stems = set(test_stems_path.read_text(encoding="utf-8").splitlines())
+        all_files = [f for f in all_files if f.stem in test_stems]
+        print(f"[TEST] test_stems.txt 기준 {len(all_files)}개 파일 필터링")
 
     # 이미 처리된 파일 스킵
     files = [f for f in all_files if not (output_dir / f"{f.stem}.json").exists()]
