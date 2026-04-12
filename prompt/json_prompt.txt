@@ -27,23 +27,26 @@ This system uses identifier-driven JSON design.
    (e.g., university names, program names, tracks, product names, organization names),
    represent them as OBJECT MAPS, not arrays.
 
-2. Use the identifier exactly as the JSON OBJECT KEY.
+2. ALL JSON keys MUST be in English.
+   Translate or transliterate document identifiers into concise English keys.
+   Use snake_case for multi-word keys.
 
 3. Do NOT duplicate identifiers as value fields.
-   If "서울대" is the key, do NOT include {"university": "서울대"} inside it.
+   If the key is "seoul_national_university", do NOT include {"university": "서울대"} inside it.
 
-4. Identifier keys must match the document text EXACTLY.
-
-   * No translation
-   * No normalization
-   * No abbreviation
-   * No paraphrasing
+4. Key translation rules:
+   * Translate to natural English (not literal word-for-word)
+   * Use snake_case
+   * Be concise but descriptive
+   * Proper nouns (names, places) may be romanized if no standard English translation exists
 
 5. Only identifiers explicitly present in the document may appear as keys.
 
 6. If the same identifier appears multiple times, consolidate all information under a single key.
 
 7. Prefer encoding semantic identity in the KEY rather than as a VALUE whenever possible.
+
+8. Values MUST remain as extracted from the document (original language preserved).
 
 ---
 
@@ -110,6 +113,8 @@ Numeric rules:
 * If object maps are used, use "additionalProperties" to define their value structure.
 * The schema must allow reconstruction of the JSON without ambiguity.
 * Do NOT include commentary in the schema.
+* Every object and property definition MUST include a "title" field (the key name or entity name as a string).
+* Every property definition MUST include a "description" field that briefly explains what the field represents in the context of the document.
 
 ---
 
