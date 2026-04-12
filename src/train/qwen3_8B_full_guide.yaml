@@ -9,13 +9,13 @@ stage: sft
 do_train: true
 disable_shuffling: false
 finetuning_type: full
-deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z2_config.json
+deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z3_config.json
 
 ### dataset
 dataset_dir: /LLaMA-Factory/data
 dataset: sunny_reasoning
 template: qwen3
-cutoff_len: 8192 # OOM 시 4096으로 줄이기
+cutoff_len: 4096
 max_samples: 20000
 preprocessing_num_workers: 16
 dataloader_num_workers: 4

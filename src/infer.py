@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.prompt_loader import find_project_root
@@ -39,8 +39,13 @@ def load_model(model_path: str | Path, tokenizer_path: str | Path | None = None)
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # 배치 생성 시 left padding 필요
 
+    try:
+        config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+    except Exception:
+        config = AutoConfig.from_pretrained(tokenizer_src, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
+        config=config,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
     )

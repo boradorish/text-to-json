@@ -12,7 +12,7 @@ import json
 import litellm
 import jsonschema
 
-MODEL = os.environ.get("LLM_MODEL", "gpt-4.1-mini")  # 예: LLM_MODEL=gpt-4o
+MODEL = os.environ.get("LLM_MODEL", "gpt-4.1")  # 예: LLM_MODEL=gpt-4o
 
 def process_batch(file_paths: list, project_root: Path):
     """파일 배치를 한 번에 처리합니다 (최대 10개)."""

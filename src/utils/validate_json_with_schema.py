@@ -135,35 +135,35 @@ def validate_json_files_with_schemas(
     print(f"  - ❌ 유효하지 않은 파일: {len(invalid_files)}개")
     print(f"  - ❓ 스키마 없음: {len(missing_schema_files)}개")
 
-    if invalid_files:
-        print("\n[유효하지 않은 파일 상세 정보]")
-        for path, error in invalid_files:
-            print(f"  - 파일: {path.name}")
-            print(f"    오류: {error[:200]}...") # 오류 메시지가 길 경우 일부만 표시
+    # if invalid_files:
+    #     print("\n[유효하지 않은 파일 상세 정보]")
+    #     for path, error in invalid_files:
+    #         print(f"  - 파일: {path.name}")
+    #         print(f"    오류: {error[:200]}...") # 오류 메시지가 길 경우 일부만 표시
 
-    if missing_schema_files:
-        print("\n[짝이 되는 스키마를 찾을 수 없는 파일]")
-        for path in missing_schema_files:
-            print(f"  - {path.name}")
+    # if missing_schema_files:
+    #     print("\n[짝이 되는 스키마를 찾을 수 없는 파일]")
+    #     for path in missing_schema_files:
+    #         print(f"  - {path.name}")
 
-    if delete_invalid and invalid_files:
-        invalid_paths = [path for path, _ in invalid_files]
-        deleted_files.extend(_delete_related_files(
-            invalid_paths,
-            schema_dir=schema_p,
-            report_dir=report_p,
-            dry_run=dry_run,
-            label="유효하지 않은 파일",
-        ))
+    # if delete_invalid and invalid_files:
+    #     invalid_paths = [path for path, _ in invalid_files]
+    #     deleted_files.extend(_delete_related_files(
+    #         invalid_paths,
+    #         schema_dir=schema_p,
+    #         report_dir=report_p,
+    #         dry_run=dry_run,
+    #         label="유효하지 않은 파일",
+    #     ))
 
-    if delete_missing and missing_schema_files:
-        deleted_files.extend(_delete_related_files(
-            missing_schema_files,
-            schema_dir=None,
-            report_dir=report_p,
-            dry_run=dry_run,
-            label="스키마 없는 파일",
-        ))
+    # if delete_missing and missing_schema_files:
+    #     deleted_files.extend(_delete_related_files(
+    #         missing_schema_files,
+    #         schema_dir=None,
+    #         report_dir=report_p,
+    #         dry_run=dry_run,
+    #         label="스키마 없는 파일",
+    #     ))
 
     if dry_run:
         print("\n[dry_run=True] 실제 파일 변경/삭제는 이루어지지 않았습니다.")
