@@ -30,10 +30,11 @@ SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "json_SYSTEM_prompt.txt").read_text(e
 # 모델 로드
 # ---------------------------------------------------------------------------
 
-def load_model(model_path: str | Path):
+def load_model(model_path: str | Path, tokenizer_path: str | Path | None = None):
     model_path = str(model_path)
+    tokenizer_src = str(tokenizer_path) if tokenizer_path else model_path
     print(f"모델 로드 중: {model_path}")
-    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_src, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # 배치 생성 시 left padding 필요
@@ -158,7 +159,8 @@ def process_batch(
 
 def main():
     parser = argparse.ArgumentParser(description="로컬 모델로 user_prompt → JSON 배치 추론")
-    parser.add_argument("--model", default="models/qwen3-0.6b-finetuned", help="모델 경로")
+    parser.add_argument("--model", default="models/qwen3-0.6b-finetuned", help="모델 경로 또는 HF repo ID")
+    parser.add_argument("--tokenizer", default=None, help="토크나이저 경로 또는 HF repo ID (미지정 시 --model과 동일)")
     parser.add_argument("--input", default=None, help="txt 파일 또는 디렉토리 (기본: data/user_prompt/)")
     parser.add_argument("--output", default="data/json_infer", help="출력 디렉토리")
     parser.add_argument("--max-new-tokens", type=int, default=4096)
@@ -166,11 +168,16 @@ def main():
     parser.add_argument("--test-only", action="store_true", help="data/test_stems.txt에 있는 파일만 추론")
     args = parser.parse_args()
 
-    model_path = PROJECT_ROOT / args.model
+    _model_arg = Path(args.model)
+    if _model_arg.is_absolute() or _model_arg.exists():
+        model_path = _model_arg
+    else:
+        local_path = PROJECT_ROOT / args.model
+        model_path = local_path if local_path.exists() else args.model
     output_dir = PROJECT_ROOT / args.output
     input_path = Path(args.input) if args.input else PROJECT_ROOT / "data" / "user_prompt"
 
-    model, tokenizer = load_model(model_path)
+    model, tokenizer = load_model(model_path, tokenizer_path=args.tokenizer)
 
     if input_path.is_file():
         all_files = [input_path]
