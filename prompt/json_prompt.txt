@@ -12,48 +12,29 @@ The JSON must be fully derivable from the document text alone.
 ## GENERAL CONSTRAINTS
 
 * Do NOT introduce facts, interpretations, inferred categories, reorganizations, or summaries.
-* Every element included in the JSON must be explicitly grounded in the document.
+* Every value included in the JSON must be explicitly grounded in the document.
 * If information is not explicitly stated, omit it entirely.
 * Do not fabricate values.
-* Do not normalize, translate, or reinterpret identifiers.
 
 ---
 
-## KEY-AS-IDENTITY RULES (MANDATORY)
+## KEY RULES (MANDATORY)
 
-This system uses identifier-driven JSON design.
+1. ALL JSON keys MUST be in English using snake_case.
+   * Translate document field names to natural English (not literal word-for-word).
+   * Keys do NOT need to appear in the document — descriptive English keys are allowed and preferred.
+   * Proper nouns (names, places) used as keys may be romanized if no standard English exists.
 
-1. Whenever the document contains repeated entities with explicit identifiers
-   (e.g., university names, program names, tracks, product names, organization names),
-   represent them as OBJECT MAPS, not arrays.
+2. Values MUST remain as extracted from the document (original language preserved).
 
-2. ALL JSON keys MUST be in English.
-   Translate or transliterate document identifiers into concise English keys.
-   Use snake_case for multi-word keys.
-
-3. Do NOT duplicate identifiers as value fields.
-   If the key is "seoul_national_university", do NOT include {"university": "서울대"} inside it.
-
-4. Key translation rules:
-   * Translate to natural English (not literal word-for-word)
-   * Use snake_case
-   * Be concise but descriptive
-   * Proper nouns (names, places) may be romanized if no standard English translation exists
-
-5. Only identifiers explicitly present in the document may appear as keys.
-
-6. If the same identifier appears multiple times, consolidate all information under a single key.
-
-7. Prefer encoding semantic identity in the KEY rather than as a VALUE whenever possible.
-
-8. Values MUST remain as extracted from the document (original language preserved).
+3. If the same concept appears multiple times, consolidate all information under a single key.
 
 ---
 
 ## STRUCTURE RULES
 
-* Avoid arrays unless the document explicitly requires ordered sequences.
-* Repeated conceptual entities must be modeled as object maps keyed by explicit identifiers.
+* Use arrays for ordered or repeated items (e.g., rows in a table, list of entries).
+* Use objects when items have named fields or a clear key-value structure.
 * Structure must be deterministic.
   Independent implementations must produce identical JSON from the same document.
 * Do not introduce structural grouping not explicitly supported by the document.
@@ -128,8 +109,8 @@ Before finalizing the response, internally verify:
 4. There is no text before the first header.
 5. There is no text after the schema.
 6. No Markdown or code fences exist.
-7. All identifier-as-key rules are respected.
-8. No arrays are used unless explicitly required by the document.
+7. All keys are in English snake_case.
+8. Arrays are used for ordered/repeated items; objects for named fields.
 9. No inferred data has been introduced.
 10. Every value is either:
 

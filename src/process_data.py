@@ -10,6 +10,7 @@ from utils.prompt_loader import load_json_generator_prompts, load_report_generat
 from utils.parsing_answer import parse_json_and_schema, replace_original_table_in_report
 import json
 import litellm
+import jsonschema
 
 MODEL = os.environ.get("LLM_MODEL", "gpt-4.1-mini")  # 예: LLM_MODEL=gpt-4o
 
@@ -59,6 +60,13 @@ def process_batch(file_paths: list, project_root: Path):
             report = replace_original_table_in_report(report_text, md_all)
 
             output_file_stem = file_path.stem
+
+            # JSON이 스키마에 맞는지 검증
+            try:
+                jsonschema.validate(instance=data["json_obj"], schema=data["json_schema"])
+            except (jsonschema.ValidationError, jsonschema.SchemaError) as e:
+                print(f"!!! 스키마 불일치 ({file_path.name}): {str(e)[:200]} !!!")
+                continue
 
             p_report = project_root / "data" / "report" / f"{output_file_stem}.txt"
             p_report.parent.mkdir(parents=True, exist_ok=True)
