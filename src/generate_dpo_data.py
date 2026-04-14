@@ -74,13 +74,14 @@ def load_model(model_path: str | Path, tokenizer_path: str | Path | None = None)
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
+    subfolder_kwargs = {"subfolder": subfolder} if subfolder else {}
     try:
-        config = AutoConfig.from_pretrained(repo_id, subfolder=subfolder, trust_remote_code=True)
+        config = AutoConfig.from_pretrained(repo_id, **subfolder_kwargs, trust_remote_code=True)
     except Exception:
         config = AutoConfig.from_pretrained(tokenizer_src, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         repo_id,
-        subfolder=subfolder,
+        **subfolder_kwargs,
         config=config,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,

@@ -11,7 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from litellm import batch_completion
 
-MODEL = "openai/gpt-4.1-mini"
+MODEL = "openai/gpt-4.1"
 
 PROMPT_GENERATION_SYSTEM_KR = """너는 데이터 추출 요청문을 작성하는 전문가야.
 아래에 어떤 문서에 대한 분석 보고서가 주어질 거야.
@@ -125,6 +125,6 @@ if __name__ == "__main__":
         PROJECT_ROOT = PROJECT_ROOT.parent
 
     MIN_ID = 0
-    MAX_ID = 40000
+    MAX_ID = 999999999
 
     generate_user_prompts(PROJECT_ROOT, min_id=MIN_ID, max_id=MAX_ID)
