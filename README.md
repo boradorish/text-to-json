@@ -39,6 +39,8 @@ text-to-json/
 ├── src/
 │   ├── process_data.py               # xlsx → report/JSON/Schema 생성 (API)
 │   ├── generate_user_prompts.py      # user_prompt 텍스트 생성 (API)
+│   ├── generate_rft_data.py          # Rejection Sampling SFT 데이터 생성
+│   ├── generate_dpo_data.py          # DPO 데이터 생성 (chosen/rejected 쌍)
 │   ├── get_model.py                  # HuggingFace에서 모델 다운로드
 │   ├── infer.py                      # 로컬 모델로 JSON 추론 (배치)
 │   ├── finetune_unsloth.py           # Unsloth LoRA 파인튜닝 (경량 대안)
@@ -47,6 +49,8 @@ text-to-json/
 │   │   ├── qwen3_0.6B_full_guide.yaml
 │   │   ├── qwen3_1.7B_full_guide.yaml
 │   │   ├── qwen3_8B_full_guide.yaml
+│   │   ├── qwen3_8B_rft.yaml         # Rejection Sampling SFT 학습 설정
+│   │   ├── qwen3_8B_dpo.yaml         # DPO 학습 설정
 │   │   └── extra_install.sh          # 서버 추가 패키지 설치
 │   └── utils/
 │       ├── parsing.py                # xlsx → 마크다운 변환
@@ -67,6 +71,10 @@ text-to-json/
 │   ├── json/                         # 정답 JSON (stem별 .json)
 │   ├── json_schema/                  # 정답 JSON Schema (stem별 .json)
 │   ├── json_infer/                   # 모델 추론 결과
+│   ├── rft/                          # Rejection Sampling SFT 학습 데이터
+│   │   └── sunny_rft.jsonl
+│   ├── dpo/                          # DPO 학습 데이터
+│   │   └── sunny_dpo.jsonl
 │   └── test_stems.txt                # 테스트셋 stem 목록 (prepare_dataset 생성)
 ├── download_from_hf.py               # HuggingFace 데이터셋 다운로드
 ├── upload_model_to_hf.py             # 학습된 모델 HuggingFace 업로드
@@ -84,7 +92,9 @@ text-to-json/
       ↓
 [학습 데이터]  prepare_dataset.ipynb → 80/20 split
       ↓
-[학습]         LLaMA-Factory (llamafactory-cli train)
+[1단계 학습]   LLaMA-Factory SFT (qwen3_*_full_guide.yaml)
+      ↓
+[스키마 강화]  RFT / DPO 데이터 생성 → 2단계 학습 (선택)
       ↓
 [모델 업로드]  upload_model_to_hf.py
       ↓
@@ -175,6 +185,63 @@ FORCE_TORCHRUN=1 llamafactory-cli train /workspace/text-to-json/src/train/qwen3_
 ```bash
 HF_TOKEN=hf_xxx python upload_model_to_hf.py
 ```
+
+---
+
+## 스키마 준수 강화: RFT / DPO (선택)
+
+SFT 모델이 JSON Schema를 잘 따르지 않는 경우, Rejection Sampling SFT 또는 DPO로 추가 학습할 수 있습니다.
+
+### Rejection Sampling SFT (RFT)
+
+학습된 모델로 여러 샘플을 생성하고, 스키마 검증을 통과한 것만 새 SFT 데이터로 활용합니다.
+
+```bash
+# 1. 데이터 생성 (스키마 통과한 샘플만 추출)
+python src/generate_rft_data.py \
+  --model saves/qwen3-8b/full/sft \
+  --num-samples 4 \
+  --batch-size 4 \
+  --max-prompts 5000
+
+# 2. 생성된 JSONL을 LLaMA-Factory에 등록 후 학습
+FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_8B_rft.yaml
+```
+
+출력: `data/rft/sunny_rft.jsonl`
+
+### DPO
+
+Gold 데이터를 chosen으로, 모델이 생성했지만 스키마 불통과한 출력을 rejected로 사용합니다.
+
+```bash
+# 1. chosen/rejected 쌍 생성
+python src/generate_dpo_data.py \
+  --model saves/qwen3-8b/full/sft \
+  --num-samples 8 \
+  --batch-size 2 \
+  --max-prompts 5000
+
+# 2. 생성된 JSONL을 LLaMA-Factory에 등록 후 학습
+#    qwen3_8B_dpo.yaml의 model_name_or_path를 SFT 체크포인트 경로로 수정
+FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_8B_dpo.yaml
+```
+
+출력: `data/dpo/sunny_dpo.jsonl`
+
+### LLaMA-Factory 데이터셋 등록
+
+두 스크립트 모두 실행 종료 시 `dataset_info.json`에 추가할 항목을 출력합니다. `/LLaMA-Factory/data/dataset_info.json`에 붙여넣고 JSONL 파일을 `/LLaMA-Factory/data/`에 복사하세요.
+
+### 파라미터 요약
+
+| 스크립트 | 주요 옵션 | 기본값 |
+|----------|-----------|--------|
+| `generate_rft_data.py` | `--num-samples` | 4 |
+| `generate_rft_data.py` | `--temperature` | 0.8 |
+| `generate_dpo_data.py` | `--num-samples` | 8 |
+| `generate_dpo_data.py` | `--temperature` | 0.9 |
+| `generate_dpo_data.py` | `--max-pairs-per-prompt` | 3 |
 
 ---
 

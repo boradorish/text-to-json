@@ -19,16 +19,18 @@ def _delete_related_files(
     *,
     schema_dir: Path | None,
     report_dir: Path | None,
+    user_prompt_dir: Path | None,
     dry_run: bool,
     label: str = "파일",
 ) -> list[Path]:
     """
-    주어진 JSON 파일 목록과 연관된 스키마/리포트 파일을 함께 삭제합니다.
+    주어진 JSON 파일 목록과 연관된 스키마/리포트/user_prompt 파일을 함께 삭제합니다.
 
     Args:
         files_to_delete: 삭제할 JSON 파일 목록.
         schema_dir: JSON 스키마 파일이 있는 디렉터리.
         report_dir: 리포트 파일이 있는 디렉터리.
+        user_prompt_dir: user_prompt 파일이 있는 디렉터리.
         dry_run: True이면 실제 삭제 없이 계획만 출력합니다.
         label: 출력 메시지에 사용할 레이블.
 
@@ -43,8 +45,9 @@ def _delete_related_files(
     for path in tqdm(files_to_delete, desc=f"파일 {action_verb}", unit="file"):
         schema_path = schema_dir / path.name if schema_dir else None
         report_path = report_dir / path.with_suffix(".txt").name if report_dir else None
+        user_prompt_path = user_prompt_dir / path.with_suffix(".txt").name if user_prompt_dir else None
 
-        targets = [p for p in [path, schema_path, report_path] if p and p.is_file()]
+        targets = [p for p in [path, schema_path, report_path, user_prompt_path] if p and p.is_file()]
 
         if not dry_run:
             failed = False
@@ -66,6 +69,7 @@ def validate_json_files_with_schemas(
     schema_dir: str | Path,
     *,
     report_dir: str | Path | None = None,
+    user_prompt_dir: str | Path | None = None,
     delete_invalid: bool = False,
     delete_missing: bool = False,
     dry_run: bool = False,
@@ -80,7 +84,8 @@ def validate_json_files_with_schemas(
         schema_dir: JSON 스키마 파일들이 있는 디렉터리.
 
         report_dir: 리포트 파일이 있는 디렉터리 (기본값: 'data/report').
-        delete_invalid: True일 경우, 스키마 검사에 실패한 JSON/스키마/리포트 파일을 삭제합니다.
+        user_prompt_dir: user_prompt 파일이 있는 디렉터리 (기본값: 'data/user_prompt').
+        delete_invalid: True일 경우, 스키마 검사에 실패(빈 JSON {} 포함)한 관련 파일 전체를 삭제합니다.
         delete_missing: True일 경우, 짝이 되는 스키마가 없는 JSON 파일을 삭제합니다.
         dry_run: True일 경우, 파일을 실제로 삭제하지 않고 실행 계획만 출력합니다.
     Returns:
@@ -93,6 +98,7 @@ def validate_json_files_with_schemas(
     json_p = Path(json_dir).resolve()
     schema_p = Path(schema_dir).resolve()
     report_p = Path(report_dir).resolve() if report_dir else Path("data/report").resolve()
+    user_prompt_p = Path(user_prompt_dir).resolve() if user_prompt_dir else Path("data/user_prompt").resolve()
 
     if not json_p.is_dir():
         raise NotADirectoryError(f"JSON 디렉터리를 찾을 수 없습니다: {json_p}")
@@ -118,6 +124,11 @@ def validate_json_files_with_schemas(
         try:
             with open(json_path, "r", encoding="utf-8") as f:
                 json_data = json.load(f)
+
+            if json_data == {} or json_data == []:
+                invalid_files.append((json_path, "빈 JSON ({} 또는 [])"))
+                continue
+
             with open(schema_path, "r", encoding="utf-8") as f:
                 schema_data = json.load(f)
 
@@ -141,29 +152,31 @@ def validate_json_files_with_schemas(
     #         print(f"  - 파일: {path.name}")
     #         print(f"    오류: {error[:200]}...") # 오류 메시지가 길 경우 일부만 표시
 
-    # if missing_schema_files:
-    #     print("\n[짝이 되는 스키마를 찾을 수 없는 파일]")
-    #     for path in missing_schema_files:
-    #         print(f"  - {path.name}")
+    if missing_schema_files:
+        print("\n[짝이 되는 스키마를 찾을 수 없는 파일]")
+        for path in missing_schema_files:
+            print(f"  - {path.name}")
 
-    # if delete_invalid and invalid_files:
-    #     invalid_paths = [path for path, _ in invalid_files]
-    #     deleted_files.extend(_delete_related_files(
-    #         invalid_paths,
-    #         schema_dir=schema_p,
-    #         report_dir=report_p,
-    #         dry_run=dry_run,
-    #         label="유효하지 않은 파일",
-    #     ))
+    if delete_invalid and invalid_files:
+        invalid_paths = [path for path, _ in invalid_files]
+        deleted_files.extend(_delete_related_files(
+            invalid_paths,
+            schema_dir=schema_p,
+            report_dir=report_p,
+            user_prompt_dir=user_prompt_p,
+            dry_run=dry_run,
+            label="유효하지 않은 파일",
+        ))
 
-    # if delete_missing and missing_schema_files:
-    #     deleted_files.extend(_delete_related_files(
-    #         missing_schema_files,
-    #         schema_dir=None,
-    #         report_dir=report_p,
-    #         dry_run=dry_run,
-    #         label="스키마 없는 파일",
-    #     ))
+    if delete_missing and missing_schema_files:
+        deleted_files.extend(_delete_related_files(
+            missing_schema_files,
+            schema_dir=None,
+            report_dir=report_p,
+            user_prompt_dir=user_prompt_p,
+            dry_run=dry_run,
+            label="스키마 없는 파일",
+        ))
 
     if dry_run:
         print("\n[dry_run=True] 실제 파일 변경/삭제는 이루어지지 않았습니다.")
@@ -190,8 +203,12 @@ def main():
         help="리포트 파일이 있는 디렉터리 (기본값: 'data/report')"
     )
     parser.add_argument(
+        "--user-prompt-dir", type=str, default="data/user_prompt",
+        help="user_prompt 파일이 있는 디렉터리 (기본값: 'data/user_prompt')"
+    )
+    parser.add_argument(
         "--delete-invalid", action="store_true",
-        help="스키마 검사에 실패한 JSON/스키마/리포트 파일을 삭제합니다."
+        help="스키마 검사에 실패한(빈 JSON 포함) JSON/스키마/리포트/user_prompt 파일을 삭제합니다."
     )
     parser.add_argument(
         "--delete-missing", action="store_true",
@@ -208,6 +225,7 @@ def main():
             args.json_dir,
             args.schema_dir,
             report_dir=args.report_dir,
+            user_prompt_dir=args.user_prompt_dir,
             delete_invalid=args.delete_invalid,
             delete_missing=args.delete_missing,
             dry_run=args.dry_run,

@@ -50,4 +50,4 @@ if __name__ == "__main__":
     # args = parser.parse_args()
 
     # split_excel_sheets(args.input_dir, args.output_dir)
-    split_excel_sheets("downloads", "download_processed/")
+    split_excel_sheets("sheetpedia_xlsx", "sheetpedia_xlsx_processed/")

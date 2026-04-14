@@ -1,0 +1,72 @@
+### arguments: https://llamafactory.readthedocs.io/en/latest/advanced/arguments.html
+#
+# DPO (Direct Preference Optimization) 학습 설정
+#
+# 사전 준비:
+#   1. python src/generate_dpo_data.py --model <현재SFT모델경로> --num-samples 8
+#   2. 생성된 data/dpo/sunny_dpo.jsonl 을 /LLaMA-Factory/data/ 에 복사
+#   3. /LLaMA-Factory/data/dataset_info.json 에 아래 항목 추가:
+#      "sunny_dpo": {
+#        "file_name": "sunny_dpo.jsonl",
+#        "formatting": "sharegpt",
+#        "columns": {
+#          "messages": "conversations",
+#          "chosen": "chosen",
+#          "rejected": "rejected"
+#        }
+#      }
+#
+# 참고:
+#   - pref_beta: DPO 온도 파라미터. 낮을수록 chosen/rejected 차이를 강하게 학습.
+#                0.05~0.1 사이가 일반적.
+#   - pref_loss: sigmoid (표준 DPO) | simpo (reference model 불필요) | orpo (SFT 동시 학습)
+#   - SFT 체크포인트를 초기 모델로 사용하는 것을 권장 (model_name_or_path를 SFT 결과 경로로 지정)
+
+### model
+model_name_or_path: saves/qwen3-8b/full/dpo # SFT 학습 결과 경로로 변경
+trust_remote_code: true
+
+### method
+stage: dpo
+do_train: true
+finetuning_type: full
+deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z3_config.json
+pref_beta: 0.1
+pref_loss: sigmoid
+
+### dataset
+dataset_dir: /LLaMA-Factory/data
+dataset: sunny_dpo # generate_dpo_data.py 로 생성한 데이터셋
+template: qwen3
+cutoff_len: 4096
+preprocessing_num_workers: 16
+dataloader_num_workers: 4
+
+### output
+output_dir: saves/qwen3-8b/full/dpo
+logging_steps: 1
+save_steps: 500
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: true
+report_to: wandb
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+learning_rate: 5.0e-7 # DPO는 SFT보다 훨씬 낮은 lr 권장 (1e-7 ~ 5e-6)
+num_train_epochs: 1.0 # DPO는 epoch 수가 적어도 충분한 경우 많음
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null
+optim: adamw_torch_fused
+
+### acceleration
+flash_attn: fa2
+enable_liger_kernel: true
+disable_gradient_checkpointing: false
+
+### eval
+val_size: 0.05

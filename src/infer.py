@@ -30,9 +30,18 @@ SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "json_SYSTEM_prompt.txt").read_text(e
 # 모델 로드
 # ---------------------------------------------------------------------------
 
+def _parse_model_path(model_path: str) -> tuple[str, str | None]:
+    """'namespace/repo/subfolder' 형태를 (repo_id, subfolder)로 분리."""
+    parts = model_path.split("/")
+    if len(parts) > 2 and not model_path.startswith("/"):
+        return "/".join(parts[:2]), "/".join(parts[2:])
+    return model_path, None
+
+
 def load_model(model_path: str | Path, tokenizer_path: str | Path | None = None):
     model_path = str(model_path)
     tokenizer_src = str(tokenizer_path) if tokenizer_path else model_path
+    repo_id, subfolder = _parse_model_path(model_path)
     print(f"모델 로드 중: {model_path}")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_src, trust_remote_code=True)
     if tokenizer.pad_token is None:
@@ -40,11 +49,12 @@ def load_model(model_path: str | Path, tokenizer_path: str | Path | None = None)
     tokenizer.padding_side = "left"  # 배치 생성 시 left padding 필요
 
     try:
-        config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+        config = AutoConfig.from_pretrained(repo_id, subfolder=subfolder, trust_remote_code=True)
     except Exception:
         config = AutoConfig.from_pretrained(tokenizer_src, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
-        model_path,
+        repo_id,
+        subfolder=subfolder,
         config=config,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
