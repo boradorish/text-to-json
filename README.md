@@ -39,6 +39,8 @@ text-to-json/
 ├── src/
 │   ├── process_data.py               # xlsx → report/JSON/Schema 생성 (API)
 │   ├── generate_user_prompts.py      # user_prompt 텍스트 생성 (API)
+│   ├── prepare_jsonschemabench.py    # JSONSchemaBench → GRPO 학습 데이터 준비
+│   ├── grpo_train.py                 # GRPO 강화학습 (스키마 준수 reward)
 │   ├── generate_rft_data.py          # Rejection Sampling SFT 데이터 생성
 │   ├── generate_dpo_data.py          # DPO 데이터 생성 (chosen/rejected 쌍)
 │   ├── get_model.py                  # HuggingFace에서 모델 다운로드
@@ -51,6 +53,7 @@ text-to-json/
 │   │   ├── qwen3_8B_full_guide.yaml
 │   │   ├── qwen3_8B_rft.yaml         # Rejection Sampling SFT 학습 설정
 │   │   ├── qwen3_8B_dpo.yaml         # DPO 학습 설정
+│   │   ├── qwen3_8B_grpo_sft.yaml    # GRPO 이후 SFT 학습 설정
 │   │   └── extra_install.sh          # 서버 추가 패키지 설치
 │   └── utils/
 │       ├── parsing.py                # xlsx → 마크다운 변환
@@ -71,6 +74,8 @@ text-to-json/
 │   ├── json/                         # 정답 JSON (stem별 .json)
 │   ├── json_schema/                  # 정답 JSON Schema (stem별 .json)
 │   ├── json_infer/                   # 모델 추론 결과
+│   ├── grpo/                         # GRPO 학습 데이터
+│   │   └── jsonschemabench.jsonl
 │   ├── rft/                          # Rejection Sampling SFT 학습 데이터
 │   │   └── sunny_rft.jsonl
 │   ├── dpo/                          # DPO 학습 데이터
@@ -87,6 +92,10 @@ text-to-json/
 
 ## 전체 파이프라인
 
+두 가지 파이프라인을 선택할 수 있습니다.
+
+### A. 기본 파이프라인 (SFT → RFT/DPO)
+
 ```
 [데이터 준비]  HuggingFace 데이터셋 다운로드
       ↓
@@ -101,6 +110,22 @@ text-to-json/
 [추론]         infer.py --test-only 로 test set 추론
       ↓
 [평가]         evaluate.py 로 메트릭 산출
+```
+
+### B. GRPO → SFT 파이프라인 (스키마 준수 사전 학습)
+
+베이스 모델에 JSONSchemaBench로 GRPO 강화학습을 먼저 수행해 스키마 준수 능력을 키운 뒤 SFT를 진행합니다.
+
+```
+[RL 데이터]    prepare_jsonschemabench.py (JSONSchemaBench 다운로드)
+      ↓
+[GRPO 학습]    grpo_train.py — 스키마 → 유효 JSON 생성 reward
+      ↓
+[SFT 데이터]   generate_rft_data.py --model <grpo 출력>
+      ↓
+[SFT 학습]     LLaMA-Factory (qwen3_8B_grpo_sft.yaml)
+      ↓
+[추론 / 평가]  infer.py → evaluate.py
 ```
 
 ---
@@ -185,6 +210,101 @@ FORCE_TORCHRUN=1 llamafactory-cli train /workspace/text-to-json/src/train/qwen3_
 ```bash
 HF_TOKEN=hf_xxx python upload_model_to_hf.py
 ```
+
+---
+
+## GRPO → SFT 파이프라인 (스키마 준수 사전 학습)
+
+베이스 모델에 JSONSchemaBench (epfl-dlab/JSONSchemaBench, 5754개 스키마)로 GRPO 강화학습을 먼저 수행해 스키마 준수 능력을 키운 뒤 SFT를 진행합니다.
+
+> **reward 설계**: 1.0 (유효 JSON + 스키마 통과) / 0.3 (유효 JSON, 스키마 불통과) / 0.0 (파싱 불가)
+
+### 1. RL 학습 데이터 준비
+
+```bash
+python src/prepare_jsonschemabench.py
+```
+
+옵션:
+
+| 옵션 | 기본값 | 설명 |
+|------|--------|------|
+| `--split` | `train` | 사용할 데이터 split (`train` / `val` / `test`) |
+| `--tokenizer` | `Qwen/Qwen3-8B` | 토큰 수 필터링에 사용할 토크나이저 |
+| `--max-tokens` | `1024` | 프롬프트 최대 토큰 수 (초과 스키마 제외) |
+| `--max-samples` | 전체 | 샘플 수 제한 (빠른 실험용) |
+| `--no-token-filter` | — | 토크나이저 없이 전체 저장 |
+| `--output` | `data/grpo/jsonschemabench.jsonl` | 출력 경로 |
+
+출력: `data/grpo/jsonschemabench.jsonl`
+
+### 2. GRPO 학습
+
+TRL의 `GRPOTrainer`를 사용하며 단일/멀티 GPU 모두 지원합니다.
+
+```bash
+# 단일 GPU
+python src/grpo_train.py --model Qwen/Qwen3-8B
+
+# 멀티 GPU (accelerate)
+accelerate launch src/grpo_train.py --model Qwen/Qwen3-8B
+
+# DeepSpeed ZeRO-3 (대용량 모델)
+accelerate launch --config_file /path/to/zero3.yaml \
+    src/grpo_train.py \
+    --model Qwen/Qwen3-8B \
+    --per-device-batch-size 1 \
+    --grad-accum 8
+```
+
+주요 옵션:
+
+| 옵션 | 기본값 | 설명 |
+|------|--------|------|
+| `--model` | `Qwen/Qwen3-8B` | 베이스 모델 경로 또는 HF repo ID |
+| `--data` | `data/grpo/jsonschemabench.jsonl` | RL 학습 데이터 경로 |
+| `--output-dir` | `saves/qwen3-8b/grpo/jsonschemabench` | 모델 저장 경로 |
+| `--num-generations` | `4` | GRPO 그룹 크기 G |
+| `--beta` | `0.01` | KL 페널티 계수 |
+| `--learning-rate` | `1e-6` | 학습률 |
+| `--max-prompt-length` | `1024` | 프롬프트 최대 토큰 수 |
+| `--max-completion-length` | `2048` | 생성 최대 토큰 수 |
+| `--max-samples` | 전체 | 샘플 수 제한 (디버그용) |
+| `--deepspeed` | — | DeepSpeed config 경로 |
+
+출력: `saves/qwen3-8b/grpo/jsonschemabench/`
+
+### 3. SFT 데이터 생성
+
+GRPO 학습된 모델로 기존 user_prompt에 대해 샘플을 생성하고, 스키마 통과한 것만 추출합니다.
+
+```bash
+python src/generate_rft_data.py \
+    --model saves/qwen3-8b/grpo/jsonschemabench \
+    --num-samples 4 \
+    --batch-size 4
+```
+
+출력: `data/rft/sunny_rft.jsonl`
+
+### 4. SFT 학습
+
+생성된 JSONL을 LLaMA-Factory에 등록한 뒤 학습합니다.
+
+```bash
+# 1. JSONL 복사
+cp data/rft/sunny_rft.jsonl /LLaMA-Factory/data/
+
+# 2. dataset_info.json 업데이트 (generate_rft_data.py 실행 시 출력된 항목 참고)
+
+# 3. SFT 학습 실행
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_8B_grpo_sft.yaml
+```
+
+> `qwen3_8B_grpo_sft.yaml`의 `model_name_or_path`가 GRPO 출력 경로(`saves/qwen3-8b/grpo/jsonschemabench`)로 설정되어 있는지 확인하세요.
+
+출력: `saves/qwen3-8b/full/grpo_then_sft/`
 
 ---
 

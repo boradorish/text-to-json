@@ -1,0 +1,66 @@
+### arguments: https://llamafactory.readthedocs.io/en/latest/advanced/arguments.html
+#
+# GRPO → SFT 파이프라인의 2단계: SFT 학습 설정
+#
+# 파이프라인 순서:
+#   1. [RL]  python src/prepare_jsonschemabench.py
+#            python src/grpo_train.py --model Qwen/Qwen3-8B
+#            → 출력: saves/qwen3-8b/grpo/jsonschemabench/
+#
+#   2. [SFT 데이터 생성] python src/generate_rft_data.py \
+#            --model saves/qwen3-8b/grpo/jsonschemabench \
+#            --num-samples 4
+#            → 출력: data/rft/sunny_rft.jsonl
+#
+#   3. [SFT] 이 yaml 로 LLaMA-Factory 학습
+#            llamafactory-cli train src/train/qwen3_8B_grpo_sft.yaml
+
+### model
+# ※ GRPO 학습 결과 경로로 변경하세요
+model_name_or_path: saves/qwen3-8b/grpo/jsonschemabench
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: full
+deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z3_config.json
+
+### dataset
+dataset_dir: /LLaMA-Factory/data
+dataset: sunny_rft          # generate_rft_data.py 로 생성한 데이터셋
+template: qwen3
+cutoff_len: 4096
+preprocessing_num_workers: 16
+dataloader_num_workers: 4
+
+### output
+output_dir: saves/qwen3-8b/full/grpo_then_sft
+logging_steps: 1
+save_steps: 500
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: true
+report_to: wandb
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+# SFT 이전에 이미 GRPO 로 스키마 준수 능력을 학습했으므로
+# lr 은 기존 SFT 대비 조금 낮게 설정
+learning_rate: 3.0e-6
+num_train_epochs: 2.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null
+optim: adamw_torch_fused
+
+### acceleration
+flash_attn: fa2
+enable_liger_kernel: true
+disable_gradient_checkpointing: false
+
+### eval
+val_size: 0.05
