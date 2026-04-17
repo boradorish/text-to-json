@@ -35,6 +35,8 @@ import re
 import sys
 from pathlib import Path
 
+import inspect
+
 import jsonschema
 import torch
 from datasets import Dataset
@@ -83,8 +85,25 @@ def _extract_json(text: str) -> tuple[bool, object]:
         return False, None
 
 
+def _to_text(completion) -> str:
+    """
+    TRL 버전에 따라 completion 형식이 다릅니다.
+      - 구버전: str
+      - 신버전: list[dict]  예) [{"role": "assistant", "content": "..."}]
+    어느 쪽이든 텍스트 문자열로 변환합니다.
+    """
+    if isinstance(completion, str):
+        return completion
+    if isinstance(completion, list):
+        for msg in reversed(completion):
+            if isinstance(msg, dict) and "content" in msg:
+                return str(msg["content"])
+        return str(completion)
+    return str(completion)
+
+
 def schema_compliance_reward(
-    completions: list[str],
+    completions,
     schema_str: list[str],
     **kwargs,
 ) -> list[float]:
@@ -92,7 +111,7 @@ def schema_compliance_reward(
     GRPOTrainer 에 전달되는 reward 함수.
 
     Args:
-        completions : 모델이 생성한 텍스트 목록
+        completions : 모델이 생성한 텍스트 목록 (str 또는 list[dict])
         schema_str  : 각 샘플의 JSON Schema 문자열 목록 (dataset 컬럼에서 자동 전달)
 
     Returns:
@@ -101,7 +120,7 @@ def schema_compliance_reward(
     rewards: list[float] = []
 
     for completion, schema_s in zip(completions, schema_str):
-        ok, json_obj = _extract_json(completion)
+        ok, json_obj = _extract_json(_to_text(completion))
 
         if not ok:
             rewards.append(0.0)
@@ -139,8 +158,17 @@ def load_grpo_dataset(data_path: Path) -> Dataset:
 # 모델 로드
 # ---------------------------------------------------------------------------
 
+def _get_attn_implementation() -> str:
+    try:
+        import flash_attn  # noqa: F401
+        return "flash_attention_2"
+    except ImportError:
+        return "eager"
+
+
 def load_model_and_tokenizer(model_path: str):
-    print(f"모델 로드 중: {model_path}")
+    attn_impl = _get_attn_implementation()
+    print(f"모델 로드 중: {model_path}  (attn: {attn_impl})")
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -150,7 +178,7 @@ def load_model_and_tokenizer(model_path: str):
         model_path,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
+        attn_implementation=attn_impl,
     )
     print("모델 로드 완료.")
     return model, tokenizer
@@ -162,18 +190,19 @@ def load_model_and_tokenizer(model_path: str):
 
 def main():
     parser = argparse.ArgumentParser(description="GRPO 강화학습 — JSONSchemaBench 스키마 준수")
-    parser.add_argument("--model", default="Qwen/Qwen3-8B", help="베이스 모델 경로 또는 HF repo ID")
+    parser.add_argument("--model", default="Qwen/Qwen3-4B-Instruct", help="베이스 모델 경로 또는 HF repo ID")
     parser.add_argument(
         "--data",
         default="data/grpo/jsonschemabench.jsonl",
         help="prepare_jsonschemabench.py 로 생성한 JSONL (기본: data/grpo/jsonschemabench.jsonl)",
     )
-    parser.add_argument("--output-dir", default="saves/qwen3-8b/grpo/jsonschemabench")
+    parser.add_argument("--output-dir", default="saves/qwen3-4b-instruct/grpo/jsonschemabench")
     parser.add_argument("--num-epochs", type=float, default=1.0)
     parser.add_argument("--per-device-batch-size", type=int, default=1)
     parser.add_argument("--grad-accum", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=1e-6)
-    parser.add_argument("--num-generations", type=int, default=4, help="GRPO 그룹 크기 G (기본: 4)")
+    parser.add_argument("--num-generations", type=int, default=4, help="GRPO 그룹 크기 G (기본: 4, A100 80GB 단일 권장: 4)")
+    parser.add_argument("--optim", default="adamw_8bit", help="옵티마이저 (기본: adamw_8bit, bitsandbytes 필요)")
     parser.add_argument("--max-prompt-length", type=int, default=1024)
     parser.add_argument("--max-completion-length", type=int, default=2048)
     parser.add_argument("--temperature", type=float, default=0.9)
@@ -208,30 +237,48 @@ def main():
 
     # GRPO 설정
     report_to = None if args.report_to == "none" else args.report_to
+
+    # TRL 버전마다 GRPOConfig 지원 파라미터가 다르므로 실제 시그니처를 확인 후 필터링
+    _supported = set(inspect.signature(GRPOConfig.__init__).parameters)
+
+    def _cfg(**kwargs):
+        filtered = {k: v for k, v in kwargs.items() if k in _supported}
+        dropped = set(kwargs) - set(filtered)
+        if dropped:
+            print(f"[경고] 현재 TRL 버전에서 미지원 파라미터 무시: {dropped}")
+        return filtered
+
     grpo_config = GRPOConfig(
-        output_dir=str(output_dir),
-        num_train_epochs=args.num_epochs,
-        per_device_train_batch_size=args.per_device_batch_size,
-        gradient_accumulation_steps=args.grad_accum,
-        learning_rate=args.learning_rate,
-        lr_scheduler_type="cosine",
-        warmup_ratio=0.05,
-        bf16=True,
-        # GRPO 특수 파라미터
-        num_generations=args.num_generations,
-        max_prompt_length=args.max_prompt_length,
-        max_completion_length=args.max_completion_length,
-        temperature=args.temperature,
-        beta=args.beta,
-        # 저장 / 로깅
-        save_steps=args.save_steps,
-        logging_steps=args.logging_steps,
-        report_to=report_to,
-        # DeepSpeed
-        deepspeed=args.deepspeed,
-        # 기타
-        remove_unused_columns=False,   # schema_str 컬럼을 reward 함수에 넘기기 위해 필수
-        dataloader_num_workers=4,
+        **_cfg(
+            output_dir=str(output_dir),
+            num_train_epochs=args.num_epochs,
+            per_device_train_batch_size=args.per_device_batch_size,
+            gradient_accumulation_steps=args.grad_accum,
+            learning_rate=args.learning_rate,
+            lr_scheduler_type="cosine",
+            warmup_ratio=0.05,
+            bf16=True,
+            # 메모리 절약
+            optim=args.optim,                               # 8-bit Adam으로 optimizer state ~75% 절감
+            gradient_checkpointing=True,                    # activation memory 절감 (속도 10~20% 감소)
+            # GRPO 특수 파라미터 (버전에 따라 이름이 다를 수 있음)
+            num_generations=args.num_generations,
+            max_prompt_length=args.max_prompt_length,
+            max_completion_length=args.max_completion_length,
+            max_new_tokens=args.max_completion_length,      # 구버전 대응
+            temperature=args.temperature,
+            beta=args.beta,
+            kl_coef=args.beta,                              # 구버전 대응
+            # 저장 / 로깅
+            save_steps=args.save_steps,
+            logging_steps=args.logging_steps,
+            report_to=report_to,
+            # DeepSpeed
+            deepspeed=args.deepspeed,
+            # 기타
+            remove_unused_columns=False,   # schema_str 컬럼을 reward 함수에 넘기기 위해 필수
+            dataloader_num_workers=4,
+        )
     )
 
     trainer = GRPOTrainer(
