@@ -99,7 +99,7 @@ text-to-json/
 ```
 [데이터 준비]  HuggingFace 데이터셋 다운로드
       ↓
-[학습 데이터]  prepare_dataset.ipynb → 80/20 split
+[학습 데이터]  prepare_dataset.ipynb → 90/10 split
       ↓
 [1단계 학습]   LLaMA-Factory SFT (qwen3_*_full_guide.yaml)
       ↓
@@ -168,6 +168,7 @@ jupyter nbconvert --to notebook --execute src/train/prepare_dataset.ipynb \
 ```
 
 출력:
+
 - `/LLaMA-Factory/data/custom-reasoning.json` — 학습용 (80%)
 - `data/test_stems.txt` — 테스트셋 stem 목록 (20%)
 
@@ -199,11 +200,11 @@ FORCE_TORCHRUN=1 llamafactory-cli train /workspace/text-to-json/src/train/qwen3_
 
 모델별 yaml 및 권장 설정:
 
-| yaml | 모델 | deepspeed | GPU 권장 |
-|------|------|-----------|----------|
-| `qwen3_0.6B_full_guide.yaml` | Qwen3-0.6B | z0 | 16GB+ |
-| `qwen3_1.7B_full_guide.yaml` | Qwen3-1.7B | z0 | 24GB+ |
-| `qwen3_8B_full_guide.yaml`   | Qwen3-8B   | z2 | 48GB+ |
+| yaml                         | 모델       | deepspeed | GPU 권장 |
+| ---------------------------- | ---------- | --------- | -------- |
+| `qwen3_0.6B_full_guide.yaml` | Qwen3-0.6B | z0        | 16GB+    |
+| `qwen3_1.7B_full_guide.yaml` | Qwen3-1.7B | z0        | 24GB+    |
+| `qwen3_8B_full_guide.yaml`   | Qwen3-8B   | z2        | 48GB+    |
 
 ### 4. 모델 업로드
 
@@ -227,14 +228,14 @@ python src/prepare_jsonschemabench.py
 
 옵션:
 
-| 옵션 | 기본값 | 설명 |
-|------|--------|------|
-| `--split` | `train` | 사용할 데이터 split (`train` / `val` / `test`) |
-| `--tokenizer` | `Qwen/Qwen3-8B` | 토큰 수 필터링에 사용할 토크나이저 |
-| `--max-tokens` | `1024` | 프롬프트 최대 토큰 수 (초과 스키마 제외) |
-| `--max-samples` | 전체 | 샘플 수 제한 (빠른 실험용) |
-| `--no-token-filter` | — | 토크나이저 없이 전체 저장 |
-| `--output` | `data/grpo/jsonschemabench.jsonl` | 출력 경로 |
+| 옵션                | 기본값                            | 설명                                           |
+| ------------------- | --------------------------------- | ---------------------------------------------- |
+| `--split`           | `train`                           | 사용할 데이터 split (`train` / `val` / `test`) |
+| `--tokenizer`       | `Qwen/Qwen3-8B`                   | 토큰 수 필터링에 사용할 토크나이저             |
+| `--max-tokens`      | `1024`                            | 프롬프트 최대 토큰 수 (초과 스키마 제외)       |
+| `--max-samples`     | 전체                              | 샘플 수 제한 (빠른 실험용)                     |
+| `--no-token-filter` | —                                 | 토크나이저 없이 전체 저장                      |
+| `--output`          | `data/grpo/jsonschemabench.jsonl` | 출력 경로                                      |
 
 출력: `data/grpo/jsonschemabench.jsonl`
 
@@ -259,18 +260,18 @@ accelerate launch --config_file /path/to/zero3.yaml \
 
 주요 옵션:
 
-| 옵션 | 기본값 | 설명 |
-|------|--------|------|
-| `--model` | `Qwen/Qwen3-8B` | 베이스 모델 경로 또는 HF repo ID |
-| `--data` | `data/grpo/jsonschemabench.jsonl` | RL 학습 데이터 경로 |
-| `--output-dir` | `saves/qwen3-8b/grpo/jsonschemabench` | 모델 저장 경로 |
-| `--num-generations` | `4` | GRPO 그룹 크기 G |
-| `--beta` | `0.01` | KL 페널티 계수 |
-| `--learning-rate` | `1e-6` | 학습률 |
-| `--max-prompt-length` | `1024` | 프롬프트 최대 토큰 수 |
-| `--max-completion-length` | `2048` | 생성 최대 토큰 수 |
-| `--max-samples` | 전체 | 샘플 수 제한 (디버그용) |
-| `--deepspeed` | — | DeepSpeed config 경로 |
+| 옵션                      | 기본값                                | 설명                             |
+| ------------------------- | ------------------------------------- | -------------------------------- |
+| `--model`                 | `Qwen/Qwen3-8B`                       | 베이스 모델 경로 또는 HF repo ID |
+| `--data`                  | `data/grpo/jsonschemabench.jsonl`     | RL 학습 데이터 경로              |
+| `--output-dir`            | `saves/qwen3-8b/grpo/jsonschemabench` | 모델 저장 경로                   |
+| `--num-generations`       | `4`                                   | GRPO 그룹 크기 G                 |
+| `--beta`                  | `0.01`                                | KL 페널티 계수                   |
+| `--learning-rate`         | `1e-6`                                | 학습률                           |
+| `--max-prompt-length`     | `1024`                                | 프롬프트 최대 토큰 수            |
+| `--max-completion-length` | `2048`                                | 생성 최대 토큰 수                |
+| `--max-samples`           | 전체                                  | 샘플 수 제한 (디버그용)          |
+| `--deepspeed`             | —                                     | DeepSpeed config 경로            |
 
 출력: `saves/qwen3-8b/grpo/jsonschemabench/`
 
@@ -355,13 +356,13 @@ FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_8B_dpo.yaml
 
 ### 파라미터 요약
 
-| 스크립트 | 주요 옵션 | 기본값 |
-|----------|-----------|--------|
-| `generate_rft_data.py` | `--num-samples` | 4 |
-| `generate_rft_data.py` | `--temperature` | 0.8 |
-| `generate_dpo_data.py` | `--num-samples` | 8 |
-| `generate_dpo_data.py` | `--temperature` | 0.9 |
-| `generate_dpo_data.py` | `--max-pairs-per-prompt` | 3 |
+| 스크립트               | 주요 옵션                | 기본값 |
+| ---------------------- | ------------------------ | ------ |
+| `generate_rft_data.py` | `--num-samples`          | 4      |
+| `generate_rft_data.py` | `--temperature`          | 0.8    |
+| `generate_dpo_data.py` | `--num-samples`          | 8      |
+| `generate_dpo_data.py` | `--temperature`          | 0.9    |
+| `generate_dpo_data.py` | `--max-pairs-per-prompt` | 3      |
 
 ---
 
@@ -418,14 +419,14 @@ python src/utils/evaluate.py --llm --llm-model gpt-4o-mini
 
 출력 메트릭:
 
-| 메트릭 | 설명 |
-|--------|------|
-| `no_output_rate` | JSON 파싱 실패 비율 |
-| `exact_match_rate` | 정답과 완전히 동일한 비율 |
-| `schema_match_rate` | JSON Schema 검증 통과 비율 |
-| `mean_noise_ratio` | Schema에 없는 여분 key 비율 |
+| 메트릭                  | 설명                           |
+| ----------------------- | ------------------------------ |
+| `no_output_rate`        | JSON 파싱 실패 비율            |
+| `exact_match_rate`      | 정답과 완전히 동일한 비율      |
+| `schema_match_rate`     | JSON Schema 검증 통과 비율     |
+| `mean_noise_ratio`      | Schema에 없는 여분 key 비율    |
 | `mean_value_match_rule` | leaf value 정확 매칭 비율 평균 |
-| `mean_value_match_llm` | LLM 채점 결과 (0–1 정규화) |
+| `mean_value_match_llm`  | LLM 채점 결과 (0–1 정규화)     |
 
 결과는 `data/eval_result.json`에 저장됩니다.
 
@@ -438,8 +439,8 @@ python src/utils/evaluate.py --llm --llm-model gpt-4o-mini
 ```json
 {
   "messages": [
-    { "role": "system",    "content": "<json_SYSTEM_prompt>" },
-    { "role": "user",      "content": "<user_prompt 텍스트>" },
+    { "role": "system", "content": "<json_SYSTEM_prompt>" },
+    { "role": "user", "content": "<user_prompt 텍스트>" },
     { "role": "assistant", "content": "<think>\n{report}\n</think>\n{json}" }
   ]
 }
@@ -449,8 +450,8 @@ python src/utils/evaluate.py --llm --llm-model gpt-4o-mini
 
 ## HuggingFace 리소스
 
-| 종류 | 경로 |
-|------|------|
-| 데이터셋 | [boradorish/text-to-json-data](https://huggingface.co/datasets/boradorish/text-to-json-data) |
-| 모델 (0.6B) | [boradorish/qwen3-0.6b-finetuned](https://huggingface.co/boradorish/qwen3-0.6b-finetuned) |
-| 모델 (4B) | [boradorish/qwen3-4b-finetuned](https://huggingface.co/boradorish/qwen3-4b-finetuned) |
+| 종류        | 경로                                                                                         |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| 데이터셋    | [boradorish/text-to-json-data](https://huggingface.co/datasets/boradorish/text-to-json-data) |
+| 모델 (0.6B) | [boradorish/qwen3-0.6b-finetuned](https://huggingface.co/boradorish/qwen3-0.6b-finetuned)    |
+| 모델 (4B)   | [boradorish/qwen3-4b-finetuned](https://huggingface.co/boradorish/qwen3-4b-finetuned)        |
