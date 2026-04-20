@@ -190,7 +190,7 @@ def load_model_and_tokenizer(model_path: str):
 
 def main():
     parser = argparse.ArgumentParser(description="GRPO 강화학습 — JSONSchemaBench 스키마 준수")
-    parser.add_argument("--model", default="Qwen/Qwen3-4B-Instruct", help="베이스 모델 경로 또는 HF repo ID")
+    parser.add_argument("--model", default="Qwen/Qwen3-4B", help="베이스 모델 경로 또는 HF repo ID")
     parser.add_argument(
         "--data",
         default="data/grpo/jsonschemabench.jsonl",

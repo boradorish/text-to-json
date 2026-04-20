@@ -23,7 +23,7 @@
 #   - SFT 체크포인트를 초기 모델로 사용하는 것을 권장 (model_name_or_path를 SFT 결과 경로로 지정)
 
 ### model
-model_name_or_path: saves/qwen3-8b/full/dpo # SFT 학습 결과 경로로 변경
+model_name_or_path: boradorish/qwen3-4b-finetuned
 trust_remote_code: true
 
 ### method
@@ -43,7 +43,7 @@ preprocessing_num_workers: 16
 dataloader_num_workers: 4
 
 ### output
-output_dir: saves/qwen3-8b/full/dpo
+output_dir: saves/qwen3-4b/full/dpo
 logging_steps: 1
 save_steps: 500
 plot_loss: true

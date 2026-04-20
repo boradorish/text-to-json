@@ -33,6 +33,7 @@ LLaMA-Factory 등록 방법:
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import re
 import sys
@@ -188,6 +189,7 @@ def generate_samples_batch(
         return_tensors="pt",
         padding=True,
         truncation=True,
+        max_length=4096,
     ).to(model.device)
 
     with torch.no_grad():
@@ -205,6 +207,9 @@ def generate_samples_batch(
         tokenizer.decode(out[input_len:], skip_special_tokens=True)
         for out in outputs
     ]
+    del inputs, outputs
+    gc.collect()
+    torch.cuda.empty_cache()
 
     grouped: list[list[str]] = []
     for i in range(len(user_texts)):
@@ -297,11 +302,15 @@ def main():
             for f, user_text, schema, samples in zip(batch_files, user_texts, gold_schemas, all_samples):
                 if schema is None:
                     print(f"  [SKIP] {f.stem}: user_prompt에서 JSON Schema 추출 실패")
+                    fout.write(json.dumps({"_stem": f.stem, "_skipped": True}) + "\n")
+                    fout.flush()
                     continue
 
                 chosen = build_chosen_response(f.stem)
                 if chosen is None:
                     print(f"  [SKIP] {f.stem}: gold JSON/Schema 로드 실패 (스키마 불일치 포함)")
+                    fout.write(json.dumps({"_stem": f.stem, "_skipped": True}) + "\n")
+                    fout.flush()
                     continue
 
                 # 검증 실패한 샘플만 rejected 후보로
@@ -314,6 +323,8 @@ def main():
                 if not failures:
                     total_no_failure += 1
                     print(f"  [--] {f.stem}: 모든 샘플 통과 (rejected 없음, 스킵)")
+                    fout.write(json.dumps({"_stem": f.stem, "_skipped": True}) + "\n")
+                    fout.flush()
                     continue
 
                 # 최대 max_pairs_per_prompt 개 쌍 저장
@@ -323,6 +334,7 @@ def main():
                     entry["_stem"] = f.stem
                     fout.write(json.dumps(entry, ensure_ascii=False) + "\n")
                     pairs_written += 1
+                fout.flush()
 
                 total_pairs += pairs_written
                 print(f"  [✓] {f.stem}: {pairs_written}쌍 저장 ({len(failures)} failures 중)")
