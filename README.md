@@ -18,6 +18,12 @@ pip install -r requirements.txt
 
 # 3. 환경 변수 설정
 cp .env.example .env   # 없으면 아래 내용으로 직접 생성
+
+# 4. 베이스 모델 다운로드 (HuggingFace에서 자동 다운로드)
+# 학습 실행 시 model_name_or_path에 지정한 HuggingFace repo ID로 자동 다운로드됩니다.
+# 예: boradorish/qwen3-4b-finetuned
+# 수동으로 미리 받으려면:
+huggingface-cli download boradorish/qwen3-4b-finetuned --local-dir models/qwen3-4b-finetuned
 ```
 
 `.env` 파일:
@@ -169,8 +175,8 @@ jupyter nbconvert --to notebook --execute src/train/prepare_dataset.ipynb \
 
 출력:
 
-- `/LLaMA-Factory/data/custom-reasoning.json` — 학습용 (80%)
-- `data/test_stems.txt` — 테스트셋 stem 목록 (20%)
+- `/LLaMA-Factory/data/custom-reasoning.json` — 학습용 (90%)
+- `data/test_stems.txt` — 테스트셋 stem 목록 (10%)
 
 ### 3. LLaMA-Factory 설치 및 학습
 
