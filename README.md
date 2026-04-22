@@ -47,7 +47,7 @@ text-to-json/
 │   ├── infer.py                      # 로컬 모델로 JSON 추론 (배치)
 │   ├── finetune_unsloth.py           # Unsloth LoRA 파인튜닝 (경량 대안)
 │   ├── train/
-│   │   ├── prepare_dataset.ipynb     # 학습 데이터셋 구성 (80/20 split)
+│   │   ├── prepare_dataset.ipynb     # 학습 데이터셋 구성 (90/10 split)
 │   │   ├── qwen3_0.6B_full_guide.yaml
 │   │   ├── qwen3_1.7B_full_guide.yaml
 │   │   ├── qwen3_8B_full_guide.yaml
@@ -159,7 +159,7 @@ data/
 
 ### 2. 학습 데이터셋 구성
 
-`data/user_prompt/`, `data/report/`, `data/json/`을 읽어 sharegpt 포맷으로 변환하고 **80/20 split** (seed=42)을 수행합니다.
+`data/user_prompt/`, `data/report/`, `data/json/`을 읽어 sharegpt 포맷으로 변환하고 **90/10 split** (seed=42)을 수행합니다.
 
 ```bash
 # 프로젝트 루트에서 실행
