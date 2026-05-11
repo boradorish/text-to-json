@@ -38,7 +38,7 @@ pref_loss: sigmoid
 dataset_dir: /LLaMA-Factory/data
 dataset: sunny_dpo # generate_dpo_data.py 로 생성한 데이터셋
 template: qwen3
-cutoff_len: 4096
+cutoff_len: 2048
 preprocessing_num_workers: 16
 dataloader_num_workers: 4
 
