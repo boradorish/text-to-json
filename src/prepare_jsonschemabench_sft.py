@@ -38,9 +38,6 @@ from pathlib import Path
 
 import jsonschema
 from datasets import load_dataset
-from hypothesis import given, settings, HealthCheck
-from hypothesis import strategies as st
-from hypothesis.extra.jsonschema import from_schema
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))

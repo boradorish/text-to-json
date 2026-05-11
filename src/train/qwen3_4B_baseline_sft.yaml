@@ -23,9 +23,9 @@ lora_alpha: 128
 lora_target: all
 
 ### dataset
-dataset_dir: /LLaMA-Factory/data
+dataset_dir: /workspace/LLaMA-Factory/data
 dataset: jsonschemabench_sft_baseline
-template: qwen3
+template: qwen3_nothink
 cutoff_len: 2048
 max_samples: 2500
 preprocessing_num_workers: 16
