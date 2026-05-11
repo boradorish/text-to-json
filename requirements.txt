@@ -32,4 +32,4 @@ serpapi>=0.1           # crawling_google.py
 
 # ── Evaluation ────────────────────────────────────────────────────────────────
 jsonschema>=4.20       # evaluate.py, validate_json_with_schema.py
-jsf>=0.11             # prepare_jsonschemabench_sft.py (JSON Schema Faker)
+hypothesis[jsonschema]>=6.0  # prepare_jsonschemabench_sft.py (JSON Schema Faker)

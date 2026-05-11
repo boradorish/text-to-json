@@ -2,7 +2,7 @@
 JSONSchemaBench SFT 데이터 준비 스크립트 (Baseline)
 
 epfl-dlab/JSONSchemaBench (train split)에서 N개의 SFT 학습 데이터를 생성합니다.
-각 스키마에 대해 jsf (JSON Schema Faker)로 유효한 JSON을 생성하고 jsonschema로 검증합니다.
+각 스키마에 대해 hypothesis-jsonschema로 유효한 JSON을 생성하고 jsonschema로 검증합니다.
 
 출력 포맷: LLaMA-Factory sharegpt
   {
@@ -38,7 +38,9 @@ from pathlib import Path
 
 import jsonschema
 from datasets import load_dataset
-from jsf import JSF
+from hypothesis import given, settings, HealthCheck
+from hypothesis import strategies as st
+from hypothesis.extra.jsonschema import from_schema
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -57,14 +59,11 @@ USER_TEMPLATE = "Generate a valid JSON object conforming to the following JSON S
 TRIVIAL_SCHEMAS = ({}, {"type": "object"}, {"type": "object", "properties": {}})
 
 
-def generate_valid_json(schema_obj: dict, max_attempts: int = 5) -> dict | None:
-    """jsf로 유효한 JSON을 생성하고 jsonschema로 검증합니다. 실패 시 None 반환."""
+def generate_valid_json(schema_obj: dict, max_attempts: int = 5) -> object | None:
+    """hypothesis-jsonschema로 유효한 JSON을 생성하고 jsonschema로 검증합니다. 실패 시 None 반환."""
     for _ in range(max_attempts):
         try:
-            faker = JSF.from_dict(schema_obj)
-            result = faker.generate()
-            if result is None:
-                continue
+            result = from_schema(schema_obj).example()
             jsonschema.validate(instance=result, schema=schema_obj)
             return result
         except Exception:
