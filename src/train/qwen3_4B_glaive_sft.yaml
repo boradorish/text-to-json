@@ -21,7 +21,7 @@ lora_alpha: 128
 lora_target: all
 
 ### dataset
-dataset_dir: /workspace/LLaMA-Factory/data
+dataset_dir: /LLaMA-Factory/data
 dataset: glaive_sft
 template: qwen3_nothink
 cutoff_len: 2048
