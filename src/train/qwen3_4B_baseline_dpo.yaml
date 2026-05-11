@@ -1,0 +1,61 @@
+### arguments: https://llamafactory.readthedocs.io/en/latest/advanced/arguments.html
+#
+# Baseline DPO: Qwen3-4B-Instruct on JSONSchemaBench 2k pairs
+#
+# 사전 준비:
+#   1. python src/prepare_jsonschemabench_dpo.py
+#   2. cp data/dpo/jsonschemabench_dpo_baseline.jsonl /workspace/LLaMA-Factory/data/
+#   3. dataset_info.json 에 jsonschemabench_dpo_baseline 등록
+#      (prepare_jsonschemabench_dpo.py 실행 후 출력된 JSON 참고)
+
+### model
+model_name_or_path: Qwen/Qwen3-4B-Instruct-2507
+trust_remote_code: true
+
+### method
+stage: dpo
+do_train: true
+finetuning_type: lora
+lora_rank: 64
+lora_alpha: 128
+lora_target: all
+pref_beta: 0.1
+pref_loss: sigmoid
+
+### dataset
+dataset_dir: /workspace/LLaMA-Factory/data
+dataset: jsonschemabench_dpo_baseline
+template: qwen3_nothink
+cutoff_len: 1536
+max_samples: 2000
+preprocessing_num_workers: 16
+dataloader_num_workers: 4
+
+### output
+output_dir: saves/qwen3-4b/lora/baseline_dpo
+logging_steps: 1
+save_steps: 100
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: true
+report_to: wandb
+
+### train
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 2  # effective batch = 2 GPUs x 4 x 2 = 16
+learning_rate: 5.0e-6
+num_train_epochs: 2.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null
+optim: adamw_torch_fused
+
+### acceleration
+flash_attn: fa2
+enable_liger_kernel: true
+disable_gradient_checkpointing: false
+
+### eval
+val_size: 0.05
