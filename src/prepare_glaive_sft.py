@@ -64,7 +64,7 @@ def is_valid_conversation(turns: list[dict]) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description="glaive-function-calling-v2 → SFT 데이터 준비")
-    parser.add_argument("--num-samples", type=int, default=2000)
+    parser.add_argument("--num-samples", type=int, default=20000)
     parser.add_argument("--output", default="data/sft/glaive_sft.jsonl")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()

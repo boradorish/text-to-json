@@ -25,7 +25,7 @@ dataset_dir: /LLaMA-Factory/data
 dataset: glaive_sft
 template: qwen3_nothink
 cutoff_len: 2048
-max_samples: 2000
+max_samples: 20000
 preprocessing_num_workers: 16
 dataloader_num_workers: 4
 
