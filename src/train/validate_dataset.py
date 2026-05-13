@@ -15,7 +15,6 @@ from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
-from transformers import AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.prompt_loader import find_project_root
@@ -134,6 +133,7 @@ def main():
     print(f"4. 토큰 길이 분포  (cutoff={args.cutoff})")
     print(f"{'='*55}")
     print(f"토크나이저 로드: {args.tokenizer}")
+    from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(args.tokenizer, trust_remote_code=True)
 
     lengths = []
