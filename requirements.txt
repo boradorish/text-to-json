@@ -14,6 +14,7 @@ transformers>=4.40     # infer.py
 torch>=2.0             # infer.py, finetune_unsloth.py
 datasets>=2.0          # finetune_unsloth.py
 trl>=0.8               # finetune_unsloth.py (SFTTrainer)
+peft>=0.10             # infer.py (LoRA 어댑터 로드)
 accelerate>=0.27       # transformers 학습 가속
 
 # ── Fine-tuning (선택) ────────────────────────────────────────────────────────

@@ -409,7 +409,7 @@ python src/test/infer.py
 
 # 모델/출력 경로 직접 지정
 python src/test/infer.py \
-  --model models/qwen3-0.6b-finetuned \
+  --model model/qwen3-4b-finetuned \
   --output data/infer_results.xlsx \
   --batch-size 16 \
   --test-only
@@ -427,13 +427,13 @@ python src/test/infer.py \
 
 출력: `data/infer_results.xlsx` — 아래 컬럼을 포함한 단일 Excel 파일
 
-| 컬럼          | 내용                              |
-| ------------- | --------------------------------- |
-| `stem`        | 파일 이름 (확장자 제외)           |
-| `user_prompt` | 사용자 입력 텍스트                |
-| `gold_json`   | 정답 JSON (GT)                    |
-| `json_schema` | JSON Schema                       |
-| `raw_output`  | 모델 raw 출력                     |
+| 컬럼          | 내용                             |
+| ------------- | -------------------------------- |
+| `stem`        | 파일 이름 (확장자 제외)          |
+| `user_prompt` | 사용자 입력 텍스트               |
+| `gold_json`   | 정답 JSON (GT)                   |
+| `json_schema` | JSON Schema                      |
+| `raw_output`  | 모델 raw 출력                    |
 | `pred_json`   | 파싱된 JSON (파싱 실패 시 빈 칸) |
 
 ---
@@ -467,14 +467,14 @@ python src/test/evaluate.py --llm --llm-model gpt-4o-mini
 
 추가되는 메트릭 컬럼 (Excel에 덧붙여 저장):
 
-| 컬럼            | 설명                                        |
-| --------------- | ------------------------------------------- |
-| `no_output`     | JSON 파싱 실패 여부                         |
-| `exact_match`   | 정답과 완전히 동일한지 여부                 |
-| `schema_valid`  | JSON Schema 검증 통과 여부                  |
-| `noise_ratio`   | Schema에 없는 여분 key 비율 (schema 불통과 시) |
-| `value_match`   | gold leaf value 중 정확 매칭 비율           |
-| `llm_score`     | GPT 채점 결과 0–1 정규화 (`--llm` 시에만)  |
+| 컬럼           | 설명                                           |
+| -------------- | ---------------------------------------------- |
+| `no_output`    | JSON 파싱 실패 여부                            |
+| `exact_match`  | 정답과 완전히 동일한지 여부                    |
+| `schema_valid` | JSON Schema 검증 통과 여부                     |
+| `noise_ratio`  | Schema에 없는 여분 key 비율 (schema 불통과 시) |
+| `value_match`  | gold leaf value 중 정확 매칭 비율              |
+| `llm_score`    | GPT 채점 결과 0–1 정규화 (`--llm` 시에만)      |
 
 ---
 

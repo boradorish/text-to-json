@@ -202,9 +202,9 @@ def evaluate_row(
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="infer.py Excel 결과 평가")
-    parser.add_argument("--input", default="data/infer_results.xlsx")
-    parser.add_argument("--output", default=None, help="결과 저장 경로 (기본: --input 파일 덮어쓰기)")
+    parser = argparse.ArgumentParser(description="infer.py JSONL 결과 평가")
+    parser.add_argument("--input", default="data/infer_results.jsonl", help="infer.py 출력 JSONL")
+    parser.add_argument("--output", default=None, help="결과 저장 Excel 경로 (기본: input과 같은 위치에 .xlsx)")
     parser.add_argument("--llm", action="store_true")
     parser.add_argument("--llm-model", default="gpt-4o-mini")
     args = parser.parse_args()
@@ -214,20 +214,26 @@ def main():
     project_root = find_project_root()
 
     input_path = project_root / args.input
-    output_path = project_root / (args.output or args.input)
+    output_path = project_root / (args.output if args.output else Path(args.input).with_suffix(".xlsx"))
 
     if not input_path.exists():
         print(f"[ERROR] 파일 없음: {input_path}")
         sys.exit(1)
 
-    df = pd.read_excel(input_path)
-    print(f"로드: {input_path} ({len(df)}개)\n")
+    # JSONL 로드
+    records = []
+    with input_path.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                records.append(json.loads(line))
+    print(f"로드: {input_path} ({len(records)}개)\n")
 
     metric_rows = []
-    for i, row in df.iterrows():
-        pred = str(row.get("pred_json", "")) if pd.notna(row.get("pred_json")) else ""
-        gold = str(row.get("gold_json", "")) if pd.notna(row.get("gold_json")) else ""
-        schema = str(row.get("json_schema", "")) if pd.notna(row.get("json_schema")) else ""
+    for i, row in enumerate(records):
+        pred = row.get("pred_json", "") or ""
+        gold = row.get("gold_json", "") or ""
+        schema = row.get("json_schema", "") or ""
 
         m = evaluate_row(pred, gold, schema, use_llm=args.llm, llm_model=args.llm_model)
         metric_rows.append(m)
@@ -239,17 +245,15 @@ def main():
             f"schema={m['schema_valid']}  value={m['value_match']:.2f}"
         )
 
-    # 메트릭 컬럼을 원본 DataFrame에 추가
+    # 원본 + 메트릭 합쳐서 Excel 저장
     metrics_df = pd.DataFrame(metric_rows)
-    # 기존에 메트릭 컬럼이 있으면 제거 후 재추가
-    drop_cols = [c for c in metrics_df.columns if c in df.columns]
-    df = df.drop(columns=drop_cols)
-    out_df = pd.concat([df, metrics_df], axis=1)
+    base_df = pd.DataFrame(records)
+    out_df = pd.concat([base_df, metrics_df], axis=1)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     out_df.to_excel(output_path, index=False)
 
-    # 요약 출력
+    # 요약
     n = len(metrics_df)
     print("\n" + "=" * 55)
     print("평가 요약")
