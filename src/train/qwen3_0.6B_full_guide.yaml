@@ -9,17 +9,17 @@ stage: sft
 do_train: true
 disable_shuffling: false
 finetuning_type: full
-deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z2_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
+# deepspeed: /root/LLaMA-Factory/examples/deepspeed/ds_z2_config.json # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
 
 ### dataset
-dataset_dir: /LLaMA-Factory/data # prepare_dataset.ipynb가 dataset_info.json을 등록하는 위치
+dataset_dir: /root/LLaMA-Factory/data # prepare_dataset.ipynb가 dataset_info.json을 등록하는 위치
 dataset: sunny_reasoning
-template: qwen3
+template: qwen3_nothink # qwen3는 thinking mode 활성화 → JSON 출력에는 nothink 사용
 # full list of available chat-templates
 # from src.llamafactory.data.template import TEMPLATES
 # for name in sorted(TEMPLATES.keys()):
 #     print(name)
-cutoff_len: 4096 # OOM 발생 시 줄이기: 16384 → 8192 → 4096
+cutoff_len: 8192 # OOM 발생 시 줄이기: 16384 → 8192 → 4096
 max_samples: 50000
 preprocessing_num_workers: 16
 dataloader_num_workers: 4
@@ -27,15 +27,16 @@ dataloader_num_workers: 4
 ### output
 output_dir: saves/qwen3-0.6b/full/sft
 logging_steps: 1
-save_steps: 500
+save_steps: 92   # ~에포크당 3회 (17707 samples / batch64 ≈ 277 steps/epoch → 277/3 ≈ 92)
+save_total_limit: 9  # 3 에폭 × 3 = 9개 전부 보관
 plot_loss: true
 overwrite_output_dir: true
 save_only_model: true # optimizer state 저장 스킵 (디스크 절약)
 report_to: wandb # choices: [none, wandb, tensorboard, swanlab, mlflow]
 
 ### train
-per_device_train_batch_size: 1
-gradient_accumulation_steps: 2 # global_batch = bs x D x a 128,256 (step > 700)
+per_device_train_batch_size: 4  # OOM으로 8→4로 조정 (seq=8192 full 학습 시 activation 메모리 큼)
+gradient_accumulation_steps: 8   # global_batch = 4 × 2 × 8 = 64 → total steps ≈ 831 (600+ 확보)
 learning_rate: 4.0e-5
 num_train_epochs: 3.0
 lr_scheduler_type: cosine
@@ -50,8 +51,8 @@ optim: adamw_torch_fused #adam -> adamw -> adafactor, 4bit-optim
 
 ### acceleration
 flash_attn: fa2
-enable_liger_kernel: true
-disable_gradient_checkpointing: false # 24GB GPU에서 4B full 학습 시 메모리 절약 필요
+enable_liger_kernel: false  # triton 커널 컴파일에 C compiler 필요 → 서버에 gcc 없으면 비활성화
+disable_gradient_checkpointing: false # seq=8192 full fine-tuning은 activation 메모리가 커서 체크포인팅 필요
 
 ### eval
 # eval_dataset: alpaca_en_demo
