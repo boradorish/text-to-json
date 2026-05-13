@@ -1,11 +1,11 @@
 """
 학습된 로컬 모델로 user_prompt → JSON 추론을 수행합니다.
+결과는 GT(정답 JSON, JSON Schema)와 함께 단일 Excel 파일로 저장됩니다.
 
 사용법:
-    python src/infer.py                          # data/user_prompt/ 전체 처리
-    python src/infer.py --input data/user_prompt/data1.txt
-    python src/infer.py --model models/qwen3-0.6b-finetuned
-    python src/infer.py --batch-size 32          # 배치 크기 조정
+    python src/test/infer.py --test-only
+    python src/test/infer.py --model models/qwen3-0.6b-finetuned
+    python src/test/infer.py --batch-size 16 --output data/infer_results.xlsx
 """
 from __future__ import annotations
 
@@ -16,10 +16,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.prompt_loader import find_project_root
 
 PROJECT_ROOT = find_project_root()
@@ -31,7 +32,6 @@ SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "json_SYSTEM_prompt.txt").read_text(e
 # ---------------------------------------------------------------------------
 
 def _parse_model_path(model_path: str) -> tuple[str, str | None]:
-    """'namespace/repo/subfolder' 형태를 (repo_id, subfolder)로 분리."""
     parts = model_path.split("/")
     if len(parts) > 2 and not model_path.startswith("/"):
         return "/".join(parts[:2]), "/".join(parts[2:])
@@ -46,7 +46,7 @@ def load_model(model_path: str | Path, tokenizer_path: str | Path | None = None)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_src, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"  # 배치 생성 시 left padding 필요
+    tokenizer.padding_side = "left"
 
     subfolder_kwargs = {"subfolder": subfolder} if subfolder else {}
     try:
@@ -76,11 +76,7 @@ def build_prompt(user_text: str, tokenizer) -> str:
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_text},
     ]
-    return tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
+    return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
 
 def extract_json_from_output(text: str) -> Any | None:
@@ -107,9 +103,6 @@ def extract_json_from_output(text: str) -> Any | None:
 def run_batch_inference(
     model, tokenizer, user_texts: list[str], max_new_tokens: int = 4096
 ) -> list[dict]:
-    """
-    여러 user_prompt를 배치로 추론합니다.
-    """
     prompts = [build_prompt(t, tokenizer) for t in user_texts]
     inputs = tokenizer(
         prompts,
@@ -140,48 +133,18 @@ def run_batch_inference(
 
 
 # ---------------------------------------------------------------------------
-# 파일 처리
-# ---------------------------------------------------------------------------
-
-def process_batch(
-    file_paths: list[Path],
-    model,
-    tokenizer,
-    output_dir: Path,
-    max_new_tokens: int = 4096,
-) -> None:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    raw_dir = output_dir.parent / "json_infer_raw"
-
-    user_texts = [p.read_text(encoding="utf-8") for p in file_paths]
-    results = run_batch_inference(model, tokenizer, user_texts, max_new_tokens=max_new_tokens)
-
-    for file_path, result in zip(file_paths, results):
-        stem = file_path.stem
-        if result["json_obj"] is not None:
-            (output_dir / f"{stem}.json").write_text(
-                json.dumps(result["json_obj"], ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            print(f"  [OK] {stem}")
-        else:
-            raw_dir.mkdir(parents=True, exist_ok=True)
-            (raw_dir / f"{stem}.txt").write_text(result["raw_output"], encoding="utf-8")
-            print(f"  [WARN] {stem}: JSON 파싱 실패. raw 저장")
-
-
-# ---------------------------------------------------------------------------
 # 메인
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="로컬 모델로 user_prompt → JSON 배치 추론")
-    parser.add_argument("--model", default="models/qwen3-0.6b-finetuned", help="모델 경로 또는 HF repo ID")
-    parser.add_argument("--tokenizer", default=None, help="토크나이저 경로 또는 HF repo ID (미지정 시 --model과 동일)")
+    parser = argparse.ArgumentParser(description="로컬 모델로 user_prompt → JSON 배치 추론 (Excel 저장)")
+    parser.add_argument("--model", default="models/qwen3-0.6b-finetuned")
+    parser.add_argument("--tokenizer", default=None)
     parser.add_argument("--input", default=None, help="txt 파일 또는 디렉토리 (기본: data/user_prompt/)")
-    parser.add_argument("--output", default="data/json_infer", help="출력 디렉토리")
+    parser.add_argument("--output", default="data/infer_results.xlsx")
     parser.add_argument("--max-new-tokens", type=int, default=4096)
-    parser.add_argument("--batch-size", type=int, default=32, help="배치 크기 (기본: 32)")
-    parser.add_argument("--test-only", action="store_true", help="data/test_stems.txt에 있는 파일만 추론")
+    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--test-only", action="store_true", help="data/test_stems.txt 기준으로 필터링")
     args = parser.parse_args()
 
     _model_arg = Path(args.model)
@@ -190,11 +153,16 @@ def main():
     else:
         local_path = PROJECT_ROOT / args.model
         model_path = local_path if local_path.exists() else args.model
-    output_dir = PROJECT_ROOT / args.output
+
     input_path = Path(args.input) if args.input else PROJECT_ROOT / "data" / "user_prompt"
+    output_path = PROJECT_ROOT / args.output
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    model, tokenizer = load_model(model_path, tokenizer_path=args.tokenizer)
+    data_dir = PROJECT_ROOT / "data"
+    gold_dir = data_dir / "json"
+    schema_dir = data_dir / "json_schema"
 
+    # 파일 목록 수집
     if input_path.is_file():
         all_files = [input_path]
     elif input_path.is_dir():
@@ -203,9 +171,8 @@ def main():
         print(f"[ERROR] 경로를 찾을 수 없음: {input_path}")
         sys.exit(1)
 
-    # test_stems.txt 필터링
     if args.test_only:
-        test_stems_path = PROJECT_ROOT / "data" / "test_stems.txt"
+        test_stems_path = data_dir / "test_stems.txt"
         if not test_stems_path.exists():
             print(f"[ERROR] test_stems.txt 없음: {test_stems_path}")
             sys.exit(1)
@@ -213,20 +180,57 @@ def main():
         all_files = [f for f in all_files if f.stem in test_stems]
         print(f"[TEST] test_stems.txt 기준 {len(all_files)}개 파일 필터링")
 
-    # 이미 처리된 파일 스킵
-    files = [f for f in all_files if not (output_dir / f"{f.stem}.json").exists()]
-    skipped = len(all_files) - len(files)
-    if skipped:
-        print(f"[SKIP] 이미 처리된 {skipped}개 파일 건너뜀")
+    if not all_files:
+        print("[WARN] 처리할 파일이 없습니다.")
+        return
 
-    print(f"\n총 {len(files)}개 파일 처리 시작 (batch_size={args.batch_size})\n")
+    # GT 데이터 로드
+    rows = []
+    for f in all_files:
+        stem = f.stem
+        gold_path = gold_dir / f"{stem}.json"
+        schema_path = schema_dir / f"{stem}.json"
+        rows.append({
+            "stem": stem,
+            "user_prompt": f.read_text(encoding="utf-8"),
+            "gold_json": gold_path.read_text(encoding="utf-8") if gold_path.exists() else "",
+            "json_schema": schema_path.read_text(encoding="utf-8") if schema_path.exists() else "",
+        })
 
-    for i in range(0, len(files), args.batch_size):
-        batch = files[i:i + args.batch_size]
-        print(f"[{i + 1}~{min(i + args.batch_size, len(files))}/{len(files)}] 처리 중...")
-        process_batch(batch, model, tokenizer, output_dir, max_new_tokens=args.max_new_tokens)
+    model, tokenizer = load_model(model_path, tokenizer_path=args.tokenizer)
 
-    print("\n모든 파일 처리 완료.")
+    # 배치 추론
+    all_results: list[dict] = []
+    user_texts = [r["user_prompt"] for r in rows]
+    total = len(user_texts)
+    for i in range(0, total, args.batch_size):
+        batch = user_texts[i : i + args.batch_size]
+        print(f"[{i + 1}~{min(i + args.batch_size, total)}/{total}] 추론 중...")
+        all_results.extend(run_batch_inference(model, tokenizer, batch, args.max_new_tokens))
+
+    # Excel 저장
+    records = []
+    for row, result in zip(rows, all_results):
+        pred_json_str = (
+            json.dumps(result["json_obj"], ensure_ascii=False)
+            if result["json_obj"] is not None
+            else ""
+        )
+        records.append({
+            "stem": row["stem"],
+            "user_prompt": row["user_prompt"],
+            "gold_json": row["gold_json"],
+            "json_schema": row["json_schema"],
+            "raw_output": result["raw_output"],
+            "pred_json": pred_json_str,
+        })
+
+    df = pd.DataFrame(records)
+    df.to_excel(output_path, index=False)
+
+    parsed = sum(1 for r in records if r["pred_json"])
+    print(f"\n완료. 총 {total}개 / JSON 파싱 성공 {parsed}개 / 실패 {total - parsed}개")
+    print(f"저장: {output_path}")
 
 
 if __name__ == "__main__":

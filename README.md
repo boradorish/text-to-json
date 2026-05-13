@@ -50,8 +50,11 @@ text-to-json/
 │   ├── generate_rft_data.py          # Rejection Sampling SFT 데이터 생성
 │   ├── generate_dpo_data.py          # DPO 데이터 생성 (chosen/rejected 쌍)
 │   ├── get_model.py                  # HuggingFace에서 모델 다운로드
-│   ├── infer.py                      # 로컬 모델로 JSON 추론 (배치)
 │   ├── finetune_unsloth.py           # Unsloth LoRA 파인튜닝 (경량 대안)
+│   ├── test/
+│   │   ├── make_test_split.py        # data/test_stems.txt 생성 (seed=42, 10% hold-out)
+│   │   ├── infer.py                  # 로컬 모델로 JSON 추론 (배치, --test-only 지원)
+│   │   └── evaluate.py               # 추론 결과 평가 (exact/schema/value match)
 │   ├── train/
 │   │   ├── prepare_dataset.ipynb     # 학습 데이터셋 구성 (90/10 split)
 │   │   ├── qwen3_0.6B_full_guide.yaml
@@ -65,7 +68,6 @@ text-to-json/
 │       ├── parsing.py                # xlsx → 마크다운 변환
 │       ├── parsing_answer.py         # LLM 응답에서 JSON/Schema 추출
 │       ├── prompt_loader.py          # 프롬프트 파일 로드
-│       ├── evaluate.py               # 추론 결과 평가
 │       ├── validate_json_with_schema.py  # JSON 스키마 검증 + 불량 파일 삭제
 │       ├── crawling.py               # data.go.kr xlsx 크롤링
 │       ├── crawling_google.py        # Google 검색으로 xlsx 수집
@@ -113,9 +115,11 @@ text-to-json/
       ↓
 [모델 업로드]  upload_model_to_hf.py
       ↓
-[추론]         infer.py --test-only 로 test set 추론
+[테스트 split] make_test_split.py → data/test_stems.txt
       ↓
-[평가]         evaluate.py 로 메트릭 산출
+[추론]         src/test/infer.py --test-only 로 test set 추론
+      ↓
+[평가]         src/test/evaluate.py 로 메트릭 산출
 ```
 
 ### B. GRPO → SFT 파이프라인 (스키마 준수 사전 학습)
@@ -131,7 +135,7 @@ text-to-json/
       ↓
 [SFT 학습]     LLaMA-Factory (qwen3_8B_grpo_sft.yaml)
       ↓
-[추론 / 평가]  infer.py → evaluate.py
+[추론 / 평가]  src/test/infer.py → src/test/evaluate.py
 ```
 
 ---
@@ -372,7 +376,7 @@ FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_8B_dpo.yaml
 
 ---
 
-## 추론 세팅 (원격 서버)
+## 추론 및 평가 (원격 서버)
 
 ### 1. 파인튜닝된 모델 다운로드
 
@@ -382,59 +386,95 @@ python src/get_model.py
 
 기본으로 `boradorish/qwen3-0.6b-finetuned`를 내려받습니다. 다른 모델을 받으려면 `get_model.py`의 `repo_id`를 수정하세요.
 
-### 2. 추론 실행
+### 2. 테스트 split 생성
+
+`prepare_dataset.ipynb`과 동일한 `random.seed(42)`로 전체 데이터를 섞은 뒤, 하위 10%를 테스트셋으로 분리합니다.
+
+```bash
+python src/test/make_test_split.py
+```
+
+출력: `data/test_stems.txt` (테스트셋 stem 목록)
+
+> `prepare_dataset.ipynb`을 이미 실행해 `test_stems.txt`가 있다면 이 단계는 건너뛰어도 됩니다.
+
+### 3. 추론 실행
 
 ```bash
 # test set만 추론 (data/test_stems.txt 기준)
-python src/infer.py --test-only
+python src/test/infer.py --test-only
 
 # 전체 처리
-python src/infer.py
+python src/test/infer.py
 
 # 모델/출력 경로 직접 지정
-python src/infer.py \
+python src/test/infer.py \
   --model models/qwen3-0.6b-finetuned \
-  --output data/json_infer \
+  --output data/infer_results.xlsx \
   --batch-size 16 \
   --test-only
 ```
 
-출력:
+주요 옵션:
 
-- `data/json_infer/{stem}.json` — JSON 파싱 성공
-- `data/json_infer_raw/{stem}.txt` — 파싱 실패 시 raw 텍스트
+| 옵션               | 기본값                        | 설명                                   |
+| ------------------ | ----------------------------- | -------------------------------------- |
+| `--model`          | `models/qwen3-0.6b-finetuned` | 모델 경로 또는 HF repo ID              |
+| `--output`         | `data/infer_results.xlsx`     | Excel 출력 경로                        |
+| `--batch-size`     | `32`                          | 배치 크기                              |
+| `--max-new-tokens` | `4096`                        | 최대 생성 토큰 수                      |
+| `--test-only`      | —                             | `data/test_stems.txt` 기준 파일만 처리 |
+
+출력: `data/infer_results.xlsx` — 아래 컬럼을 포함한 단일 Excel 파일
+
+| 컬럼          | 내용                              |
+| ------------- | --------------------------------- |
+| `stem`        | 파일 이름 (확장자 제외)           |
+| `user_prompt` | 사용자 입력 텍스트                |
+| `gold_json`   | 정답 JSON (GT)                    |
+| `json_schema` | JSON Schema                       |
+| `raw_output`  | 모델 raw 출력                     |
+| `pred_json`   | 파싱된 JSON (파싱 실패 시 빈 칸) |
 
 ---
 
-## 평가
+### 4. 평가
+
+`infer.py`가 생성한 Excel을 읽어 메트릭을 계산하고 결과를 같은 파일에 덮어씁니다.
+**JSON 파싱 실패(`pred_json` 비어 있음)는 모든 메트릭 0으로 집계**됩니다.
 
 ```bash
 # 기본 실행
-python src/utils/evaluate.py
+python src/test/evaluate.py
 
-# 경로 직접 지정
-python src/utils/evaluate.py \
-  --pred data/json_infer \
-  --gold data/json \
-  --schema data/json_schema \
-  --output data/eval_result.json
+# 입력/출력 경로 지정
+python src/test/evaluate.py \
+  --input data/infer_results.xlsx \
+  --output data/eval_results.xlsx
 
-# LLM 기반 평가 포함
-python src/utils/evaluate.py --llm --llm-model gpt-4o-mini
+# LLM 기반 평가 포함 (OPENAI_API_KEY 필요)
+python src/test/evaluate.py --llm --llm-model gpt-4o-mini
 ```
 
-출력 메트릭:
+주요 옵션:
 
-| 메트릭                  | 설명                           |
-| ----------------------- | ------------------------------ |
-| `no_output_rate`        | JSON 파싱 실패 비율            |
-| `exact_match_rate`      | 정답과 완전히 동일한 비율      |
-| `schema_match_rate`     | JSON Schema 검증 통과 비율     |
-| `mean_noise_ratio`      | Schema에 없는 여분 key 비율    |
-| `mean_value_match_rule` | leaf value 정확 매칭 비율 평균 |
-| `mean_value_match_llm`  | LLM 채점 결과 (0–1 정규화)     |
+| 옵션          | 기본값                    | 설명                           |
+| ------------- | ------------------------- | ------------------------------ |
+| `--input`     | `data/infer_results.xlsx` | infer.py 출력 Excel            |
+| `--output`    | (input과 동일)            | 결과 저장 경로                 |
+| `--llm`       | —                         | GPT 기반 value_match 추가 평가 |
+| `--llm-model` | `gpt-4o-mini`             | 사용할 OpenAI 모델             |
 
-결과는 `data/eval_result.json`에 저장됩니다.
+추가되는 메트릭 컬럼 (Excel에 덧붙여 저장):
+
+| 컬럼            | 설명                                        |
+| --------------- | ------------------------------------------- |
+| `no_output`     | JSON 파싱 실패 여부                         |
+| `exact_match`   | 정답과 완전히 동일한지 여부                 |
+| `schema_valid`  | JSON Schema 검증 통과 여부                  |
+| `noise_ratio`   | Schema에 없는 여분 key 비율 (schema 불통과 시) |
+| `value_match`   | gold leaf value 중 정확 매칭 비율           |
+| `llm_score`     | GPT 채점 결과 0–1 정규화 (`--llm` 시에만)  |
 
 ---
 
