@@ -1,9 +1,6 @@
 You will be given structured extracts derived from a source document.
 
-Your task is to produce two artifacts from this information:
-
-1. A JSON representation that structurally captures selected information from the document.
-2. A JSON Schema (Draft 2020-12) that describes exactly and only the structure of the generated JSON.
+Your task is to produce a JSON representation that structurally captures selected information from the document.
 
 ---
 
@@ -66,30 +63,9 @@ Numeric rules:
 
 ## ARRAY COMPLETENESS RULES (CRITICAL)
 
-When using arrays, the following rule MUST be satisfied — choose one of the two options:
-
-**Option A: Full representation**
-If the JSON Schema cannot deterministically infer the exact number of items in an array (e.g., the schema uses a generic `"items"` definition), then the array MUST include ALL items from the source table or list — no truncation is allowed.
+When using arrays, ALL items from the source table or list MUST be included — no truncation is allowed.
 
 For example, if a table has 10 rows, the array must contain exactly 10 elements. Producing only 5 is a violation.
-
-**Option B: Schema-derivable structure**
-If every item and its position can be unambiguously determined from the JSON Schema alone (e.g., using `"prefixItems"` with a fixed-length tuple), truncation is not an issue because the schema itself encodes the full structure.
-
-If neither option is satisfied, restructure so that the schema fully encodes the array's structure using `"prefixItems"`.
-
----
-
-## JSON SCHEMA REQUIREMENTS
-
-* Use JSON Schema Draft 2020-12.
-* The schema must describe exactly and only the JSON you generate.
-* Do not include any properties not present in the JSON.
-* Field types must exactly match the JSON types.
-* Reflect optional fields accurately using "required".
-* If object maps are used, use "additionalProperties" to define their value structure.
-* The schema must allow reconstruction of the JSON without ambiguity.
-* Do NOT include commentary in the schema.
 
 ---
 
@@ -97,17 +73,12 @@ If neither option is satisfied, restructure so that the schema fully encodes the
 
 Before finalizing the response, internally verify:
 
-1. The output contains exactly two sections in the required order.
-2. The first section header is exactly: === JSON ===
-3. The second section header is exactly: === JSON_SCHEMA ===
-4. There is no text before the first header.
-5. There is no text after the schema.
-6. No Markdown or code fences exist.
-7. No inferred data has been introduced.
-8. Every value is taken verbatim from the markdown source (whitespace changes only).
-9. No value contains sentence structure or explanatory phrasing.
-10. If any value required fabrication or translation, the key has been removed.
-11. If arrays are used, either all items from the source are included, or the schema fully encodes the structure.
+1. No Markdown or code fences exist.
+2. No inferred data has been introduced.
+3. Every value is taken verbatim from the markdown source (whitespace changes only).
+4. No value contains sentence structure or explanatory phrasing.
+5. If any value required fabrication or translation, the key has been removed.
+6. All items from the source are included in arrays — no truncation.
 
 Only after validation, produce the final output.
 
@@ -122,10 +93,9 @@ Apply all rules above to that markdown content.
 
 ## OUTPUT FORMAT (STRICT)
 
-The output MUST consist of exactly two top-level sections:
+Output ONLY a valid JSON object.
 
-=== JSON === <valid JSON object>
-
-=== JSON_SCHEMA ===
-<valid JSON Schema Draft 2020-12 object>
+* Do not wrap in code fences.
+* Do not add commentary or trailing text.
+* Output must begin with `{` and end with `}`.
 
