@@ -50,7 +50,7 @@ resume_from_checkpoint: null
 optim: adamw_torch_fused #adam -> adamw -> adafactor, 4bit-optim
 
 ### acceleration
-flash_attn: fa2
+flash_attn: disabled  # FA2 미설치, SDPA cuDNN 오류 → eager attention 사용
 enable_liger_kernel: false # triton 커널 컴파일에 C compiler 필요 → 서버에 gcc 없으면 비활성화
 disable_gradient_checkpointing: false # seq=8192 full fine-tuning은 activation 메모리가 커서 체크포인팅 필요
 
