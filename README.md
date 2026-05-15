@@ -349,9 +349,29 @@ Gold 데이터를 chosen으로, 모델이 생성했지만 스키마 불통과한
 # 1. chosen/rejected 쌍 생성
 python src/generate_dpo_data.py \
   --model saves/qwen3-8b/full/sft \
+  --split train \
   --num-samples 8 \
   --batch-size 2 \
   --max-prompts 5000
+
+# GPU 2장 병렬 생성 예시: 출력 파일은 충돌 방지를 위해 shard별로 분리
+CUDA_VISIBLE_DEVICES=0 python src/generate_dpo_data.py \
+  --model saves/qwen3-8b/full/sft \
+  --split train \
+  --num-samples 8 \
+  --batch-size 32 \
+  --num-shards 2 \
+  --shard-index 0 \
+  --output data/dpo/sunny_dpo_shard0.jsonl
+
+CUDA_VISIBLE_DEVICES=1 python src/generate_dpo_data.py \
+  --model saves/qwen3-8b/full/sft \
+  --split train \
+  --num-samples 8 \
+  --batch-size 32 \
+  --num-shards 2 \
+  --shard-index 1 \
+  --output data/dpo/sunny_dpo_shard1.jsonl
 
 # 2. 생성된 JSONL을 LLaMA-Factory에 등록 후 학습
 #    qwen3_8B_dpo.yaml의 model_name_or_path를 SFT 체크포인트 경로로 수정
@@ -373,6 +393,9 @@ FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_8B_dpo.yaml
 | `generate_dpo_data.py` | `--num-samples`          | 8      |
 | `generate_dpo_data.py` | `--temperature`          | 0.9    |
 | `generate_dpo_data.py` | `--max-pairs-per-prompt` | 3      |
+| `generate_dpo_data.py` | `--split`                | train  |
+| `generate_dpo_data.py` | `--num-shards`           | 1      |
+| `generate_dpo_data.py` | `--shard-index`          | 0      |
 
 ---
 

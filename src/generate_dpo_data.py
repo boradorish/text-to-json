@@ -12,6 +12,8 @@ DPO (Direct Preference Optimization) 데이터 생성 스크립트
 사용법:
     python src/generate_dpo_data.py --model models/qwen3-0.6b-finetuned
     python src/generate_dpo_data.py --model models/qwen3-0.6b-finetuned --num-samples 8 --max-prompts 2000
+    python src/generate_dpo_data.py --model models/qwen3-0.6b-finetuned --split train
+    python src/generate_dpo_data.py --model models/qwen3-0.6b-finetuned --num-shards 2 --shard-index 0
 
 출력 포맷 (LLaMA-Factory DPO sharegpt):
     {
@@ -238,13 +240,22 @@ def main():
     parser.add_argument("--tokenizer", default=None)
     parser.add_argument("--input", default=None, help="txt 파일 또는 디렉토리 (기본: data/user_prompt/)")
     parser.add_argument("--output", default="data/dpo/sunny_dpo.jsonl", help="출력 JSONL 경로")
+    parser.add_argument("--split", choices=["train", "test", "all"], default="train", help="data/test_stems.txt 기준 split (기본: train)")
     parser.add_argument("--num-samples", type=int, default=8, help="프롬프트당 생성 샘플 수 (기본: 8)")
     parser.add_argument("--temperature", type=float, default=0.9)
     parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--batch-size", type=int, default=2, help="동시에 처리할 프롬프트 수 (기본: 2)")
     parser.add_argument("--max-prompts", type=int, default=None, help="처리할 최대 프롬프트 수 (기본: 전체)")
     parser.add_argument("--max-pairs-per-prompt", type=int, default=3, help="프롬프트당 최대 DPO 쌍 수 (기본: 3)")
+    parser.add_argument("--num-shards", type=int, default=1, help="전체 파일을 나눌 shard 수 (기본: 1)")
+    parser.add_argument("--shard-index", type=int, default=0, help="처리할 shard index, 0부터 시작 (기본: 0)")
     args = parser.parse_args()
+    if args.num_shards < 1:
+        print("[ERROR] --num-shards 는 1 이상이어야 합니다.")
+        sys.exit(1)
+    if not 0 <= args.shard_index < args.num_shards:
+        print("[ERROR] --shard-index 는 0 이상 --num-shards 미만이어야 합니다.")
+        sys.exit(1)
 
     _model_arg = Path(args.model)
     model_path = _model_arg if (_model_arg.is_absolute() or _model_arg.exists()) else (
@@ -259,11 +270,32 @@ def main():
     else:
         all_files = sorted(input_path.glob("*.txt"))
 
+    if args.split != "all":
+        test_stems_path = PROJECT_ROOT / "data" / "test_stems.txt"
+        if not test_stems_path.exists():
+            print(f"[ERROR] split={args.split} 이지만 test_stems.txt 없음: {test_stems_path}")
+            print("        먼저 python src/test/make_test_split.py 를 실행하거나 --split all 을 명시하세요.")
+            sys.exit(1)
+        test_stems = set(test_stems_path.read_text(encoding="utf-8").splitlines())
+        if args.split == "test":
+            all_files = [f for f in all_files if f.stem in test_stems]
+        else:
+            all_files = [f for f in all_files if f.stem not in test_stems]
+        print(f"[SPLIT] {args.split}: test_stems.txt 기준 {len(all_files)}개 파일 선택")
+
     # gold 데이터(json + schema)가 있는 파일만 대상
     all_files = [f for f in all_files if (JSON_DIR / f"{f.stem}.json").exists()]
 
     if args.max_prompts:
         all_files = all_files[:args.max_prompts]
+
+    if args.num_shards > 1:
+        before_shard = len(all_files)
+        all_files = [
+            f for idx, f in enumerate(all_files)
+            if idx % args.num_shards == args.shard_index
+        ]
+        print(f"[SHARD] {args.shard_index}/{args.num_shards}: {before_shard}개 중 {len(all_files)}개 파일 선택")
 
     # 이미 처리된 stem 스킵
     saved_stems: set[str] = set()
