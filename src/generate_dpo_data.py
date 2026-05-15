@@ -43,6 +43,7 @@ from pathlib import Path
 
 import jsonschema
 import torch
+from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -316,14 +317,28 @@ def main():
 
     total_pairs = 0
     total_no_failure = 0
+    total_skipped = 0
+    total_batches = (len(files) + args.batch_size - 1) // args.batch_size
 
     with output_path.open("a", encoding="utf-8") as fout:
-        for batch_start in range(0, len(files), args.batch_size):
+        progress = tqdm(
+            range(0, len(files), args.batch_size),
+            total=total_batches,
+            desc="DPO 생성",
+            unit="batch",
+            dynamic_ncols=True,
+        )
+        for batch_start in progress:
             batch_files = files[batch_start : batch_start + args.batch_size]
             user_texts = [f.read_text(encoding="utf-8") for f in batch_files]
             gold_schemas = [extract_schema_from_user_prompt(t) for t in user_texts]
 
-            print(f"[{batch_start + 1}~{min(batch_start + args.batch_size, len(files))}/{len(files)}] 생성 중...")
+            progress.set_postfix(
+                range=f"{batch_start + 1}-{min(batch_start + args.batch_size, len(files))}/{len(files)}",
+                pairs=total_pairs,
+                no_rejected=total_no_failure,
+                skipped=total_skipped,
+            )
             all_samples = generate_samples_batch(
                 model, tokenizer, user_texts,
                 num_samples=args.num_samples,
@@ -333,14 +348,16 @@ def main():
 
             for f, user_text, schema, samples in zip(batch_files, user_texts, gold_schemas, all_samples):
                 if schema is None:
-                    print(f"  [SKIP] {f.stem}: user_prompt에서 JSON Schema 추출 실패")
+                    total_skipped += 1
+                    tqdm.write(f"  [SKIP] {f.stem}: user_prompt에서 JSON Schema 추출 실패")
                     fout.write(json.dumps({"_stem": f.stem, "_skipped": True}) + "\n")
                     fout.flush()
                     continue
 
                 chosen = build_chosen_response(f.stem)
                 if chosen is None:
-                    print(f"  [SKIP] {f.stem}: gold JSON/Schema 로드 실패 (스키마 불일치 포함)")
+                    total_skipped += 1
+                    tqdm.write(f"  [SKIP] {f.stem}: gold JSON/Schema 로드 실패 (스키마 불일치 포함)")
                     fout.write(json.dumps({"_stem": f.stem, "_skipped": True}) + "\n")
                     fout.flush()
                     continue
@@ -354,7 +371,7 @@ def main():
 
                 if not failures:
                     total_no_failure += 1
-                    print(f"  [--] {f.stem}: 모든 샘플 통과 (rejected 없음, 스킵)")
+                    tqdm.write(f"  [--] {f.stem}: 모든 샘플 통과 (rejected 없음, 스킵)")
                     fout.write(json.dumps({"_stem": f.stem, "_skipped": True}) + "\n")
                     fout.flush()
                     continue
@@ -369,9 +386,15 @@ def main():
                 fout.flush()
 
                 total_pairs += pairs_written
-                print(f"  [✓] {f.stem}: {pairs_written}쌍 저장 ({len(failures)} failures 중)")
+                tqdm.write(f"  [OK] {f.stem}: {pairs_written}쌍 저장 ({len(failures)} failures 중)")
+            progress.set_postfix(
+                range=f"{batch_start + 1}-{min(batch_start + args.batch_size, len(files))}/{len(files)}",
+                pairs=total_pairs,
+                no_rejected=total_no_failure,
+                skipped=total_skipped,
+            )
 
-    print(f"\n완료. 총 DPO 쌍: {total_pairs}, rejected 없어 스킵: {total_no_failure}")
+    print(f"\n완료. 총 DPO 쌍: {total_pairs}, rejected 없어 스킵: {total_no_failure}, 기타 스킵: {total_skipped}")
     print(f"출력: {output_path}")
     print(f"\n[LLaMA-Factory 등록]")
     print(f'  파일을 /LLaMA-Factory/data/sunny_dpo.jsonl 에 복사 후')
