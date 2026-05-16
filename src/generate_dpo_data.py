@@ -2,11 +2,11 @@
 DPO (Direct Preference Optimization) 데이터 생성 스크립트
 
 각 user_prompt에 대해:
-  - chosen: data/json/ + data/json_schema/ 의 gold 데이터로 응답 재구성
+  - chosen: data/json/ 의 gold JSON object
   - rejected: 현재 SFT 모델이 생성했지만 gold schema 검증에 실패한 출력
 
 검증 기준:
-  - rejected 후보: user_prompt에 포함된 gold JSON Schema를 만족하지 못하는 모델 출력
+  - rejected 후보: user_prompt에 포함된 gold JSON Schema를 만족하지 못하는 JSON 출력
   - gold schema가 없는 프롬프트는 스킵
 
 사용법:
@@ -48,7 +48,7 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.prompt_loader import find_project_root
-from utils.parsing_answer import parse_json_and_schema
+from utils.parsing_answer import _extract_json_from_chunk
 
 PROJECT_ROOT = find_project_root()
 SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "json_SYSTEM_prompt.txt").read_text(encoding="utf-8")
@@ -121,7 +121,7 @@ def strip_think_block(text: str) -> str:
 def build_chosen_response(stem: str) -> str | None:
     """
     data/json/{stem}.json + data/json_schema/{stem}.json 을 읽어
-    모델이 출력해야 할 chosen 형태의 문자열을 구성합니다.
+    모델이 출력해야 할 gold JSON 문자열을 구성합니다.
     """
     json_path = JSON_DIR / f"{stem}.json"
     schema_path = SCHEMA_DIR / f"{stem}.json"
@@ -135,12 +135,7 @@ def build_chosen_response(stem: str) -> str | None:
     except Exception:
         return None
 
-    return (
-        f"=== JSON ===\n"
-        f"{json.dumps(json_obj, ensure_ascii=False, indent=2)}\n\n"
-        f"=== JSON_SCHEMA ===\n"
-        f"{json.dumps(schema_obj, ensure_ascii=False, indent=2)}"
-    )
+    return json.dumps(json_obj, ensure_ascii=False, indent=2)
 
 
 def is_valid_against_schema(raw_output: str, gold_schema: dict) -> tuple[bool, str]:
@@ -150,12 +145,12 @@ def is_valid_against_schema(raw_output: str, gold_schema: dict) -> tuple[bool, s
     """
     clean = strip_think_block(raw_output)
     try:
-        parsed = parse_json_and_schema(clean)
+        json_obj = _extract_json_from_chunk(clean)
     except (ValueError, Exception):
         return False, clean
 
     try:
-        jsonschema.validate(instance=parsed["json_obj"], schema=gold_schema)
+        jsonschema.validate(instance=json_obj, schema=gold_schema)
         return True, clean
     except (jsonschema.ValidationError, jsonschema.SchemaError):
         return False, clean

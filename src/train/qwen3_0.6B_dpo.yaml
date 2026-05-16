@@ -3,8 +3,8 @@
 # Qwen3-0.6B DPO 학습 설정
 #
 # 사전 준비:
-#   1. data/dpo/sunny_dpo.jsonl 을 /LLaMA-Factory/data/ 에 복사
-#   2. /LLaMA-Factory/data/dataset_info.json 에 sunny_dpo 등록
+#   1. data/sunny_dpo.jsonl 생성
+#   2. data/dataset_info.json 에 sunny_dpo 등록
 
 ### model
 model_name_or_path: boradorish/qwen3-0.6b
@@ -14,12 +14,11 @@ trust_remote_code: true
 stage: dpo
 do_train: true
 finetuning_type: full
-deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z3_config.json
 pref_beta: 0.1
 pref_loss: sigmoid
 
 ### dataset
-dataset_dir: /LLaMA-Factory/data
+dataset_dir: data
 dataset: sunny_dpo
 template: qwen3
 cutoff_len: 2048
@@ -49,7 +48,7 @@ optim: adamw_torch_fused
 
 ### acceleration
 flash_attn: fa2
-enable_liger_kernel: true
+enable_liger_kernel: false
 disable_gradient_checkpointing: false
 
 ### eval
