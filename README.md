@@ -319,9 +319,9 @@ FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_8B_grpo_sft.yaml
 
 ---
 
-## 스키마 준수 강화: RFT / DPO (선택)
+## 스키마 준수 강화: RFT / DPO / ORPO (선택)
 
-SFT 모델이 JSON Schema를 잘 따르지 않는 경우, Rejection Sampling SFT 또는 DPO로 추가 학습할 수 있습니다.
+SFT 모델이 JSON Schema를 잘 따르지 않는 경우, Rejection Sampling SFT, DPO 또는 ORPO로 추가 학습할 수 있습니다.
 
 ### Rejection Sampling SFT (RFT)
 
@@ -380,9 +380,44 @@ FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_8B_dpo.yaml
 
 출력: `data/dpo/sunny_dpo.jsonl`
 
+### ORPO
+
+ORPO도 DPO와 같은 `chosen/rejected` 데이터셋을 사용합니다. 별도 reference model 없이 SFT 체크포인트를 시작점으로 두고 선호 학습을 이어갑니다.
+
+```bash
+# 1. chosen/rejected 쌍 생성
+python src/generate_dpo_data.py \
+  --model saves/qwen3-4b/full/sft \
+  --split train \
+  --num-samples 8 \
+  --batch-size 2 \
+  --max-prompts 5000
+
+# 2. 생성된 JSONL을 LLaMA-Factory에 등록 후 ORPO 학습
+#    qwen3_4B_orpo.yaml의 model_name_or_path가 SFT 체크포인트 경로인지 확인
+FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_4B_orpo.yaml
+```
+
+출력: `saves/qwen3-4b/full/orpo`
+
 ### LLaMA-Factory 데이터셋 등록
 
 두 스크립트 모두 실행 종료 시 `dataset_info.json`에 추가할 항목을 출력합니다. `/LLaMA-Factory/data/dataset_info.json`에 붙여넣고 JSONL 파일을 `/LLaMA-Factory/data/`에 복사하세요.
+
+DPO/ORPO 데이터셋은 preference 학습용이므로 `ranking: true`가 반드시 필요합니다.
+
+```json
+"sunny_dpo": {
+  "file_name": "sunny_dpo.jsonl",
+  "formatting": "sharegpt",
+  "ranking": true,
+  "columns": {
+    "messages": "conversations",
+    "chosen": "chosen",
+    "rejected": "rejected"
+  }
+}
+```
 
 ### 파라미터 요약
 

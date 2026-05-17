@@ -5,8 +5,8 @@ Rejection Sampling Fine-Tuning (RFT) 데이터 생성 스크립트
 스키마 검증을 통과한 샘플만 골라 LLaMA-Factory용 SFT 데이터셋으로 저장합니다.
 
 검증 기준:
-  - 모델 출력이 === JSON === / === JSON_SCHEMA === 포맷을 따름
-  - 출력의 JSON이 user_prompt에 포함된 gold JSON Schema를 만족함
+  - 모델 출력이 JSON object로 파싱됨
+  - 출력 JSON이 user_prompt에 포함된 gold JSON Schema를 만족함
 
 사용법:
     python src/generate_rft_data.py --model models/qwen3-0.6b-finetuned
@@ -39,10 +39,10 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.prompt_loader import find_project_root
-from utils.parsing_answer import parse_json_and_schema
+from utils.parsing_answer import _extract_json_from_chunk
 
 PROJECT_ROOT = find_project_root()
-SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "json_SYSTEM_prompt.txt").read_text(encoding="utf-8")
+SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "infer_SYSTEM_prompt.txt").read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -113,12 +113,12 @@ def validate_output_against_schema(raw_output: str, gold_schema: dict) -> tuple[
     """
     clean = strip_think_block(raw_output)
     try:
-        parsed = parse_json_and_schema(clean)
+        json_obj = _extract_json_from_chunk(clean)
     except (ValueError, Exception):
         return False, clean
 
     try:
-        jsonschema.validate(instance=parsed["json_obj"], schema=gold_schema)
+        jsonschema.validate(instance=json_obj, schema=gold_schema)
         return True, clean
     except (jsonschema.ValidationError, jsonschema.SchemaError):
         return False, clean

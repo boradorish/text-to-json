@@ -247,6 +247,7 @@ def main():
         dataset_name: {
             "file_name": output_path.name,
             "formatting": "sharegpt",
+            "ranking": True,
             "columns": {
                 "messages": "conversations",
                 "chosen": "chosen",

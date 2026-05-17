@@ -28,6 +28,7 @@ LLaMA-Factory 등록 방법:
        "sunny_dpo": {
          "file_name": "sunny_dpo.jsonl",
          "formatting": "sharegpt",
+         "ranking": true,
          "columns": {"messages": "conversations", "chosen": "chosen", "rejected": "rejected"}
        }
     3. yaml의 dataset: sunny_dpo 로 변경
@@ -51,7 +52,7 @@ from utils.prompt_loader import find_project_root
 from utils.parsing_answer import _extract_json_from_chunk
 
 PROJECT_ROOT = find_project_root()
-SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "json_SYSTEM_prompt.txt").read_text(encoding="utf-8")
+SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "infer_SYSTEM_prompt.txt").read_text(encoding="utf-8")
 
 JSON_DIR = PROJECT_ROOT / "data" / "json"
 SCHEMA_DIR = PROJECT_ROOT / "data" / "json_schema"
@@ -398,6 +399,7 @@ def main():
         "sunny_dpo": {
             "file_name": "sunny_dpo.jsonl",
             "formatting": "sharegpt",
+            "ranking": True,
             "columns": {
                 "messages": "conversations",
                 "chosen": "chosen",

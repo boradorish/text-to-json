@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.prompt_loader import find_project_root
 
 PROJECT_ROOT = find_project_root()
-SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "json_SYSTEM_prompt.txt").read_text(encoding="utf-8")
+SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "infer_SYSTEM_prompt.txt").read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
