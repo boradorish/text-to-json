@@ -3,7 +3,7 @@ prepare_dataset.ipynb 실행 후 생성된 custom-reasoning.json 검수 스크�
 
 사용법:
     python src/train/validate_dataset.py
-    python src/train/validate_dataset.py --data /LLaMA-Factory/data/custom-reasoning.json
+    python src/train/validate_dataset.py --data ../LLaMA-Factory/data/custom-reasoning.json
     python src/train/validate_dataset.py --cutoff 4096
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.prompt_loader import find_project_root
 
 PROJECT_ROOT = find_project_root()
-TOKENIZER_ID = "Qwen/Qwen3-4B-Instruct-2507"
+TOKENIZER_ID = "Qwen/Qwen3-0.6B-Base"
 
 
 def check_format(record: dict, idx: int) -> list[str]:
@@ -59,13 +59,13 @@ def check_assistant_json(record: dict, idx: int) -> str | None:
 
 def main():
     parser = argparse.ArgumentParser(description="LLaMA-Factory 학습 데이터 검수")
-    parser.add_argument("--data", default="/LLaMA-Factory/data/custom-reasoning.json")
+    parser.add_argument("--data", default="../LLaMA-Factory/data/custom-reasoning.json")
     parser.add_argument("--cutoff", type=int, default=8192, help="학습 yaml의 cutoff_len")
     parser.add_argument("--tokenizer", default=TOKENIZER_ID)
     parser.add_argument("--no-tokenize", action="store_true", help="토큰 길이 측정 생략 (빠른 검수)")
     args = parser.parse_args()
 
-    data_path = Path(args.data)
+    data_path = (PROJECT_ROOT / args.data).resolve()
     if not data_path.exists():
         print(f"[ERROR] 파일 없음: {data_path}")
         sys.exit(1)

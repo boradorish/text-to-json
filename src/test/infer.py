@@ -4,8 +4,8 @@
 
 사용법:
     python src/test/infer.py --test-only
-    python src/test/infer.py --model models/qwen3-0.6b-finetuned
-    python src/test/infer.py --batch-size 16 --output data/infer_results.xlsx
+    python src/test/infer.py --model saves/qwen3-0.6b/full/sft
+    python src/test/infer.py --batch-size 16 --output data/infer_results
 """
 from __future__ import annotations
 
@@ -183,7 +183,7 @@ def _save(records: list[dict], jsonl_path: Path, xlsx_path: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="로컬 모델로 user_prompt → JSON 배치 추론")
-    parser.add_argument("--model", default="models/qwen3-0.6b-finetuned")
+    parser.add_argument("--model", default="saves/qwen3-0.6b/full/sft")
     parser.add_argument("--tokenizer", default=None)
     parser.add_argument("--input", default=None, help="txt 파일 또는 디렉토리 (기본: data/user_prompt/)")
     parser.add_argument("--output", default="data/infer_results", help="출력 경로 (확장자 제외, .jsonl/.xlsx 자동 생성)")
@@ -200,7 +200,7 @@ def main():
         model_path = local_path if local_path.exists() else args.model
 
     input_path = Path(args.input) if args.input else PROJECT_ROOT / "data" / "user_prompt"
-    base_path = PROJECT_ROOT / args.output
+    base_path = (PROJECT_ROOT / args.output).resolve()
     jsonl_path = base_path.with_suffix(".jsonl")
     xlsx_path = base_path.with_suffix(".xlsx")
     base_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,50 +1,26 @@
 ### arguments: https://llamafactory.readthedocs.io/en/latest/advanced/arguments.html
-#
-# ORPO 학습 설정: SFT 체크포인트 위에 chosen/rejected preference 학습
-#
-# 사전 준비:
-#   1. python src/generate_dpo_data.py --model saves/qwen3-4b/full/sft --num-samples 8
-#   2. 생성된 data/dpo/sunny_dpo.jsonl 을 /LLaMA-Factory/data/ 에 복사
-#   3. /LLaMA-Factory/data/dataset_info.json 에 아래 항목 추가:
-#      "sunny_dpo": {
-#        "file_name": "sunny_dpo.jsonl",
-#        "formatting": "sharegpt",
-#        "ranking": true,
-#        "columns": {
-#          "messages": "conversations",
-#          "chosen": "chosen",
-#          "rejected": "rejected"
-#        }
-#      }
-#   4. FORCE_TORCHRUN=1 llamafactory-cli train src/train/qwen3_4B_orpo.yaml
-#
-# 메모:
-#   - model_name_or_path는 base가 아니라 SFT output_dir를 가리키는 것을 권장합니다.
-#   - ORPO는 reference model 없이 odds-ratio loss를 쓰므로 DPO보다 설정이 단순합니다.
-#   - pref_beta는 ORPO의 odds-ratio 항 강도입니다. 0.1로 시작 후 과적합/망각이 보이면 낮추세요.
 
 ### model
-model_name_or_path: ./saves/qwen3-4b/full/sft
+model_name_or_path: saves/qwen3-4b/full/sft
 trust_remote_code: true
 
 ### method
-stage: dpo
+stage: orpo
 do_train: true
 finetuning_type: full
-deepspeed: /LLaMA-Factory/examples/deepspeed/ds_z3_config.json
 pref_loss: orpo
 pref_beta: 0.1
 
 ### dataset
-dataset_dir: /LLaMA-Factory/data
+dataset_dir: ../LLaMA-Factory/data
 dataset: sunny_dpo
-template: qwen3
+template: qwen3_nothink
 cutoff_len: 2048
 preprocessing_num_workers: 16
 dataloader_num_workers: 4
 
 ### output
-output_dir: ./saves/qwen3-4b/full/orpo
+output_dir: saves/qwen3-4b/full/orpo
 logging_steps: 1
 save_steps: 500
 plot_loss: true
@@ -53,7 +29,7 @@ save_only_model: true
 report_to: wandb
 
 ### train
-per_device_train_batch_size: 1
+per_device_train_batch_size: 4
 gradient_accumulation_steps: 4
 learning_rate: 5.0e-7
 num_train_epochs: 1.0
@@ -65,7 +41,7 @@ resume_from_checkpoint: null
 optim: adamw_torch_fused
 
 ### acceleration
-flash_attn: fa2
+flash_attn: disabled
 enable_liger_kernel: false
 disable_gradient_checkpointing: false
 

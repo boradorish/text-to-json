@@ -1,6 +1,4 @@
 ### arguments: https://llamafactory.readthedocs.io/en/latest/advanced/arguments.html
-#
-# Qwen3-0.6B DPO 학습 설정
 
 ### model
 model_name_or_path: saves/qwen3-0.6b/full/sft
@@ -10,8 +8,8 @@ trust_remote_code: true
 stage: dpo
 do_train: true
 finetuning_type: full
+pref_loss: orpo
 pref_beta: 0.1
-pref_loss: sigmoid
 
 ### dataset
 dataset_dir: ../LLaMA-Factory/data
@@ -22,7 +20,7 @@ preprocessing_num_workers: 16
 dataloader_num_workers: 4
 
 ### output
-output_dir: saves/qwen3-0.6b/full/dpo
+output_dir: saves/qwen3-0.6b/full/orpo
 logging_steps: 1
 save_steps: 500
 plot_loss: true

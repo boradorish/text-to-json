@@ -4,7 +4,7 @@ JSON 파싱 실패(pred_json 비어 있음)는 모든 메트릭 0으로 집계�
 
 사용법:
     python src/test/evaluate.py
-    python src/test/evaluate.py --input data/infer_results.xlsx
+    python src/test/evaluate.py --input data/infer_results.jsonl
     python src/test/evaluate.py --llm --llm-model gpt-4o-mini
 """
 from __future__ import annotations
@@ -213,8 +213,12 @@ def main():
     from utils.prompt_loader import find_project_root
     project_root = find_project_root()
 
-    input_path = project_root / args.input
-    output_path = project_root / (args.output if args.output else Path(args.input).with_suffix(".xlsx"))
+    input_path = (project_root / args.input).resolve()
+    output_path = (
+        project_root / args.output
+        if args.output
+        else project_root / Path(args.input).with_suffix(".xlsx")
+    ).resolve()
 
     if not input_path.exists():
         print(f"[ERROR] 파일 없음: {input_path}")

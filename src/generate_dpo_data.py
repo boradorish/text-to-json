@@ -10,10 +10,9 @@ DPO (Direct Preference Optimization) 데이터 생성 스크립트
   - gold schema가 없는 프롬프트는 스킵
 
 사용법:
-    python src/generate_dpo_data.py --model models/qwen3-0.6b-finetuned
-    python src/generate_dpo_data.py --model models/qwen3-0.6b-finetuned --num-samples 8 --max-prompts 2000
-    python src/generate_dpo_data.py --model models/qwen3-0.6b-finetuned --split train
-    python src/generate_dpo_data.py --model models/qwen3-0.6b-finetuned --num-shards 2 --shard-index 0
+    python src/generate_dpo_data.py
+    python src/generate_dpo_data.py --model saves/qwen3-0.6b/full/sft --num-samples 8
+    python src/generate_dpo_data.py --num-shards 2 --shard-index 0
 
 출력 포맷 (LLaMA-Factory DPO sharegpt):
     {
@@ -23,8 +22,8 @@ DPO (Direct Preference Optimization) 데이터 생성 스크립트
     }
 
 LLaMA-Factory 등록 방법:
-    1. 출력 JSONL을 /LLaMA-Factory/data/ 에 복사
-    2. /LLaMA-Factory/data/dataset_info.json 에 아래 항목 추가:
+    1. 출력 JSONL을 ../LLaMA-Factory/data/ 에 생성
+    2. ../LLaMA-Factory/data/dataset_info.json 에 아래 항목 추가:
        "sunny_dpo": {
          "file_name": "sunny_dpo.jsonl",
          "formatting": "sharegpt",
@@ -233,10 +232,10 @@ def build_dpo_entry(user_text: str, chosen: str, rejected: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="DPO 데이터 생성 (chosen=gold, rejected=model 실패)")
-    parser.add_argument("--model", default="models/qwen3-0.6b-finetuned")
+    parser.add_argument("--model", default="saves/qwen3-0.6b/full/sft")
     parser.add_argument("--tokenizer", default=None)
     parser.add_argument("--input", default=None, help="txt 파일 또는 디렉토리 (기본: data/user_prompt/)")
-    parser.add_argument("--output", default="data/dpo/sunny_dpo.jsonl", help="출력 JSONL 경로")
+    parser.add_argument("--output", default="../LLaMA-Factory/data/sunny_dpo.jsonl", help="출력 JSONL 경로")
     parser.add_argument("--split", choices=["train", "test", "all"], default="train", help="data/test_stems.txt 기준 split (기본: train)")
     parser.add_argument("--num-samples", type=int, default=8, help="프롬프트당 생성 샘플 수 (기본: 8)")
     parser.add_argument("--temperature", type=float, default=0.9)
@@ -258,7 +257,7 @@ def main():
     model_path = _model_arg if (_model_arg.is_absolute() or _model_arg.exists()) else (
         PROJECT_ROOT / args.model if (PROJECT_ROOT / args.model).exists() else args.model
     )
-    output_path = PROJECT_ROOT / args.output
+    output_path = (PROJECT_ROOT / args.output).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     input_path = Path(args.input) if args.input else PROJECT_ROOT / "data" / "user_prompt"
 
@@ -393,7 +392,7 @@ def main():
     print(f"\n완료. 총 DPO 쌍: {total_pairs}, rejected 없어 스킵: {total_no_failure}, 기타 스킵: {total_skipped}")
     print(f"출력: {output_path}")
     print(f"\n[LLaMA-Factory 등록]")
-    print(f'  파일을 /LLaMA-Factory/data/sunny_dpo.jsonl 에 복사 후')
+    print(f'  파일 위치: ../LLaMA-Factory/data/sunny_dpo.jsonl')
     print(f'  dataset_info.json 에 추가:')
     print(json.dumps({
         "sunny_dpo": {
