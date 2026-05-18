@@ -4,7 +4,7 @@ JSON 파싱 실패(pred_json 비어 있음)는 모든 메트릭 0으로 집계�
 
 사용법:
     python src/test/evaluate.py
-    python src/test/evaluate.py --input data/infer_results.jsonl
+    python src/test/evaluate.py --input data/infer_sft.jsonl
     python src/test/evaluate.py --llm --llm-model gpt-4o-mini
 """
 from __future__ import annotations

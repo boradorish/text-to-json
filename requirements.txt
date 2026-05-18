@@ -10,8 +10,9 @@ python-dotenv>=1.0
 
 # ── HuggingFace ───────────────────────────────────────────────────────────────
 huggingface-hub>=0.20  # get_model.py
-transformers>=4.40     # infer.py
-torch>=2.0             # infer.py, finetune_unsloth.py
+transformers>=4.40     # tokenizer/model utilities
+torch>=2.0             # finetune_unsloth.py
+vllm>=0.6              # 빠른 로컬 배치 추론 (infer.py, generate_dpo_data.py)
 datasets>=2.0          # finetune_unsloth.py
 trl>=0.8               # finetune_unsloth.py (SFTTrainer)
 peft>=0.10             # infer.py (LoRA 어댑터 로드)

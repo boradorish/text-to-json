@@ -17,91 +17,18 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import torch
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.prompt_loader import find_project_root
+from utils.vllm_inference import VllmModel, build_chat_prompts, generate_texts, load_vllm_model
 
 PROJECT_ROOT = find_project_root()
 SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "infer_SYSTEM_prompt.txt").read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
-# 모델 로드
-# ---------------------------------------------------------------------------
-
-def _parse_model_path(model_path: str) -> tuple[str, str | None]:
-    parts = model_path.split("/")
-    if len(parts) > 2 and not model_path.startswith("/"):
-        return "/".join(parts[:2]), "/".join(parts[2:])
-    return model_path, None
-
-
-def _is_lora_adapter(model_path: str) -> bool:
-    return (Path(model_path) / "adapter_config.json").exists()
-
-
-def _get_base_model_id(adapter_path: str) -> str:
-    cfg = json.loads((Path(adapter_path) / "adapter_config.json").read_text(encoding="utf-8"))
-    return cfg["base_model_name_or_path"]
-
-
-def load_model(model_path: str | Path, tokenizer_path: str | Path | None = None):
-    model_path = str(model_path)
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-
-    if _is_lora_adapter(model_path):
-        # LoRA 어댑터: adapter_config.json에서 베이스 모델 읽어서 로드 후 어댑터 병합
-        from peft import PeftModel
-        base_id = _get_base_model_id(model_path)
-        print(f"LoRA 어댑터 감지. 베이스 모델: {base_id}")
-        tokenizer_src = str(tokenizer_path) if tokenizer_path else base_id
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_src, trust_remote_code=True)
-        if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.padding_side = "left"
-
-        base_model = AutoModelForCausalLM.from_pretrained(
-            base_id, trust_remote_code=True, torch_dtype=torch.bfloat16
-        )
-        model = PeftModel.from_pretrained(base_model, model_path)
-        model = model.merge_and_unload()  # 추론 속도를 위해 가중치 병합
-    else:
-        # 풀 모델 (merge된 체크포인트 또는 HF repo)
-        repo_id, subfolder = _parse_model_path(model_path)
-        tokenizer_src = str(tokenizer_path) if tokenizer_path else model_path
-        print(f"모델 로드 중: {model_path}")
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_src, trust_remote_code=True)
-        if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.padding_side = "left"
-
-        subfolder_kwargs = {"subfolder": subfolder} if subfolder else {}
-        model = AutoModelForCausalLM.from_pretrained(
-            repo_id,
-            **subfolder_kwargs,
-            trust_remote_code=True,
-            torch_dtype=torch.bfloat16,
-        )
-
-    model = model.to(device)
-    model.eval()
-    print(f"모델 로드 완료. (device: {device})")
-    return model, tokenizer
-
-
-# ---------------------------------------------------------------------------
 # 추론
 # ---------------------------------------------------------------------------
-
-def build_prompt(user_text: str, tokenizer) -> str:
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_text},
-    ]
-    return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-
 
 def extract_json_from_output(text: str) -> Any | None:
     parts = re.split(r"</think>", text, maxsplit=1)
@@ -125,30 +52,18 @@ def extract_json_from_output(text: str) -> Any | None:
 
 
 def run_batch_inference(
-    model, tokenizer, user_texts: list[str], max_new_tokens: int = 4096
+    engine: VllmModel, user_texts: list[str], max_new_tokens: int = 4096
 ) -> list[dict]:
-    prompts = [build_prompt(t, tokenizer) for t in user_texts]
-    inputs = tokenizer(
+    prompts = build_chat_prompts(engine.tokenizer, SYSTEM_PROMPT, user_texts)
+    outputs = generate_texts(
+        engine,
         prompts,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-    ).to(model.device)
-
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
-            temperature=None,
-            top_p=None,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-
-    input_len = inputs["input_ids"].shape[1]
+        max_new_tokens=max_new_tokens,
+        temperature=0.0,
+        top_p=1.0,
+    )
     results = []
-    for output in outputs:
-        raw_output = tokenizer.decode(output[input_len:], skip_special_tokens=True)
+    for raw_output in outputs:
         results.append({
             "raw_output": raw_output,
             "json_obj": extract_json_from_output(raw_output),
@@ -189,6 +104,9 @@ def main():
     parser.add_argument("--output", default="data/infer_results", help="출력 경로 (확장자 제외, .jsonl/.xlsx 자동 생성)")
     parser.add_argument("--max-new-tokens", type=int, default=512)
     parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument("--tensor-parallel-size", type=int, default=1)
+    parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
+    parser.add_argument("--max-model-len", type=int, default=None)
     parser.add_argument("--test-only", action="store_true", help="data/test_stems.txt 기준으로 필터링")
     args = parser.parse_args()
 
@@ -259,7 +177,13 @@ def main():
             "json_schema": schema_path.read_text(encoding="utf-8") if schema_path.exists() else "",
         })
 
-    model, tokenizer = load_model(model_path, tokenizer_path=args.tokenizer)
+    engine = load_vllm_model(
+        model_path,
+        tokenizer_path=args.tokenizer,
+        tensor_parallel_size=args.tensor_parallel_size,
+        gpu_memory_utilization=args.gpu_memory_utilization,
+        max_model_len=args.max_model_len,
+    )
 
     # 배치 추론 — 배치마다 저장
     total = len(rows)
@@ -267,7 +191,7 @@ def main():
         batch_rows = rows[i : i + args.batch_size]
         batch_texts = [r["user_prompt"] for r in batch_rows]
         print(f"[{i + 1}~{min(i + args.batch_size, total)}/{total}] 추론 중...")
-        batch_results = run_batch_inference(model, tokenizer, batch_texts, args.max_new_tokens)
+        batch_results = run_batch_inference(engine, batch_texts, args.max_new_tokens)
 
         for row, result in zip(batch_rows, batch_results):
             saved_records.append({

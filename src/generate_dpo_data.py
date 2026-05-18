@@ -42,59 +42,18 @@ import sys
 from pathlib import Path
 
 import jsonschema
-import torch
 from tqdm import tqdm
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.prompt_loader import find_project_root
 from utils.parsing_answer import _extract_json_from_chunk
+from utils.vllm_inference import VllmModel, build_chat_prompts, generate_texts, load_vllm_model
 
 PROJECT_ROOT = find_project_root()
 SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "infer_SYSTEM_prompt.txt").read_text(encoding="utf-8")
 
 JSON_DIR = PROJECT_ROOT / "data" / "json"
 SCHEMA_DIR = PROJECT_ROOT / "data" / "json_schema"
-
-
-# ---------------------------------------------------------------------------
-# 모델 로드 (infer.py와 동일)
-# ---------------------------------------------------------------------------
-
-def _parse_model_path(model_path: str) -> tuple[str, str | None]:
-    parts = model_path.split("/")
-    if len(parts) > 2 and not model_path.startswith("/"):
-        return "/".join(parts[:2]), "/".join(parts[2:])
-    return model_path, None
-
-
-def load_model(model_path: str | Path, tokenizer_path: str | Path | None = None):
-    model_path = str(model_path)
-    tokenizer_src = str(tokenizer_path) if tokenizer_path else model_path
-    repo_id, subfolder = _parse_model_path(model_path)
-    print(f"모델 로드 중: {model_path}")
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_src, trust_remote_code=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"
-
-    subfolder_kwargs = {"subfolder": subfolder} if subfolder else {}
-    try:
-        config = AutoConfig.from_pretrained(repo_id, **subfolder_kwargs, trust_remote_code=True)
-    except Exception:
-        config = AutoConfig.from_pretrained(tokenizer_src, trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(
-        repo_id,
-        **subfolder_kwargs,
-        config=config,
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16,
-    )
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    model = model.to(device)
-    model.eval()
-    print(f"모델 로드 완료. (device: {device})")
-    return model, tokenizer
 
 
 # ---------------------------------------------------------------------------
@@ -161,8 +120,7 @@ def is_valid_against_schema(raw_output: str, gold_schema: dict) -> tuple[bool, s
 # ---------------------------------------------------------------------------
 
 def generate_samples_batch(
-    model,
-    tokenizer,
+    engine: VllmModel,
     user_texts: list[str],
     num_samples: int,
     temperature: float,
@@ -173,41 +131,15 @@ def generate_samples_batch(
     반환: outputs[i] = [sample_0, ..., sample_{num_samples-1}]
     """
     repeated_texts = [t for t in user_texts for _ in range(num_samples)]
-    messages_list = [
-        [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": t}]
-        for t in repeated_texts
-    ]
-    prompts = [
-        tokenizer.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
-        for msgs in messages_list
-    ]
-
-    inputs = tokenizer(
+    prompts = build_chat_prompts(engine.tokenizer, SYSTEM_PROMPT, repeated_texts)
+    decoded = generate_texts(
+        engine,
         prompts,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=4096,
-    ).to(model.device)
-
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=True,
-            temperature=temperature,
-            top_p=0.95,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-
-    input_len = inputs["input_ids"].shape[1]
-    decoded = [
-        tokenizer.decode(out[input_len:], skip_special_tokens=True)
-        for out in outputs
-    ]
-    del inputs, outputs
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        top_p=0.95,
+    )
     gc.collect()
-    torch.cuda.empty_cache()
 
     grouped: list[list[str]] = []
     for i in range(len(user_texts)):
@@ -241,6 +173,9 @@ def main():
     parser.add_argument("--temperature", type=float, default=0.9)
     parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--batch-size", type=int, default=2, help="동시에 처리할 프롬프트 수 (기본: 2)")
+    parser.add_argument("--tensor-parallel-size", type=int, default=1)
+    parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
+    parser.add_argument("--max-model-len", type=int, default=None)
     parser.add_argument("--max-prompts", type=int, default=None, help="처리할 최대 프롬프트 수 (기본: 전체)")
     parser.add_argument("--max-pairs-per-prompt", type=int, default=3, help="프롬프트당 최대 DPO 쌍 수 (기본: 3)")
     parser.add_argument("--num-shards", type=int, default=1, help="전체 파일을 나눌 shard 수 (기본: 1)")
@@ -308,7 +243,13 @@ def main():
     print(f"[SKIP] 이미 처리된 {len(all_files) - len(files)}개 건너뜀")
     print(f"총 {len(files)}개 프롬프트 처리 시작 (num_samples={args.num_samples})\n")
 
-    model, tokenizer = load_model(model_path, tokenizer_path=args.tokenizer)
+    engine = load_vllm_model(
+        model_path,
+        tokenizer_path=args.tokenizer,
+        tensor_parallel_size=args.tensor_parallel_size,
+        gpu_memory_utilization=args.gpu_memory_utilization,
+        max_model_len=args.max_model_len,
+    )
 
     total_pairs = 0
     total_no_failure = 0
@@ -335,7 +276,7 @@ def main():
                 skipped=total_skipped,
             )
             all_samples = generate_samples_batch(
-                model, tokenizer, user_texts,
+                engine, user_texts,
                 num_samples=args.num_samples,
                 temperature=args.temperature,
                 max_new_tokens=args.max_new_tokens,

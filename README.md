@@ -91,12 +91,14 @@ saves/qwen3-0.6b/full/sft
 ## 3. DPO/ORPO 데이터 생성
 
 SFT 모델에서 여러 샘플을 생성하고, gold schema를 통과하지 못한 출력을 rejected로 저장합니다.
+추론은 vLLM으로 실행됩니다.
 
 ```bash
-python src/generate_dpo_data.py \
+python3 src/generate_dpo_data.py \
   --model saves/qwen3-4b/full/sft \
   --num-samples 8 \
-  --batch-size 2
+  --batch-size 2 \
+  --gpu-memory-utilization 0.9
 ```
 
 출력:
@@ -154,18 +156,20 @@ saves/qwen3-0.6b/full/orpo
 
 ## 6. Infer
 
+추론 스크립트도 vLLM을 사용합니다. 여러 GPU를 쓸 때는 `--tensor-parallel-size`를 지정합니다.
+
 ```bash
-python src/test/infer.py \
+python3 src/test/infer.py \
   --model saves/qwen3-0.6b/full/sft \
   --test-only \
   --output data/infer_sft
 
-python src/test/infer.py \
+python3 src/test/infer.py \
   --model saves/qwen3-0.6b/full/dpo \
   --test-only \
   --output data/infer_dpo
 
-python src/test/infer.py \
+python3 src/test/infer.py \
   --model saves/qwen3-0.6b/full/orpo \
   --test-only \
   --output data/infer_orpo
