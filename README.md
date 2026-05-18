@@ -79,7 +79,7 @@ SFT 데이터의 system prompt는 `prompt/infer_SYSTEM_prompt.txt`입니다.
 ```bash
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 FORCE_TORCHRUN=1 \
-llamafactory-cli train src/train/qwen3_0.6B_full_guide.yaml
+llamafactory-cli train src/train/qwen3_4B_full_guide.yaml
 ```
 
 출력:
@@ -94,7 +94,7 @@ SFT 모델에서 여러 샘플을 생성하고, gold schema를 통과하지 못�
 
 ```bash
 python src/generate_dpo_data.py \
-  --model saves/qwen3-0.6b/full/sft \
+  --model saves/qwen3-4b/full/sft \
   --num-samples 8 \
   --batch-size 2
 ```
