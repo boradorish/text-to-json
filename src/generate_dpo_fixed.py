@@ -106,7 +106,34 @@ def build_dpo_entry(user_text: str, chosen: str, rejected: str, stem: str) -> di
     }
 
 
-def load_items(input_path: Path):
+def load_test_stems(test_stems_path: Path) -> set[str]:
+    if not test_stems_path.exists():
+        raise FileNotFoundError(f"test stems file not found: {test_stems_path}")
+
+    return {
+        line.strip()
+        for line in test_stems_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+
+
+def filter_files_by_split(
+    files: list[Path],
+    split: str,
+    test_stems_path: Path,
+) -> list[Path]:
+    if split == "all":
+        return files
+
+    test_stems = load_test_stems(test_stems_path)
+
+    if split == "test":
+        return [file for file in files if file.stem in test_stems]
+
+    return [file for file in files if file.stem not in test_stems]
+
+
+def load_items(input_path: Path, split: str, test_stems_path: Path):
     print(f"[DEBUG] cwd: {Path.cwd()}")
     print(f"[DEBUG] input_path: {input_path}")
     print(f"[DEBUG] absolute path: {input_path.resolve()}")
@@ -115,6 +142,8 @@ def load_items(input_path: Path):
         files = [input_path]
     else:
         files = sorted(input_path.glob("*.txt"))
+    files = filter_files_by_split(files, split, test_stems_path)
+
     items = []
     skipped = 0
 
@@ -144,6 +173,8 @@ def main():
     parser.add_argument("--tokenizer", default=None)
     parser.add_argument("--input", default=None)
     parser.add_argument("--output", default="../LLaMA-Factory/data/sunny_dpo.jsonl")
+    parser.add_argument("--split", choices=["train", "test", "all"], default="train")
+    parser.add_argument("--test-stems", default="data/test_stems.txt")
 
     parser.add_argument("--num-samples", type=int, default=8)
     parser.add_argument("--temperature", type=float, default=0.9)
@@ -160,12 +191,19 @@ def main():
     tokenizer_path = resolve_path(args.tokenizer) if args.tokenizer else model_path
 
     input_path = Path(args.input) if args.input else USER_PROMPT_DIR
+    test_stems_path = resolve_path(args.test_stems)
+    test_stems_path = Path(test_stems_path)
     output_path = (PROJECT_ROOT / args.output).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     print(input_path)
-    items, skipped_before_generation = load_items(input_path)
+    items, skipped_before_generation = load_items(
+        input_path,
+        args.split,
+        test_stems_path,
+    )
 
     print(f"valid prompts: {len(items)}")
+    print(f"split: {args.split}")
     print(f"skipped before generation: {skipped_before_generation}")
 
     if not items:
