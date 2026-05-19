@@ -5,6 +5,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from collections import Counter
 from tqdm import tqdm
 import jsonschema
 from tqdm import tqdm
@@ -24,7 +25,7 @@ SYSTEM_PROMPT = (PROJECT_ROOT / "prompt" / "infer_SYSTEM_prompt.txt").read_text(
     encoding="utf-8"
 )
 
-DATA_ROOT = PROJECT_ROOT / "src" / "data"
+DATA_ROOT = PROJECT_ROOT / "data"
 
 USER_PROMPT_DIR = DATA_ROOT / "user_prompt"
 JSON_DIR = DATA_ROOT / "json"
@@ -133,7 +134,37 @@ def filter_files_by_split(
     return [file for file in files if file.stem not in test_stems]
 
 
-def load_items(input_path: Path, split: str, test_stems_path: Path):
+def filter_files_by_shard(
+    files: list[Path],
+    num_shards: int,
+    shard_index: int,
+) -> list[Path]:
+    if num_shards == 1:
+        return files
+
+    return [
+        file
+        for idx, file in enumerate(files)
+        if idx % num_shards == shard_index
+    ]
+
+
+def shard_output_path(output_path: Path, num_shards: int, shard_index: int) -> Path:
+    if num_shards == 1:
+        return output_path
+
+    return output_path.with_name(
+        f"{output_path.stem}.shard{shard_index}-of-{num_shards}{output_path.suffix}"
+    )
+
+
+def load_items(
+    input_path: Path,
+    split: str,
+    test_stems_path: Path,
+    num_shards: int,
+    shard_index: int,
+):
     print(f"[DEBUG] cwd: {Path.cwd()}")
     print(f"[DEBUG] input_path: {input_path}")
     print(f"[DEBUG] absolute path: {input_path.resolve()}")
@@ -143,9 +174,17 @@ def load_items(input_path: Path, split: str, test_stems_path: Path):
     else:
         files = sorted(input_path.glob("*.txt"))
     files = filter_files_by_split(files, split, test_stems_path)
+    before_shard = len(files)
+    files = filter_files_by_shard(files, num_shards, shard_index)
+    if num_shards > 1:
+        print(
+            f"[SHARD] {shard_index}/{num_shards}: "
+            f"{before_shard} files -> {len(files)} files"
+        )
 
     items = []
     skipped = 0
+    skip_reasons = Counter()
 
     for file in tqdm(files):
         user_text = file.read_text(encoding="utf-8")
@@ -153,8 +192,13 @@ def load_items(input_path: Path, split: str, test_stems_path: Path):
         chosen = build_chosen_response(file.stem)
 
             
-        if schema is None or chosen is None:
+        if schema is None:
             skipped += 1
+            skip_reasons["schema_missing_or_invalid"] += 1
+            continue
+        if chosen is None:
+            skipped += 1
+            skip_reasons["gold_json_missing_or_invalid"] += 1
             continue
 
         items.append({
@@ -163,7 +207,7 @@ def load_items(input_path: Path, split: str, test_stems_path: Path):
             "schema": schema,
             "chosen": chosen,
         })
-    return items, skipped
+    return items, skipped, skip_reasons
 
 
 def main():
@@ -175,6 +219,8 @@ def main():
     parser.add_argument("--output", default="../LLaMA-Factory/data/sunny_dpo.jsonl")
     parser.add_argument("--split", choices=["train", "test", "all"], default="train")
     parser.add_argument("--test-stems", default="data/test_stems.txt")
+    parser.add_argument("--num-shards", type=int, default=1)
+    parser.add_argument("--shard-index", type=int, default=0)
 
     parser.add_argument("--num-samples", type=int, default=8)
     parser.add_argument("--temperature", type=float, default=0.9)
@@ -186,6 +232,10 @@ def main():
     parser.add_argument("--max-model-len", type=int, default=None)
 
     args = parser.parse_args()
+    if args.num_shards < 1:
+        raise ValueError("--num-shards must be >= 1")
+    if not 0 <= args.shard_index < args.num_shards:
+        raise ValueError("--shard-index must satisfy 0 <= shard-index < num-shards")
 
     model_path = resolve_path(args.model)
     tokenizer_path = resolve_path(args.tokenizer) if args.tokenizer else model_path
@@ -193,18 +243,27 @@ def main():
     input_path = Path(args.input) if args.input else USER_PROMPT_DIR
     test_stems_path = resolve_path(args.test_stems)
     test_stems_path = Path(test_stems_path)
-    output_path = (PROJECT_ROOT / args.output).resolve()
+    output_path = shard_output_path(
+        (PROJECT_ROOT / args.output).resolve(),
+        args.num_shards,
+        args.shard_index,
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     print(input_path)
-    items, skipped_before_generation = load_items(
+    items, skipped_before_generation, skip_reasons = load_items(
         input_path,
         args.split,
         test_stems_path,
+        args.num_shards,
+        args.shard_index,
     )
 
     print(f"valid prompts: {len(items)}")
     print(f"split: {args.split}")
+    print(f"shard: {args.shard_index}/{args.num_shards}")
     print(f"skipped before generation: {skipped_before_generation}")
+    if skip_reasons:
+        print(f"skip reasons: {dict(skip_reasons)}")
 
     if not items:
         print("no valid prompts found")
