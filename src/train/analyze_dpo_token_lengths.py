@@ -6,7 +6,7 @@ cutoff_len 설정과 OOM 위험을 판단하는 데 사용합니다.
 
 사용법:
     python src/train/analyze_dpo_token_lengths.py \
-      --data data/dpo/sunny_dpo.clean.jsonl \
+      --data data/dpo/sunny_dpo.jsonl \
       --tokenizer boradorish/qwen3-4b-new-prompt \
       --cutoffs 2048 4096 8192
 """

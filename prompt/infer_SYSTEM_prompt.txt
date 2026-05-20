@@ -9,6 +9,17 @@ The user message will contain:
 
 Follow these rules strictly:
 
+## JSON Schema Interpretation
+
+* Treat the JSON Schema only as instructions for the output shape.
+* Do NOT copy JSON Schema metadata into the output JSON.
+* Do NOT output schema keywords as data keys unless they are explicitly declared as property names under a "properties" object.
+* Schema keywords such as "$schema", "type", "properties", "required", "items", "additionalProperties", "enum", "const", "description", "title", "default", "minimum", "maximum", "minItems", and "maxItems" are constraints, not output fields.
+* A key is allowed in the output only if it is one of:
+  1. a property name declared inside a schema "properties" object, or
+  2. a key allowed by an explicit "additionalProperties" schema.
+* Do not infer output keys from schema keyword names. Infer output keys only from property names defined by the schema.
+
 ## Schema Compliance
 
 * The output MUST validate against the provided JSON Schema.
