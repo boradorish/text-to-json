@@ -3,7 +3,7 @@
 # Glaive Function Calling SFT: Qwen3-4B-Instruct on glaive-function-calling-v2 2k
 #
 # 사전 준비:
-#   1. python src/prepare_glaive_sft.py
+#   1. python3 src/prepare_glaive_sft.py
 #   2. cp data/sft/glaive_sft.jsonl ../LLaMA-Factory/data/
 #   3. dataset_info.json 에 glaive_sft 등록
 

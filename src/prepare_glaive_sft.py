@@ -11,8 +11,8 @@ glaiveai/glaive-function-calling-v2 → LLaMA-Factory SFT 데이터 준비
   ]}
 
 사용법:
-    python src/prepare_glaive_sft.py
-    python src/prepare_glaive_sft.py --num-samples 2000 --output data/sft/glaive_sft.jsonl
+    python3 src/prepare_glaive_sft.py
+    python3 src/prepare_glaive_sft.py --num-samples 2000 --output data/sft/glaive_sft.jsonl
 """
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ def main():
 
     dataset_name = "glaive_sft"
     print(f"\n[LLaMA-Factory 데이터셋 등록]")
-    print(f"  cp {output_path} /workspace/LLaMA-Factory/data/{output_path.name}")
+    print(f"  cp {output_path} ../LLaMA-Factory/data/{output_path.name}")
     print(f"  dataset_info.json 추가:")
     print(json.dumps({
         dataset_name: {
