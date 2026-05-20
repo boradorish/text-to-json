@@ -138,6 +138,45 @@ python3 src/train/add_function_calling_data.py \
   --output ../LLaMA-Factory/data/custom-reasoning.json
 ```
 
+## ScrapeGraphAI 100k SFT
+
+`scrapegraphai/scrapegraphai-100k`에서 schema-valid 응답 샘플을 약 1.5K개 잘라 Qwen3-4B LoRA SFT를 할 때는 아래 순서로 실행합니다.
+
+```bash
+python3 src/prepare_scrapegraph_sft.py \
+  --num-samples 1500 \
+  --output data/sft/scrapegraph_sft_1_5k.jsonl
+
+cp data/sft/scrapegraph_sft_1_5k.jsonl ../LLaMA-Factory/data/
+```
+
+`../LLaMA-Factory/data/dataset_info.json`에 아래 항목을 추가합니다.
+
+```json
+{
+  "scrapegraph_sft": {
+    "file_name": "scrapegraph_sft_1_5k.jsonl",
+    "formatting": "sharegpt",
+    "columns": { "messages": "conversations" },
+    "tags": {
+      "role_tag": "from",
+      "content_tag": "value",
+      "user_tag": "human",
+      "assistant_tag": "gpt",
+      "system_tag": "system"
+    }
+  }
+}
+```
+
+등록 후 학습합니다.
+
+```bash
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+FORCE_TORCHRUN=1 \
+llamafactory-cli train src/train/qwen3_4B_scrapegraph_sft.yaml
+```
+
 ## 3. DPO/ORPO 데이터 생성
 
 SFT 모델에서 여러 샘플을 생성하고, gold schema를 통과하지 못한 출력을 rejected로 저장합니다.
