@@ -177,6 +177,45 @@ FORCE_TORCHRUN=1 \
 llamafactory-cli train src/train/qwen3_4B_scrapegraph_sft.yaml
 ```
 
+## MasterControl JSON-Unstructured-Structured SFT
+
+`MasterControlAIML/JSON-Unstructured-Structured`는 unstructured text, JSON Schema, gold structured JSON이 같이 들어 있어 위와 같은 ShareGPT SFT 포맷으로 변환할 수 있습니다. 컬럼명이 명확하지 않은 경우에도 스크립트가 JSON Schema/gold JSON/report 필드를 값 기반으로 추론합니다.
+
+```bash
+python3 src/prepare_mastercontrol_sft.py \
+  --num-samples 1500 \
+  --output data/sft/mastercontrol_sft_1_5k.jsonl
+
+cp data/sft/mastercontrol_sft_1_5k.jsonl ../LLaMA-Factory/data/
+```
+
+`../LLaMA-Factory/data/dataset_info.json`에 아래 항목을 추가합니다.
+
+```json
+{
+  "mastercontrol_sft": {
+    "file_name": "mastercontrol_sft_1_5k.jsonl",
+    "formatting": "sharegpt",
+    "columns": { "messages": "conversations" },
+    "tags": {
+      "role_tag": "from",
+      "content_tag": "value",
+      "user_tag": "human",
+      "assistant_tag": "gpt",
+      "system_tag": "system"
+    }
+  }
+}
+```
+
+등록 후 학습합니다.
+
+```bash
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+FORCE_TORCHRUN=1 \
+llamafactory-cli train src/train/qwen3_4B_mastercontrol_sft.yaml
+```
+
 ## 3. DPO/ORPO 데이터 생성
 
 SFT 모델에서 여러 샘플을 생성하고, gold schema를 통과하지 못한 출력을 rejected로 저장합니다.
