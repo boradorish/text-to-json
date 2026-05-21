@@ -2,7 +2,7 @@
 glaiveai/glaive-function-calling-v2 -> LLaMA-Factory SFT 데이터 준비
 
 <functioncall> 안에 있는 JSON만 gold assistant 응답으로 추출하고,
-그 function call 직전까지의 대화는 report 형태의 user 입력으로 만듭니다.
+그 JSON 호출 부분을 제외한 나머지 대화는 report 형태의 user 입력으로 만듭니다.
 
 출력 포맷: sharegpt jsonl
   {"conversations": [
@@ -115,6 +115,29 @@ def extract_functioncall_json(content: str) -> str | None:
     return json.dumps(obj, ensure_ascii=False)
 
 
+def strip_functioncall(content: str) -> str:
+    """report에 gold JSON이 새지 않도록 <functioncall> 블록을 제거."""
+    content = (content or "").replace("<|endoftext|>", "").strip()
+    tag_start = content.find("<functioncall>")
+    if tag_start < 0:
+        return content
+
+    json_start = content.find("{", tag_start)
+    if json_start < 0:
+        return content[:tag_start].strip()
+
+    json_text = _extract_balanced_json(content[json_start:])
+    if json_text is None:
+        return content[:tag_start].strip()
+
+    remove_end = json_start + len(json_text)
+    if content[remove_end:].lstrip().startswith("</functioncall>"):
+        close_start = content.find("</functioncall>", remove_end)
+        remove_end = close_start + len("</functioncall>")
+
+    return (content[:tag_start] + content[remove_end:]).strip()
+
+
 def format_report(system: str, turns: list[dict[str, str]]) -> str:
     lines = []
     if system:
@@ -130,6 +153,23 @@ def format_report(system: str, turns: list[dict[str, str]]) -> str:
     return "\n".join(lines).strip()
 
 
+def format_report_without_gold_call(
+    system: str,
+    turns: list[dict[str, str]],
+    gold_turn_index: int,
+) -> str:
+    report_turns = []
+    for i, turn in enumerate(turns):
+        content = turn["content"]
+        if i == gold_turn_index:
+            content = strip_functioncall(content)
+            if not content:
+                continue
+        report_turns.append({"role": turn["role"], "content": content})
+
+    return format_report(system, report_turns)
+
+
 def convert_item(item: dict[str, Any], system_prompt: str) -> list[dict[str, Any]]:
     system = parse_system(item.get("system", ""))
     turns = parse_chat(item.get("chat", ""))
@@ -143,8 +183,8 @@ def convert_item(item: dict[str, Any], system_prompt: str) -> list[dict[str, Any
         if gold_json is None:
             continue
 
-        report = format_report(system, turns[:i])
-        if not report or not any(t["role"] == "USER" for t in turns[:i]):
+        report = format_report_without_gold_call(system, turns, i)
+        if not report or not any(t["role"] == "USER" for t in turns):
             continue
 
         records.append({
