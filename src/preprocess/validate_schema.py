@@ -13,6 +13,11 @@ except ImportError:  # pragma: no cover - supports `python src/preprocess/valida
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from preprocess.common import delete_related_files, iter_json_files, read_json, resolve_path, write_json
 
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover
+    tqdm = None
+
 
 @dataclass
 class SchemaCheck:
@@ -55,7 +60,11 @@ def validate_directory(
         raise NotADirectoryError(f"Schema directory not found: {schema_path}")
 
     results: list[SchemaCheck] = []
-    for json_path in json_files:
+    iterator = json_files
+    if tqdm is not None:
+        iterator = tqdm(json_files, desc="schema validation", unit="file")
+
+    for json_path in iterator:
         schema_file = schema_path / json_path.name
         if not schema_file.is_file():
             results.append(
@@ -96,6 +105,10 @@ def main() -> None:
     args = parser.parse_args()
 
     results = validate_directory(json_dir=args.json_dir, schema_dir=args.schema_dir)
+    print(f"Paths")
+    print(f"  json_dir:    {resolve_path(args.json_dir)}")
+    print(f"  schema_dir:  {resolve_path(args.schema_dir)}")
+    print(f"  data_dir:    {resolve_path(args.data_dir)}")
     counts = Counter(item.status for item in results)
     print("Schema validation")
     print(f"  total:           {len(results):,}")

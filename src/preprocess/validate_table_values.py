@@ -31,6 +31,11 @@ except ImportError:  # pragma: no cover - supports `python src/preprocess/valida
         write_json,
     )
 
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover
+    tqdm = None
+
 
 TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣]+")
 
@@ -130,7 +135,12 @@ def validate_directory(
     data_dir: str | Path = "data",
 ) -> list[TableValueCheck]:
     results: list[TableValueCheck] = []
-    for json_path in iter_json_files(json_dir):
+    json_files = iter_json_files(json_dir)
+    iterator = json_files
+    if tqdm is not None:
+        iterator = tqdm(json_files, desc="table-value validation", unit="file")
+
+    for json_path in iterator:
         related = stem_to_related_paths(json_path.stem, data_dir=data_dir, include_missing=True)
         report_path = related["report"]
         if not report_path.is_file():
@@ -194,6 +204,9 @@ def main() -> None:
     args = parser.parse_args()
 
     results = validate_directory(json_dir=args.json_dir, data_dir=args.data_dir)
+    print(f"Paths")
+    print(f"  json_dir:  {resolve_path(args.json_dir)}")
+    print(f"  data_dir:  {resolve_path(args.data_dir)}")
     counts = Counter(item.status for item in results)
     invalid = [item for item in results if item.status == "invalid"]
     coverage_values = [item.coverage for item in results if item.checked_values]

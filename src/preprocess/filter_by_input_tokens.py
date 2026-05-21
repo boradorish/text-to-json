@@ -15,6 +15,11 @@ except ImportError:  # pragma: no cover - supports `python src/preprocess/filter
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from preprocess.common import delete_related_files, read_json, resolve_path, stem_to_related_paths, write_json
 
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover
+    tqdm = None
+
 
 DEFAULT_TOKENIZER = "Qwen/Qwen3-0.6B-Base"
 
@@ -106,7 +111,12 @@ def measure_rows(
     system_prompt = resolve_path(system_prompt_path).read_text(encoding="utf-8")
     rows: list[TokenRow] = []
 
-    for stem in iter_dataset_stems(data_dir):
+    stems = iter_dataset_stems(data_dir)
+    iterator = stems
+    if tqdm is not None:
+        iterator = tqdm(stems, desc="measure input tokens", unit="sample")
+
+    for stem in iterator:
         user_prompt = build_user_prompt(stem, data_dir=data_dir, input_mode=input_mode)
         json_path = resolve_path(data_dir) / "json" / f"{stem}.json"
         if user_prompt is None or not json_path.is_file():
@@ -167,7 +177,12 @@ def write_filtered_dataset(
     system_prompt = resolve_path(system_prompt_path).read_text(encoding="utf-8")
     records: list[dict] = []
     kept_stems = {row.stem for row in rows if row.status == "keep"}
-    for stem in sorted(kept_stems):
+    kept_sorted = sorted(kept_stems)
+    iterator = kept_sorted
+    if tqdm is not None:
+        iterator = tqdm(kept_sorted, desc="write filtered dataset", unit="sample")
+
+    for stem in iterator:
         user_prompt = build_user_prompt(stem, data_dir=data_dir, input_mode=input_mode)
         if user_prompt is None:
             continue
@@ -217,6 +232,9 @@ def main() -> None:
     args = parser.parse_args()
 
     print(f"tokenizer: {args.tokenizer}")
+    print(f"Paths")
+    print(f"  data_dir:       {resolve_path(args.data_dir)}")
+    print(f"  system_prompt:  {resolve_path(args.system_prompt)}")
     tokenizer = load_tokenizer(args.tokenizer)
     rows = measure_rows(
         tokenizer=tokenizer,
