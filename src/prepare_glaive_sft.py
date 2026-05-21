@@ -1,13 +1,14 @@
 """
-glaiveai/glaive-function-calling-v2 → LLaMA-Factory SFT 데이터 준비
+glaiveai/glaive-function-calling-v2 -> LLaMA-Factory SFT 데이터 준비
 
-출력 포맷: sharegpt
+<functioncall> 안에 있는 JSON만 gold assistant 응답으로 추출하고,
+그 function call 직전까지의 대화는 report 형태의 user 입력으로 만듭니다.
+
+출력 포맷: sharegpt jsonl
   {"conversations": [
       {"from": "system", "value": "..."},
-      {"from": "human", "value": "..."},
-      {"from": "gpt", "value": "..."},
-      {"from": "observation", "value": "..."},  # FUNCTION RESPONSE
-      ...
+      {"from": "human", "value": "=== REPORT ===\n..."},
+      {"from": "gpt", "value": "{\"name\": ..., \"arguments\": ...}"}
   ]}
 
 사용법:
@@ -21,42 +22,140 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.prompt_loader import find_project_root
 
 PROJECT_ROOT = find_project_root()
 
+DEFAULT_SYSTEM_PROMPT = (
+    "You are a function-calling JSON generation assistant. "
+    "Read the conversation report and output only the next function call as valid JSON. "
+    "Do not include markdown, code fences, explanations, or XML-like tags."
+)
+
+USER_TEMPLATE = """Read the conversation report below and produce the JSON function call that should be made next.
+
+=== REPORT ===
+{report}
+
+Return ONLY the valid JSON object."""
+
 
 def parse_system(system_str: str) -> str:
     return re.sub(r"^SYSTEM:\s*", "", system_str, flags=re.IGNORECASE).strip()
 
 
-def parse_chat(chat_str: str) -> list[dict]:
-    segments = [s.strip() for s in re.split(r"\n{2,}", chat_str) if s.strip()]
+def parse_chat(chat_str: str) -> list[dict[str, str]]:
+    parts = re.split(r"\b(USER|ASSISTANT|FUNCTION RESPONSE):\s*", chat_str or "")
     turns = []
-    for seg in segments:
-        if seg.startswith("USER:"):
-            content = seg[5:].strip()
-            if content:
-                turns.append({"from": "human", "value": content})
-        elif seg.startswith("ASSISTANT:"):
-            content = seg[10:].strip().replace("<|endoftext|>", "").strip()
-            if content:
-                turns.append({"from": "gpt", "value": content})
-        elif seg.startswith("FUNCTION RESPONSE:"):
-            content = seg[18:].strip()
-            if content:
-                turns.append({"from": "observation", "value": content})
+    i = 1
+    while i + 1 < len(parts):
+        role = parts[i]
+        content = parts[i + 1].replace("<|endoftext|>", "").strip()
+        if content:
+            turns.append({"role": role, "content": content})
+        i += 2
     return turns
 
 
-def is_valid_conversation(turns: list[dict]) -> bool:
-    if not turns:
-        return False
-    # 반드시 human-gpt 쌍이 하나 이상 있어야 함
-    roles = [t["from"] for t in turns]
-    return "human" in roles and "gpt" in roles
+def _extract_balanced_json(text: str) -> str | None:
+    start = text.find("{")
+    if start < 0:
+        return None
+
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+
+    return None
+
+
+def extract_functioncall_json(content: str) -> str | None:
+    """<functioncall> 내부 JSON을 파싱 검증하고 정규화해서 반환."""
+    content = (content or "").replace("<|endoftext|>", "").strip()
+    if "<functioncall>" not in content:
+        return None
+
+    after_tag = content.split("<functioncall>", 1)[1]
+    if "</functioncall>" in after_tag:
+        after_tag = after_tag.split("</functioncall>", 1)[0]
+
+    candidate = _extract_balanced_json(after_tag)
+    if candidate is None:
+        return None
+
+    try:
+        obj = json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
+
+    if not isinstance(obj, dict):
+        return None
+    return json.dumps(obj, ensure_ascii=False)
+
+
+def format_report(system: str, turns: list[dict[str, str]]) -> str:
+    lines = []
+    if system:
+        lines.extend(["SYSTEM:", system.strip(), ""])
+
+    for turn in turns:
+        role = turn["role"]
+        content = turn["content"].strip()
+        if not content:
+            continue
+        lines.extend([f"{role}:", content, ""])
+
+    return "\n".join(lines).strip()
+
+
+def convert_item(item: dict[str, Any], system_prompt: str) -> list[dict[str, Any]]:
+    system = parse_system(item.get("system", ""))
+    turns = parse_chat(item.get("chat", ""))
+
+    records = []
+    for i, turn in enumerate(turns):
+        if turn["role"] != "ASSISTANT":
+            continue
+
+        gold_json = extract_functioncall_json(turn["content"])
+        if gold_json is None:
+            continue
+
+        report = format_report(system, turns[:i])
+        if not report or not any(t["role"] == "USER" for t in turns[:i]):
+            continue
+
+        records.append({
+            "conversations": [
+                {"from": "system", "value": system_prompt},
+                {"from": "human", "value": USER_TEMPLATE.format(report=report)},
+                {"from": "gpt", "value": gold_json},
+            ]
+        })
+
+    return records
 
 
 def main():
@@ -64,6 +163,7 @@ def main():
     parser.add_argument("--num-samples", type=int, default=20000)
     parser.add_argument("--output", default="data/sft/glaive_sft.jsonl")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--system-prompt", default=DEFAULT_SYSTEM_PROMPT)
     args = parser.parse_args()
 
     output_path = PROJECT_ROOT / args.output
@@ -85,21 +185,16 @@ def main():
             if written >= args.num_samples:
                 break
 
-            system_str = parse_system(item.get("system", ""))
-            turns = parse_chat(item.get("chat", ""))
-
-            if not is_valid_conversation(turns):
+            records = convert_item(item, args.system_prompt)
+            if not records:
                 skipped += 1
                 continue
 
-            conversations = []
-            if system_str:
-                conversations.append({"from": "system", "value": system_str})
-            conversations.extend(turns)
-
-            record = {"conversations": conversations}
-            fout.write(json.dumps(record, ensure_ascii=False) + "\n")
-            written += 1
+            for record in records:
+                if written >= args.num_samples:
+                    break
+                fout.write(json.dumps(record, ensure_ascii=False) + "\n")
+                written += 1
 
     print(f"\n완료.")
     print(f"  저장:  {written}개")

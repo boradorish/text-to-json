@@ -8,7 +8,7 @@
 #   3. dataset_info.json 에 glaive_sft 등록
 
 ### model
-model_name_or_path: Qwen/Qwen3-4B-Instruct-2507
+model_name_or_path: Qwen/Qwen3-4B
 trust_remote_code: true
 
 ### method
@@ -40,7 +40,7 @@ report_to: wandb
 
 ### train
 per_device_train_batch_size: 8
-gradient_accumulation_steps: 1  # effective batch = 2 GPUs x 8 x 1 = 16
+gradient_accumulation_steps: 1 # effective batch = 2 GPUs x 8 x 1 = 16
 learning_rate: 2.0e-5
 num_train_epochs: 3.0
 lr_scheduler_type: cosine
