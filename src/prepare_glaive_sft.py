@@ -1,19 +1,22 @@
 """
-glaiveai/glaive-function-calling-v2 -> LLaMA-Factory SFT 데이터 준비
+glaiveai/glaive-function-calling-v2 -> report + JSON Schema + gold JSON SFT 데이터 준비.
 
-<functioncall> 안에 있는 JSON만 gold assistant 응답으로 추출하고,
-그 JSON 호출 부분을 제외한 나머지 대화는 report 형태의 user 입력으로 만듭니다.
+Glaive 원본은 system에 함수 정의/parameters schema가 있고, assistant의
+<functioncall> 안에는 {"name": ..., "arguments": "...json string..."} 형태의
+호출이 들어 있습니다. 이 스크립트는 호출된 함수의 parameters를 JSON Schema로
+꺼내고 arguments를 실제 JSON 객체로 정규화해서 다음 형태로 학습 데이터를 만듭니다.
 
 출력 포맷: sharegpt jsonl
   {"conversations": [
       {"from": "system", "value": "..."},
-      {"from": "human", "value": "=== REPORT ===\n..."},
-      {"from": "gpt", "value": "{\"name\": ..., \"arguments\": ...}"}
+      {"from": "human", "value": "Target function...\n=== REPORT ===\n...\n=== JSON SCHEMA ===\n..."},
+      {"from": "gpt", "value": "{\"country\":\"United States\"}"}
   ]}
 
 사용법:
     python3 src/prepare_glaive_sft.py
     python3 src/prepare_glaive_sft.py --num-samples 2000 --output data/sft/glaive_sft.jsonl
+    python3 src/prepare_glaive_sft.py --gold-format call  # name + arguments 객체까지 출력
 """
 from __future__ import annotations
 
@@ -30,17 +33,23 @@ from utils.prompt_loader import find_project_root
 PROJECT_ROOT = find_project_root()
 
 DEFAULT_SYSTEM_PROMPT = (
-    "You are a function-calling JSON generation assistant. "
-    "Read the conversation report and output only the next function call as valid JSON. "
-    "Do not include markdown, code fences, explanations, or XML-like tags."
+    "You are a structured data extraction assistant. Read the report and JSON Schema, "
+    "then return only valid JSON that matches the schema. Do not include markdown, "
+    "code fences, explanations, or XML-like tags."
 )
 
-USER_TEMPLATE = """Read the conversation report below and produce the JSON function call that should be made next.
+USER_TEMPLATE = """Extract the JSON object requested by the target function from the conversation report.
+
+Target function: {function_name}
+Function description: {function_description}
 
 === REPORT ===
 {report}
 
-Return ONLY the valid JSON object."""
+=== JSON SCHEMA ===
+{schema}
+
+Return ONLY valid JSON matching the schema."""
 
 
 def parse_system(system_str: str) -> str:
@@ -91,8 +100,43 @@ def _extract_balanced_json(text: str) -> str | None:
     return None
 
 
-def extract_functioncall_json(content: str) -> str | None:
-    """<functioncall> 내부 JSON을 파싱 검증하고 정규화해서 반환."""
+def _iter_balanced_json(text: str) -> list[str]:
+    chunks = []
+    start = 0
+    while start < len(text):
+        brace = text.find("{", start)
+        if brace < 0:
+            break
+        chunk = _extract_balanced_json(text[brace:])
+        if chunk is None:
+            break
+        chunks.append(chunk)
+        start = brace + len(chunk)
+    return chunks
+
+
+def parse_function_definitions(system: str) -> dict[str, dict[str, Any]]:
+    """Glaive system prompt에서 함수 정의 JSON 객체들을 추출합니다."""
+    functions: dict[str, dict[str, Any]] = {}
+    for chunk in _iter_balanced_json(system or ""):
+        try:
+            obj = json.loads(chunk)
+        except json.JSONDecodeError:
+            continue
+
+        candidates = obj if isinstance(obj, list) else [obj]
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            name = candidate.get("name")
+            params = candidate.get("parameters")
+            if isinstance(name, str) and isinstance(params, dict):
+                functions[name] = candidate
+    return functions
+
+
+def extract_functioncall_obj(content: str) -> dict[str, Any] | None:
+    """<functioncall> 내부 호출 객체를 파싱 검증하고 arguments를 객체로 정규화합니다."""
     content = (content or "").replace("<|endoftext|>", "").strip()
     if "<functioncall>" not in content:
         return None
@@ -112,7 +156,24 @@ def extract_functioncall_json(content: str) -> str | None:
 
     if not isinstance(obj, dict):
         return None
-    return json.dumps(obj, ensure_ascii=False)
+
+    name = obj.get("name")
+    args = obj.get("arguments")
+    if not isinstance(name, str):
+        return None
+
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except json.JSONDecodeError:
+            return None
+    elif args is None:
+        args = {}
+
+    if not isinstance(args, dict):
+        return None
+
+    return {"name": name, "arguments": args}
 
 
 def strip_functioncall(content: str) -> str:
@@ -138,10 +199,17 @@ def strip_functioncall(content: str) -> str:
     return (content[:tag_start] + content[remove_end:]).strip()
 
 
+def _strip_raw_function_definitions(system: str) -> str:
+    system = parse_system(system)
+    if "with access to the following functions" not in system.lower():
+        return system
+    return "The assistant may use the provided target function when the conversation requires it."
+
+
 def format_report(system: str, turns: list[dict[str, str]]) -> str:
     lines = []
     if system:
-        lines.extend(["SYSTEM:", system.strip(), ""])
+        lines.extend(["SYSTEM SUMMARY:", _strip_raw_function_definitions(system).strip(), ""])
 
     for turn in turns:
         role = turn["role"]
@@ -159,7 +227,7 @@ def format_report_without_gold_call(
     gold_turn_index: int,
 ) -> str:
     report_turns = []
-    for i, turn in enumerate(turns):
+    for i, turn in enumerate(turns[: gold_turn_index + 1]):
         content = turn["content"]
         if i == gold_turn_index:
             content = strip_functioncall(content)
@@ -170,28 +238,99 @@ def format_report_without_gold_call(
     return format_report(system, report_turns)
 
 
-def convert_item(item: dict[str, Any], system_prompt: str) -> list[dict[str, Any]]:
+def _ensure_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(schema)
+    normalized.setdefault("type", "object")
+    return normalized
+
+
+def _infer_schema_from_value(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return {
+            "type": "object",
+            "properties": {k: _infer_schema_from_value(v) for k, v in value.items()},
+            "required": list(value.keys()),
+            "additionalProperties": False,
+        }
+    if isinstance(value, list):
+        item_schema = _infer_schema_from_value(value[0]) if value else {}
+        return {"type": "array", "items": item_schema}
+    if isinstance(value, bool):
+        return {"type": "boolean"}
+    if isinstance(value, int) and not isinstance(value, bool):
+        return {"type": "integer"}
+    if isinstance(value, float):
+        return {"type": "number"}
+    if value is None:
+        return {"type": "null"}
+    return {"type": "string"}
+
+
+def _build_call_schema(function_name: str, arguments_schema: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "const": function_name},
+            "arguments": arguments_schema,
+        },
+        "required": ["name", "arguments"],
+        "additionalProperties": False,
+    }
+
+
+def _json_dumps(obj: Any, pretty: bool) -> str:
+    if pretty:
+        return json.dumps(obj, ensure_ascii=False, indent=2)
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+
+
+def convert_item(item: dict[str, Any], args: argparse.Namespace) -> list[dict[str, Any]]:
     system = parse_system(item.get("system", ""))
     turns = parse_chat(item.get("chat", ""))
+    functions = parse_function_definitions(system)
 
     records = []
     for i, turn in enumerate(turns):
         if turn["role"] != "ASSISTANT":
             continue
 
-        gold_json = extract_functioncall_json(turn["content"])
-        if gold_json is None:
+        call = extract_functioncall_obj(turn["content"])
+        if call is None:
             continue
+
+        function_name = call["name"]
+        function_def = functions.get(function_name, {})
+        function_description = (function_def.get("description") or "Not specified.").strip()
+        schema = function_def.get("parameters")
+        if not isinstance(schema, dict):
+            schema = _infer_schema_from_value(call["arguments"])
+        schema = _ensure_schema(schema)
+
+        gold_obj: dict[str, Any]
+        prompt_schema = schema
+        if args.gold_format == "call":
+            gold_obj = {"name": function_name, "arguments": call["arguments"]}
+            prompt_schema = _build_call_schema(function_name, schema)
+        else:
+            gold_obj = call["arguments"]
 
         report = format_report_without_gold_call(system, turns, i)
         if not report or not any(t["role"] == "USER" for t in turns):
             continue
 
+        if len(report) > args.max_report_chars:
+            report = report[: args.max_report_chars].rstrip() + "\n\n[TRUNCATED]"
+
         records.append({
             "conversations": [
-                {"from": "system", "value": system_prompt},
-                {"from": "human", "value": USER_TEMPLATE.format(report=report)},
-                {"from": "gpt", "value": gold_json},
+                {"from": "system", "value": args.system_prompt},
+                {"from": "human", "value": USER_TEMPLATE.format(
+                    function_name=function_name,
+                    function_description=function_description,
+                    report=report,
+                    schema=_json_dumps(prompt_schema, args.pretty),
+                )},
+                {"from": "gpt", "value": _json_dumps(gold_obj, args.pretty)},
             ]
         })
 
@@ -203,6 +342,11 @@ def main():
     parser.add_argument("--num-samples", type=int, default=20000)
     parser.add_argument("--output", default="data/sft/glaive_sft.jsonl")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--dataset", default="glaiveai/glaive-function-calling-v2")
+    parser.add_argument("--split", default="train")
+    parser.add_argument("--max-report-chars", type=int, default=12000)
+    parser.add_argument("--gold-format", choices=["args", "call"], default="args")
+    parser.add_argument("--pretty", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--system-prompt", default=DEFAULT_SYSTEM_PROMPT)
     args = parser.parse_args()
 
@@ -212,8 +356,8 @@ def main():
     from datasets import load_dataset
     from tqdm import tqdm
 
-    print("glaiveai/glaive-function-calling-v2 로드 중...")
-    ds = load_dataset("glaiveai/glaive-function-calling-v2", split="train")
+    print(f"{args.dataset} 로드 중...")
+    ds = load_dataset(args.dataset, split=args.split)
     ds = ds.shuffle(seed=args.seed)
     print(f"총 {len(ds)}개 로드 완료\n")
 
@@ -225,7 +369,7 @@ def main():
             if written >= args.num_samples:
                 break
 
-            records = convert_item(item, args.system_prompt)
+            records = convert_item(item, args)
             if not records:
                 skipped += 1
                 continue
