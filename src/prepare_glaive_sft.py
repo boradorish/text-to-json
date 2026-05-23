@@ -297,6 +297,8 @@ def convert_item(item: dict[str, Any], args: argparse.Namespace) -> list[dict[st
         call = extract_functioncall_obj(turn["content"])
         if call is None:
             continue
+        if not args.allow_empty_gold and not call["arguments"]:
+            continue
 
         function_name = call["name"]
         function_def = functions.get(function_name, {})
@@ -346,6 +348,7 @@ def main():
     parser.add_argument("--split", default="train")
     parser.add_argument("--max-report-chars", type=int, default=12000)
     parser.add_argument("--gold-format", choices=["args", "call"], default="args")
+    parser.add_argument("--allow-empty-gold", action="store_true")
     parser.add_argument("--pretty", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--system-prompt", default=DEFAULT_SYSTEM_PROMPT)
     args = parser.parse_args()

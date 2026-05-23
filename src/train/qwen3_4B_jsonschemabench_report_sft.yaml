@@ -8,7 +8,7 @@
 #   3. dataset_info.json 에 jsonschemabench_report_sft 등록
 
 ### model
-model_name_or_path: Qwen/Qwen3-4B
+model_name_or_path: Qwen/Qwen3-4B-Instruct-2507
 trust_remote_code: true
 
 ### method
