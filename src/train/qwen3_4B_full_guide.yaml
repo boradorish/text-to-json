@@ -47,7 +47,7 @@ resume_from_checkpoint: null
 optim: adamw_torch_fused
 
 ### acceleration
-flash_attn: disabled
+flash_attn: sdpa
 enable_liger_kernel: false
 disable_gradient_checkpointing: false
 
