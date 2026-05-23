@@ -34,7 +34,8 @@ def load_vllm_model(
         from vllm.lora.request import LoRARequest
     except ImportError as exc:
         raise RuntimeError(
-            "vLLM이 설치되어 있지 않습니다. 먼저 `pip install vllm`로 설치해 주세요."
+            "vLLM을 import하지 못했습니다. vLLM이 없거나 현재 CUDA/PyTorch 환경과 "
+            f"맞지 않는 wheel이 설치되어 있을 수 있습니다. 원인: {exc}"
         ) from exc
 
     model_path = str(model_path)
