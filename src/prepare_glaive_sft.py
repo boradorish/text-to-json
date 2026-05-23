@@ -62,7 +62,7 @@ def parse_chat(chat_str: str) -> list[dict[str, str]]:
     i = 1
     while i + 1 < len(parts):
         role = parts[i]
-        content = parts[i + 1].replace("<|endoftext|>", "").strip()
+        content = parts[i + 1].strip()
         if content:
             turns.append({"role": role, "content": content})
         i += 2
@@ -135,17 +135,34 @@ def parse_function_definitions(system: str) -> dict[str, dict[str, Any]]:
     return functions
 
 
-def extract_functioncall_obj(content: str) -> dict[str, Any] | None:
-    """<functioncall> 내부 호출 객체를 파싱 검증하고 arguments를 객체로 정규화합니다."""
-    content = (content or "").replace("<|endoftext|>", "").strip()
-    if "<functioncall>" not in content:
+def _functioncall_span(content: str) -> tuple[int, int, str] | None:
+    """Return the <functioncall> span and payload up to its real delimiter."""
+    tag = "<functioncall>"
+    tag_start = (content or "").find(tag)
+    if tag_start < 0:
         return None
 
-    after_tag = content.split("<functioncall>", 1)[1]
-    if "</functioncall>" in after_tag:
-        after_tag = after_tag.split("</functioncall>", 1)[0]
+    payload_start = tag_start + len(tag)
+    delimiter_start = len(content)
+    delimiter_end = delimiter_start
+    for delimiter in ("</functioncall>", "<|endoftext|>"):
+        found = content.find(delimiter, payload_start)
+        if found >= 0 and found < delimiter_start:
+            delimiter_start = found
+            delimiter_end = found + len(delimiter)
 
-    candidate = _extract_balanced_json(after_tag)
+    payload = content[payload_start:delimiter_start].strip()
+    return tag_start, delimiter_end, payload
+
+
+def extract_functioncall_obj(content: str) -> dict[str, Any] | None:
+    """<functioncall> 내부 호출 객체를 파싱 검증하고 arguments를 객체로 정규화합니다."""
+    span = _functioncall_span(content or "")
+    if span is None:
+        return None
+    _, _, payload = span
+
+    candidate = _extract_balanced_json(payload)
     if candidate is None:
         return None
 
@@ -178,25 +195,13 @@ def extract_functioncall_obj(content: str) -> dict[str, Any] | None:
 
 def strip_functioncall(content: str) -> str:
     """report에 gold JSON이 새지 않도록 <functioncall> 블록을 제거."""
-    content = (content or "").replace("<|endoftext|>", "").strip()
-    tag_start = content.find("<functioncall>")
-    if tag_start < 0:
-        return content
+    content = content or ""
+    span = _functioncall_span(content)
+    if span is None:
+        return content.replace("<|endoftext|>", "").strip()
 
-    json_start = content.find("{", tag_start)
-    if json_start < 0:
-        return content[:tag_start].strip()
-
-    json_text = _extract_balanced_json(content[json_start:])
-    if json_text is None:
-        return content[:tag_start].strip()
-
-    remove_end = json_start + len(json_text)
-    if content[remove_end:].lstrip().startswith("</functioncall>"):
-        close_start = content.find("</functioncall>", remove_end)
-        remove_end = close_start + len("</functioncall>")
-
-    return (content[:tag_start] + content[remove_end:]).strip()
+    tag_start, remove_end, _ = span
+    return (content[:tag_start] + content[remove_end:]).replace("<|endoftext|>", "").strip()
 
 
 def _strip_raw_function_definitions(system: str) -> str:
@@ -213,7 +218,7 @@ def format_report(system: str, turns: list[dict[str, str]]) -> str:
 
     for turn in turns:
         role = turn["role"]
-        content = turn["content"].strip()
+        content = turn["content"].replace("<|endoftext|>", "").strip()
         if not content:
             continue
         lines.extend([f"{role}:", content, ""])
