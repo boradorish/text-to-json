@@ -29,6 +29,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "You are a structured data extraction assistant. Extract information from "
     "web content and return only valid JSON that matches the provided JSON schema."
 )
+DEFAULT_TOKENIZER = "Qwen/Qwen3-4B-Instruct-2507"
 
 
 def _truncate(text: str, max_chars: int) -> str:
@@ -36,6 +37,28 @@ def _truncate(text: str, max_chars: int) -> str:
     if max_chars <= 0 or len(text) <= max_chars:
         return text
     return text[:max_chars].rstrip() + "\n\n[TRUNCATED]"
+
+
+def load_tokenizer(tokenizer_id: str) -> Any:
+    try:
+        from transformers import AutoTokenizer
+    except ImportError as exc:  # pragma: no cover
+        raise SystemExit("Install transformers first: pip install transformers") from exc
+
+    return AutoTokenizer.from_pretrained(tokenizer_id, trust_remote_code=True)
+
+
+def _truncate_tokens(text: str, max_tokens: int, tokenizer: Any | None) -> str:
+    text = (text or "").strip()
+    if max_tokens <= 0 or tokenizer is None:
+        return text
+
+    input_ids = tokenizer(text, add_special_tokens=False)["input_ids"]
+    if len(input_ids) <= max_tokens:
+        return text
+
+    truncated = tokenizer.decode(input_ids[:max_tokens], skip_special_tokens=True).rstrip()
+    return truncated + "\n\n[TRUNCATED]"
 
 
 def _normalize_json_text(text: str) -> str | None:
@@ -50,10 +73,17 @@ def _normalize_json_text(text: str) -> str | None:
     return json.dumps(obj, ensure_ascii=False)
 
 
-def build_user_prompt(row: dict[str, Any], max_content_chars: int, max_schema_chars: int) -> str | None:
+def build_user_prompt(
+    row: dict[str, Any],
+    max_content_chars: int,
+    max_schema_chars: int,
+    max_content_tokens: int,
+    tokenizer: Any | None,
+) -> str | None:
     prompt = (row.get("prompt") or "").strip()
     schema = _truncate(row.get("schema") or "", max_schema_chars)
     content = _truncate(row.get("content") or "", max_content_chars)
+    content = _truncate_tokens(content, max_content_tokens, tokenizer)
 
     if not schema or not content:
         return None
@@ -69,11 +99,17 @@ def build_user_prompt(row: dict[str, Any], max_content_chars: int, max_schema_ch
     )
 
 
-def convert_row(row: dict[str, Any], args: argparse.Namespace) -> dict[str, Any] | None:
+def convert_row(row: dict[str, Any], args: argparse.Namespace, tokenizer: Any | None) -> dict[str, Any] | None:
     if args.valid_only and row.get("response_is_valid") is False:
         return None
 
-    user_prompt = build_user_prompt(row, args.max_content_chars, args.max_schema_chars)
+    user_prompt = build_user_prompt(
+        row,
+        args.max_content_chars,
+        args.max_schema_chars,
+        args.max_content_tokens,
+        tokenizer,
+    )
     assistant = _normalize_json_text(row.get("response") or "")
     if not user_prompt or not assistant:
         return None
@@ -115,6 +151,13 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-content-chars", type=int, default=12000)
     parser.add_argument("--max-schema-chars", type=int, default=8000)
+    parser.add_argument(
+        "--max-content-tokens",
+        type=int,
+        default=3000,
+        help="Tokenizer-based token limit for the ScrapeGraph content/report field. Use <=0 to disable.",
+    )
+    parser.add_argument("--tokenizer", default=DEFAULT_TOKENIZER)
     parser.add_argument("--valid-only", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--system-prompt", default=DEFAULT_SYSTEM_PROMPT)
     args = parser.parse_args()
@@ -124,6 +167,11 @@ def main() -> None:
 
     from datasets import load_dataset
     from tqdm import tqdm
+
+    tokenizer = None
+    if args.max_content_tokens > 0:
+        print(f"{args.tokenizer} tokenizer 로드 중...")
+        tokenizer = load_tokenizer(args.tokenizer)
 
     print(f"{args.dataset} 로드 중...")
     ds = load_dataset(args.dataset, split=args.split)
@@ -137,7 +185,7 @@ def main() -> None:
             if written >= args.num_samples:
                 break
 
-            record = convert_row(row, args)
+            record = convert_row(row, args, tokenizer)
             if record is None:
                 skipped += 1
                 continue

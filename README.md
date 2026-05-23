@@ -145,10 +145,13 @@ python3 src/train/add_function_calling_data.py \
 ```bash
 python3 src/prepare_scrapegraph_sft.py \
   --num-samples 1500 \
+  --max-content-tokens 3000 \
   --output data/sft/scrapegraph_sft_1_5k.jsonl
 
 cp data/sft/scrapegraph_sft_1_5k.jsonl ../LLaMA-Factory/data/
 ```
+
+`--max-content-tokens`는 ScrapeGraph의 `content` 필드를 tokenizer 기준으로 자릅니다. 기본 tokenizer는 학습 모델과 맞춘 `Qwen/Qwen3-4B-Instruct-2507`이며, 토큰 컷을 끄려면 `--max-content-tokens 0`을 사용합니다.
 
 `../LLaMA-Factory/data/dataset_info.json`에 아래 항목을 추가합니다.
 
