@@ -16,7 +16,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import gc
 import json
 import re
 import sys
@@ -25,6 +24,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.prompt_loader import find_project_root
+from utils.vllm_inference import VllmModel, generate_texts, load_vllm_model
 
 PROJECT_ROOT = find_project_root()
 
@@ -258,26 +258,6 @@ def clean_report(text: str) -> str:
     return text.strip()
 
 
-def load_model(model_id: str) -> tuple[Any, Any]:
-    import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-
-    print(f"Loading report model: {model_id}")
-    tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"
-
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
-    model.eval()
-    return model, tokenizer
-
-
 def build_report_prompt(schema_str: str, gold_json: str) -> list[dict[str, str]]:
     return [
         {"role": "system", "content": REPORT_SYSTEM_PROMPT},
@@ -288,55 +268,41 @@ def build_report_prompt(schema_str: str, gold_json: str) -> list[dict[str, str]]
     ]
 
 
+def render_chat_prompt(tokenizer: Any, messages: list[dict[str, str]]) -> str:
+    try:
+        return tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
+        )
+    except TypeError:
+        return tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+
 def generate_reports(
-    model: Any,
-    tokenizer: Any,
+    engine: VllmModel,
     jobs: list[tuple[str, str]],
     args: argparse.Namespace,
 ) -> list[list[str]]:
-    import torch
-
     repeated = [job for job in jobs for _ in range(args.retries + 1)]
-    prompts = []
-    for schema_str, gold_json in repeated:
-        messages = build_report_prompt(schema_str, gold_json)
-        prompts.append(
-            tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-                enable_thinking=False,
-            )
-        )
-
-    inputs = tokenizer(
-        prompts,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=args.max_input_tokens,
-    ).to(model.device)
-
-    with torch.no_grad():
-        output = model.generate(
-            **inputs,
-            max_new_tokens=args.max_report_tokens,
-            do_sample=True,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-
-    input_len = inputs["input_ids"].shape[1]
-    decoded = [
-        clean_report(tokenizer.decode(row[input_len:], skip_special_tokens=True))
-        for row in output
+    prompts = [
+        render_chat_prompt(engine.tokenizer, build_report_prompt(schema_str, gold_json))
+        for schema_str, gold_json in repeated
     ]
 
-    del inputs, output
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    decoded = generate_texts(
+        engine,
+        prompts,
+        max_new_tokens=args.max_report_tokens,
+        temperature=args.temperature,
+        top_p=args.top_p,
+    )
+    decoded = [clean_report(text) for text in decoded]
 
     width = args.retries + 1
     return [decoded[i * width : (i + 1) * width] for i in range(len(jobs))]
@@ -366,14 +332,17 @@ def main() -> None:
     parser.add_argument("--dataset", default="epfl-dlab/JSONSchemaBench")
     parser.add_argument("--split", default="train", choices=["train", "val", "test"])
     parser.add_argument("--model", default="Qwen/Qwen3-4B-Instruct-2507")
+    parser.add_argument("--tokenizer", default=None, help="Optional tokenizer path/id for vLLM.")
     parser.add_argument("--num-samples", type=int, default=1000)
-    parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--output", default="data/sft/jsonschemabench_report_sft_1k.jsonl")
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--top-p", type=float, default=0.9)
     parser.add_argument("--retries", type=int, default=1)
-    parser.add_argument("--max-input-tokens", type=int, default=4096)
+    parser.add_argument("--max-model-len", type=int, default=4096)
     parser.add_argument("--max-report-tokens", type=int, default=128)
+    parser.add_argument("--tensor-parallel-size", type=int, default=1)
+    parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
     parser.add_argument("--max-missing-values", type=int, default=0)
     parser.add_argument(
         "--max-source-rows",
@@ -400,7 +369,13 @@ def main() -> None:
     source_limit = min(args.max_source_rows or len(dataset), len(dataset))
     print(f"Loaded {len(dataset):,} rows; scanning up to {source_limit:,} rows")
 
-    model, tokenizer = load_model(args.model)
+    engine = load_vllm_model(
+        args.model,
+        tokenizer_path=args.tokenizer,
+        tensor_parallel_size=args.tensor_parallel_size,
+        gpu_memory_utilization=args.gpu_memory_utilization,
+        max_model_len=args.max_model_len,
+    )
 
     written = 0
     skipped_parse = 0
@@ -452,8 +427,7 @@ def main() -> None:
                 continue
 
             report_candidates = generate_reports(
-                model,
-                tokenizer,
+                engine,
                 [(row["schema_str"], row["gold_json"]) for row in rows],
                 args,
             )
