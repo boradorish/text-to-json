@@ -373,8 +373,19 @@ def main() -> None:
     parser.add_argument("--top-p", type=float, default=0.9)
     parser.add_argument("--retries", type=int, default=1)
     parser.add_argument("--max-input-tokens", type=int, default=4096)
-    parser.add_argument("--max-report-tokens", type=int, default=256)
+    parser.add_argument("--max-report-tokens", type=int, default=128)
     parser.add_argument("--max-missing-values", type=int, default=0)
+    parser.add_argument(
+        "--max-source-rows",
+        type=int,
+        default=None,
+        help="Stop after scanning this many source rows, even if num-samples is not reached.",
+    )
+    parser.add_argument(
+        "--check-report-values",
+        action="store_true",
+        help="Only accept reports that mention every gold scalar value verbatim, allowing max-missing-values misses.",
+    )
     parser.add_argument("--system-prompt", default=DEFAULT_SYSTEM_PROMPT)
     args = parser.parse_args()
 
@@ -386,7 +397,8 @@ def main() -> None:
 
     print(f"Loading dataset: {args.dataset} ({args.split})")
     dataset = load_dataset(args.dataset, split=args.split)
-    print(f"Loaded {len(dataset):,} rows")
+    source_limit = min(args.max_source_rows or len(dataset), len(dataset))
+    print(f"Loaded {len(dataset):,} rows; scanning up to {source_limit:,} rows")
 
     model, tokenizer = load_model(args.model)
 
@@ -397,11 +409,12 @@ def main() -> None:
     skipped_report = 0
 
     with output_path.open("w", encoding="utf-8") as fout:
-        for batch_start in tqdm(range(0, len(dataset), args.batch_size), desc="Processing"):
+        progress = tqdm(total=args.num_samples, desc="Written")
+        for batch_start in range(0, source_limit, args.batch_size):
             if written >= args.num_samples:
                 break
 
-            batch_end = min(batch_start + args.batch_size, len(dataset))
+            batch_end = min(batch_start + args.batch_size, source_limit)
             batch = [dataset[i] for i in range(batch_start, batch_end)]
             rows = []
 
@@ -454,7 +467,14 @@ def main() -> None:
                         candidate
                         for candidate in candidates
                         if candidate
-                        and report_mentions_values(candidate, row["gold_obj"], args.max_missing_values)
+                        and (
+                            not args.check_report_values
+                            or report_mentions_values(
+                                candidate,
+                                row["gold_obj"],
+                                args.max_missing_values,
+                            )
+                        )
                     ),
                     None,
                 )
@@ -476,6 +496,8 @@ def main() -> None:
                 }
                 fout.write(json.dumps(record, ensure_ascii=False) + "\n")
                 written += 1
+                progress.update(1)
+        progress.close()
 
     print("\nDone.")
     print(f"  written:              {written:,}")
