@@ -12,6 +12,7 @@ dependencies = [
   "pandas>=2.0",
   "openpyxl>=3.1",
   "tabulate>=0.9", 
+  "jsonschema>=4.20",
 ]
 
 [tool.setuptools]

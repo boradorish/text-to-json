@@ -153,6 +153,8 @@ cp data/sft/scrapegraph_sft_1_5k.jsonl ../LLaMA-Factory/data/
 
 `--max-content-tokens`는 ScrapeGraph의 `content` 필드를 tokenizer 기준으로 자릅니다. 기본 tokenizer는 학습 모델과 맞춘 `Qwen/Qwen3-4B-Instruct-2507`이며, 토큰 컷을 끄려면 `--max-content-tokens 0`을 사용합니다.
 
+기본적으로 `response_is_valid` 플래그를 확인한 뒤, 코드에서 `schema`와 `response`를 JSON으로 다시 파싱하고 `jsonschema` 검증까지 통과한 샘플만 저장합니다. 자체 schema 검증을 끄려면 `--no-validate-schema`를 사용합니다.
+
 `../LLaMA-Factory/data/dataset_info.json`에 아래 항목을 추가합니다.
 
 ```json

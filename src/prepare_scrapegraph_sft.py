@@ -69,8 +69,39 @@ def _normalize_json_text(text: str) -> str | None:
     try:
         obj = json.loads(text)
     except json.JSONDecodeError:
-        return text
+        return None
     return json.dumps(obj, ensure_ascii=False)
+
+
+def _load_json_value(text: str) -> Any | None:
+    text = (text or "").strip()
+    if not text:
+        return None
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def is_schema_valid_response(row: dict[str, Any]) -> bool:
+    schema = _load_json_value(row.get("schema") or "")
+    response = _load_json_value(row.get("response") or "")
+    if schema is None or response is None:
+        return False
+
+    try:
+        from jsonschema import validate
+        from jsonschema.exceptions import SchemaError, ValidationError
+    except ImportError as exc:  # pragma: no cover
+        raise SystemExit("Install jsonschema first: pip install jsonschema") from exc
+
+    try:
+        validate(instance=response, schema=schema)
+    except (SchemaError, ValidationError):
+        return False
+
+    return True
 
 
 def build_user_prompt(
@@ -101,6 +132,8 @@ def build_user_prompt(
 
 def convert_row(row: dict[str, Any], args: argparse.Namespace, tokenizer: Any | None) -> dict[str, Any] | None:
     if args.valid_only and row.get("response_is_valid") is False:
+        return None
+    if args.validate_schema and not is_schema_valid_response(row):
         return None
 
     user_prompt = build_user_prompt(
@@ -159,6 +192,12 @@ def main() -> None:
     )
     parser.add_argument("--tokenizer", default=DEFAULT_TOKENIZER)
     parser.add_argument("--valid-only", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
+        "--validate-schema",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Require response to be valid JSON and pass jsonschema validation against the row schema.",
+    )
     parser.add_argument("--system-prompt", default=DEFAULT_SYSTEM_PROMPT)
     args = parser.parse_args()
 
