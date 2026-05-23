@@ -18,6 +18,11 @@ from typing import Any
 
 import pandas as pd
 
+try:
+    from tqdm import tqdm
+except ImportError:  # pragma: no cover
+    tqdm = None
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.prompt_loader import find_project_root
 from utils.vllm_inference import VllmModel, build_chat_prompts, generate_texts, load_vllm_model
@@ -187,29 +192,40 @@ def main():
 
     # 배치 추론 — 배치마다 저장
     total = len(rows)
-    for i in range(0, total, args.batch_size):
-        batch_rows = rows[i : i + args.batch_size]
-        batch_texts = [r["user_prompt"] for r in batch_rows]
-        print(f"[{i + 1}~{min(i + args.batch_size, total)}/{total}] 추론 중...")
-        batch_results = run_batch_inference(engine, batch_texts, args.max_new_tokens)
+    batch_indices = range(0, total, args.batch_size)
+    progress = tqdm(total=total, desc="infer", unit="sample") if tqdm is not None else None
+    try:
+        for i in batch_indices:
+            batch_rows = rows[i : i + args.batch_size]
+            batch_texts = [r["user_prompt"] for r in batch_rows]
+            if progress is None:
+                print(f"[{i + 1}~{min(i + args.batch_size, total)}/{total}] 추론 중...")
+            batch_results = run_batch_inference(engine, batch_texts, args.max_new_tokens)
 
-        for row, result in zip(batch_rows, batch_results):
-            saved_records.append({
-                "stem": row["stem"],
-                "user_prompt": row["user_prompt"],
-                "gold_json": row["gold_json"],
-                "json_schema": row["json_schema"],
-                "raw_output": result["raw_output"],
-                "pred_json": (
-                    json.dumps(result["json_obj"], ensure_ascii=False)
-                    if result["json_obj"] is not None
-                    else ""
-                ),
-            })
+            for row, result in zip(batch_rows, batch_results):
+                saved_records.append({
+                    "stem": row["stem"],
+                    "user_prompt": row["user_prompt"],
+                    "gold_json": row["gold_json"],
+                    "json_schema": row["json_schema"],
+                    "raw_output": result["raw_output"],
+                    "pred_json": (
+                        json.dumps(result["json_obj"], ensure_ascii=False)
+                        if result["json_obj"] is not None
+                        else ""
+                    ),
+                })
 
-        _save(saved_records, jsonl_path, xlsx_path)
-        parsed = sum(1 for r in saved_records if r["pred_json"])
-        print(f"  → 저장 ({len(saved_records)}개 누적 / 파싱 성공 {parsed}개)")
+            _save(saved_records, jsonl_path, xlsx_path)
+            parsed = sum(1 for r in saved_records if r["pred_json"])
+            if progress is not None:
+                progress.update(len(batch_rows))
+                progress.set_postfix(saved=len(saved_records), parsed=parsed)
+            else:
+                print(f"  → 저장 ({len(saved_records)}개 누적 / 파싱 성공 {parsed}개)")
+    finally:
+        if progress is not None:
+            progress.close()
 
     print(f"\n완료. 총 {len(saved_records)}개")
     print(f"  JSONL (평가용): {jsonl_path}")
