@@ -4,10 +4,10 @@ Prepare JSONSchemaBench report-grounded SFT data.
 This script turns schema-only JSONSchemaBench rows into synthetic extraction
 examples:
 
-  1. Generate a minimal schema-valid gold JSON with deterministic rules.
+  1. Generate schema-valid gold JSON with deterministic rules or Qwen3-4B.
   2. Ask Qwen3-4B to write a short report that contains the gold JSON values.
   3. Save ShareGPT SFT data where the user input is report + schema and the
-     assistant output is the rule-based gold JSON.
+     assistant output is the gold JSON.
 
 Usage:
     python3 src/prepare_jsonschemabench_report_sft.py
@@ -43,6 +43,19 @@ USER_TEMPLATE = """Extract the structured information from the report according 
 {schema}
 
 Return ONLY valid JSON matching the schema."""
+
+GOLD_SYSTEM_PROMPT = (
+    "You are a JSON generation assistant. Given a JSON Schema, generate one valid "
+    "JSON value that strictly conforms to it. Output only raw JSON with no markdown, "
+    "code fences, or explanation."
+)
+
+GOLD_USER_TEMPLATE = """Generate one valid JSON value conforming to the following JSON Schema.
+
+JSON Schema:
+{schema}
+
+Return ONLY raw JSON."""
 
 REPORT_SYSTEM_PROMPT = (
     "You write concise factual reports for synthetic data generation. "
@@ -251,11 +264,83 @@ def strip_think(text: str) -> str:
     return re.split(r"</think>", text, maxsplit=1)[-1].strip()
 
 
+def extract_balanced_json(text: str, start: int = 0) -> str | None:
+    opening = text[start]
+    closing = "}" if opening == "{" else "]"
+    depth = 0
+    in_string = False
+    escape = False
+
+    for idx in range(start, len(text)):
+        char = text[idx]
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == opening:
+            depth += 1
+        elif char == closing:
+            depth -= 1
+            if depth == 0:
+                return text[start : idx + 1]
+    return None
+
+
+def extract_json_text(text: str) -> str | None:
+    text = strip_think(text).strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text).strip()
+
+    try:
+        json.loads(text)
+        return text
+    except json.JSONDecodeError:
+        pass
+
+    starts = [(pos, char) for char in ("{", "[") if (pos := text.find(char)) >= 0]
+    for pos, _ in sorted(starts):
+        candidate = extract_balanced_json(text, pos)
+        if candidate is None:
+            continue
+        try:
+            json.loads(candidate)
+            return candidate
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def parse_valid_gold(text: str, schema_obj: dict[str, Any]) -> tuple[Any, str] | None:
+    json_text = extract_json_text(text)
+    if json_text is None:
+        return None
+    try:
+        obj = json.loads(json_text)
+        validate_jsonschema(obj, schema_obj)
+    except Exception:
+        return None
+    return obj, json.dumps(obj, ensure_ascii=False)
+
+
 def clean_report(text: str) -> str:
     text = strip_think(text)
     text = re.sub(r"^```(?:text|markdown)?\s*", "", text.strip())
     text = re.sub(r"\s*```$", "", text)
     return text.strip()
+
+
+def build_gold_prompt(schema_str: str) -> list[dict[str, str]]:
+    return [
+        {"role": "system", "content": GOLD_SYSTEM_PROMPT},
+        {"role": "user", "content": GOLD_USER_TEMPLATE.format(schema=schema_str)},
+    ]
 
 
 def build_report_prompt(schema_str: str, gold_json: str) -> list[dict[str, str]]:
@@ -282,6 +367,45 @@ def render_chat_prompt(tokenizer: Any, messages: list[dict[str, str]]) -> str:
             tokenize=False,
             add_generation_prompt=True,
         )
+
+
+def generate_llm_gold_jsons(
+    engine: VllmModel,
+    rows: list[dict[str, Any]],
+    args: argparse.Namespace,
+) -> list[tuple[Any, str] | None]:
+    repeated = [
+        row
+        for row in rows
+        for _ in range(args.gold_retries + 1)
+    ]
+    prompts = [
+        render_chat_prompt(engine.tokenizer, build_gold_prompt(row["schema_str"]))
+        for row in repeated
+    ]
+
+    decoded = generate_texts(
+        engine,
+        prompts,
+        max_new_tokens=args.max_gold_tokens,
+        temperature=args.gold_temperature,
+        top_p=args.gold_top_p,
+    )
+
+    width = args.gold_retries + 1
+    results: list[tuple[Any, str] | None] = []
+    for idx, row in enumerate(rows):
+        candidates = decoded[idx * width : (idx + 1) * width]
+        parsed = next(
+            (
+                parsed
+                for candidate in candidates
+                if (parsed := parse_valid_gold(candidate, row["schema_obj"])) is not None
+            ),
+            None,
+        )
+        results.append(parsed)
+    return results
 
 
 def generate_reports(
@@ -333,13 +457,23 @@ def main() -> None:
     parser.add_argument("--split", default="train", choices=["train", "val", "test"])
     parser.add_argument("--model", default="Qwen/Qwen3-4B-Instruct-2507")
     parser.add_argument("--tokenizer", default=None, help="Optional tokenizer path/id for vLLM.")
+    parser.add_argument(
+        "--gold-mode",
+        choices=["rule", "llm"],
+        default="rule",
+        help="Use deterministic rule-based gold JSON or vLLM-generated gold JSON.",
+    )
     parser.add_argument("--num-samples", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--output", default="data/sft/jsonschemabench_report_sft_1k.jsonl")
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--top-p", type=float, default=0.9)
     parser.add_argument("--retries", type=int, default=1)
+    parser.add_argument("--gold-temperature", type=float, default=0.3)
+    parser.add_argument("--gold-top-p", type=float, default=0.9)
+    parser.add_argument("--gold-retries", type=int, default=2)
     parser.add_argument("--max-model-len", type=int, default=4096)
+    parser.add_argument("--max-gold-tokens", type=int, default=512)
     parser.add_argument("--max-report-tokens", type=int, default=128)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
@@ -391,7 +525,7 @@ def main() -> None:
 
             batch_end = min(batch_start + args.batch_size, source_limit)
             batch = [dataset[i] for i in range(batch_start, batch_end)]
-            rows = []
+            candidate_rows = []
 
             for item in batch:
                 schema_str = item["json_schema"]
@@ -410,18 +544,39 @@ def main() -> None:
                     skipped_trivial += 1
                     continue
 
-                gold_obj = generate_minimal(schema_obj)
-                if gold_obj is None:
-                    skipped_gold += 1
-                    continue
-
-                gold_json = json.dumps(gold_obj, ensure_ascii=False)
-                rows.append({
+                candidate_rows.append({
                     "schema_str": schema_str,
-                    "gold_obj": gold_obj,
-                    "gold_json": gold_json,
+                    "schema_obj": schema_obj,
                     "unique_id": unique_id,
                 })
+
+            if not candidate_rows:
+                continue
+
+            if args.gold_mode == "rule":
+                rows = []
+                for row in candidate_rows:
+                    gold_obj = generate_minimal(row["schema_obj"])
+                    if gold_obj is None:
+                        skipped_gold += 1
+                        continue
+                    rows.append({
+                        **row,
+                        "gold_obj": gold_obj,
+                        "gold_json": json.dumps(gold_obj, ensure_ascii=False),
+                    })
+            else:
+                rows = []
+                for row, parsed in zip(candidate_rows, generate_llm_gold_jsons(engine, candidate_rows, args)):
+                    if parsed is None:
+                        skipped_gold += 1
+                        continue
+                    gold_obj, gold_json = parsed
+                    rows.append({
+                        **row,
+                        "gold_obj": gold_obj,
+                        "gold_json": gold_json,
+                    })
 
             if not rows:
                 continue
@@ -466,6 +621,7 @@ def main() -> None:
                         {"from": "gpt", "value": row["gold_json"]},
                     ],
                     "unique_id": row["unique_id"],
+                    "_gold_mode": args.gold_mode,
                     "_synthetic_report": report,
                 }
                 fout.write(json.dumps(record, ensure_ascii=False) + "\n")
