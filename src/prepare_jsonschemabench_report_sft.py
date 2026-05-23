@@ -369,6 +369,14 @@ def render_chat_prompt(tokenizer: Any, messages: list[dict[str, str]]) -> str:
         )
 
 
+def count_tokens(tokenizer: Any, text: str) -> int:
+    return len(tokenizer.encode(text, add_special_tokens=False))
+
+
+def within_model_len(tokenizer: Any, prompt: str, max_model_len: int, max_new_tokens: int) -> bool:
+    return count_tokens(tokenizer, prompt) + max_new_tokens <= max_model_len
+
+
 def generate_llm_gold_jsons(
     engine: VllmModel,
     rows: list[dict[str, Any]],
@@ -514,6 +522,7 @@ def main() -> None:
     written = 0
     skipped_parse = 0
     skipped_trivial = 0
+    skipped_too_long = 0
     skipped_gold = 0
     skipped_report = 0
 
@@ -542,6 +551,16 @@ def main() -> None:
 
                 if schema_obj in TRIVIAL_SCHEMAS:
                     skipped_trivial += 1
+                    continue
+
+                gold_prompt = render_chat_prompt(engine.tokenizer, build_gold_prompt(schema_str))
+                if not within_model_len(
+                    engine.tokenizer,
+                    gold_prompt,
+                    args.max_model_len,
+                    args.max_gold_tokens if args.gold_mode == "llm" else args.max_report_tokens,
+                ):
+                    skipped_too_long += 1
                     continue
 
                 candidate_rows.append({
@@ -581,13 +600,32 @@ def main() -> None:
             if not rows:
                 continue
 
+            report_rows = []
+            for row in rows:
+                report_prompt = render_chat_prompt(
+                    engine.tokenizer,
+                    build_report_prompt(row["schema_str"], row["gold_json"]),
+                )
+                if not within_model_len(
+                    engine.tokenizer,
+                    report_prompt,
+                    args.max_model_len,
+                    args.max_report_tokens,
+                ):
+                    skipped_too_long += 1
+                    continue
+                report_rows.append(row)
+
+            if not report_rows:
+                continue
+
             report_candidates = generate_reports(
                 engine,
-                [(row["schema_str"], row["gold_json"]) for row in rows],
+                [(row["schema_str"], row["gold_json"]) for row in report_rows],
                 args,
             )
 
-            for row, candidates in zip(rows, report_candidates):
+            for row, candidates in zip(report_rows, report_candidates):
                 if written >= args.num_samples:
                     break
 
@@ -633,6 +671,7 @@ def main() -> None:
     print(f"  written:              {written:,}")
     print(f"  skipped parse:        {skipped_parse:,}")
     print(f"  skipped trivial:      {skipped_trivial:,}")
+    print(f"  skipped too long:     {skipped_too_long:,}")
     print(f"  skipped gold:         {skipped_gold:,}")
     print(f"  skipped report check: {skipped_report:,}")
     print(f"  output: {output_path}")
