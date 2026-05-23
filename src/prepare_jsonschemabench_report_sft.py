@@ -527,7 +527,8 @@ def main() -> None:
     skipped_report = 0
 
     with output_path.open("w", encoding="utf-8") as fout:
-        progress = tqdm(total=args.num_samples, desc="Written")
+        progress = tqdm(total=source_limit, desc="Source rows")
+        progress.set_postfix(written=f"{written}/{args.num_samples}")
         for batch_start in range(0, source_limit, args.batch_size):
             if written >= args.num_samples:
                 break
@@ -664,7 +665,8 @@ def main() -> None:
                 }
                 fout.write(json.dumps(record, ensure_ascii=False) + "\n")
                 written += 1
-                progress.update(1)
+                progress.set_postfix(written=f"{written}/{args.num_samples}")
+            progress.update(batch_end - batch_start)
         progress.close()
 
     print("\nDone.")
