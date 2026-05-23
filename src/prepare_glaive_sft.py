@@ -21,6 +21,7 @@ Glaive 원본은 system에 함수 정의/parameters schema가 있고, assistant�
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import sys
@@ -169,6 +170,11 @@ def extract_functioncall_obj(content: str) -> dict[str, Any] | None:
     try:
         obj = json.loads(candidate)
     except json.JSONDecodeError:
+        try:
+            obj = ast.literal_eval(candidate)
+        except (SyntaxError, ValueError):
+            return None
+    except TypeError:
         return None
 
     if not isinstance(obj, dict):
@@ -183,7 +189,10 @@ def extract_functioncall_obj(content: str) -> dict[str, Any] | None:
         try:
             args = json.loads(args)
         except json.JSONDecodeError:
-            return None
+            try:
+                args = ast.literal_eval(args)
+            except (SyntaxError, ValueError):
+                return None
     elif args is None:
         args = {}
 
