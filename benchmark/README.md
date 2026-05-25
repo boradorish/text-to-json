@@ -20,6 +20,8 @@ Outputs:
 - `benchmark/benchmark_samples.jsonl`
 - `benchmark/benchmark_samples.xlsx`
 - `benchmark/test_stems.txt`
+- `benchmark/hf_splits/train.jsonl`
+- `benchmark/hf_splits/test.jsonl`
 - `benchmark/benchmark_metadata.json`
 
 To build directly from Hugging Face:
@@ -34,6 +36,18 @@ To cap input length while keeping random sampling:
 python benchmark/prepare_benchmark.py --max-input-tokens 3000
 ```
 
+## Upload to Hugging Face
+
+`prepare_benchmark.py` also writes train/test JSONL files under
+`benchmark/hf_splits/`. Upload them as a HF DatasetDict:
+
+```bash
+HF_TOKEN=... python benchmark/upload_to_hf.py \
+  --repo-id boradorish/text-to-json-benchmark
+```
+
+Use `--private` if the dataset should not be public.
+
 ## 2. Run inference
 
 `--model` may be either a local path or a Hugging Face model id. Local LoRA
@@ -43,6 +57,17 @@ adapter directories are detected automatically by the shared vLLM loader.
 python benchmark/inference.py \
   --model saves/qwen3-0.6b/full/sft \
   --batch-size 4 \
+  --output benchmark/runs/qwen3_0_6b_sft
+```
+
+Or run directly from the uploaded HF test split:
+
+```bash
+HF_TOKEN=... python benchmark/inference.py \
+  --benchmark-source hf \
+  --hf-dataset boradorish/text-to-json-benchmark \
+  --hf-split test \
+  --model saves/qwen3-0.6b/full/sft \
   --output benchmark/runs/qwen3_0_6b_sft
 ```
 

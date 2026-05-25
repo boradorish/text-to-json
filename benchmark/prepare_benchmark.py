@@ -12,6 +12,8 @@ Outputs:
   benchmark/benchmark_samples.jsonl
   benchmark/benchmark_samples.xlsx
   benchmark/test_stems.txt
+  benchmark/hf_splits/train.jsonl
+  benchmark/hf_splits/test.jsonl
   benchmark/benchmark_metadata.json
 """
 from __future__ import annotations
@@ -49,6 +51,37 @@ class BenchmarkRow:
     source_split: str
 
 
+def make_benchmark_row(
+    row: dict,
+    tokenizer_bundle: tuple[str, Any, str],
+    system_prompt: str,
+    *,
+    source_split: str,
+) -> BenchmarkRow:
+    input_messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": row["user_prompt"]},
+    ]
+    full_messages = [*input_messages, {"role": "assistant", "content": row["gold_json"]}]
+    return BenchmarkRow(
+        stem=row["stem"],
+        user_prompt=row["user_prompt"],
+        gold_json=row["gold_json"],
+        json_schema=row["json_schema"],
+        input_tokens=token_len(
+            tokenizer_bundle,
+            chat_text(tokenizer_bundle, input_messages, add_generation_prompt=True),
+        ),
+        user_tokens=token_len(tokenizer_bundle, row["user_prompt"]),
+        gold_tokens=token_len(tokenizer_bundle, row["gold_json"]),
+        total_tokens=token_len(
+            tokenizer_bundle,
+            chat_text(tokenizer_bundle, full_messages, add_generation_prompt=False),
+        ),
+        source_split=source_split,
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create the fixed benchmark sample files.")
     parser.add_argument("--source", choices=["local", "hf"], default="local")
@@ -62,6 +95,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tokenizer", default=DEFAULT_TOKENIZER)
     parser.add_argument("--system-prompt", default=str(DEFAULT_SYSTEM_PROMPT))
     parser.add_argument("--max-input-tokens", type=int, default=None, help="Keep only test rows at or below this input token length.")
+    parser.add_argument("--write-hf-splits", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--xlsx", action=argparse.BooleanOptionalAction, default=True)
     return parser.parse_args()
 
@@ -174,40 +208,46 @@ def load_hf_rows(dataset: str, split: str) -> list[dict]:
     return rows
 
 
-def add_lengths(rows: list[dict], tokenizer_bundle: tuple[str, Any, str], system_prompt: str) -> list[BenchmarkRow]:
-    out: list[BenchmarkRow] = []
-    for row in rows:
-        input_messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": row["user_prompt"]},
-        ]
-        full_messages = [*input_messages, {"role": "assistant", "content": row["gold_json"]}]
-        out.append(
-            BenchmarkRow(
-                stem=row["stem"],
-                user_prompt=row["user_prompt"],
-                gold_json=row["gold_json"],
-                json_schema=row["json_schema"],
-                input_tokens=token_len(
-                    tokenizer_bundle,
-                    chat_text(tokenizer_bundle, input_messages, add_generation_prompt=True),
-                ),
-                user_tokens=token_len(tokenizer_bundle, row["user_prompt"]),
-                gold_tokens=token_len(tokenizer_bundle, row["gold_json"]),
-                total_tokens=token_len(
-                    tokenizer_bundle,
-                    chat_text(tokenizer_bundle, full_messages, add_generation_prompt=False),
-                ),
-                source_split="test",
-            )
-        )
-    return out
+def add_lengths(
+    rows: list[dict],
+    tokenizer_bundle: tuple[str, Any, str],
+    system_prompt: str,
+    *,
+    source_split: str,
+) -> list[BenchmarkRow]:
+    return [
+        make_benchmark_row(row, tokenizer_bundle, system_prompt, source_split=source_split)
+        for row in rows
+    ]
 
 
 def write_jsonl(rows: list[BenchmarkRow], path: Path) -> None:
     with path.open("w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(asdict(row), ensure_ascii=False) + "\n")
+
+
+def write_split_jsonl(rows: list[BenchmarkRow], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_jsonl(rows, path)
+
+
+def write_plain_split_jsonl(rows: list[dict], path: Path, *, source_split: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for row in rows:
+            record = {
+                "stem": row["stem"],
+                "user_prompt": row["user_prompt"],
+                "gold_json": row["gold_json"],
+                "json_schema": row["json_schema"],
+                "input_tokens": None,
+                "user_tokens": None,
+                "gold_tokens": None,
+                "total_tokens": None,
+                "source_split": source_split,
+            }
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def write_xlsx(rows: list[BenchmarkRow], path: Path) -> None:
@@ -232,9 +272,10 @@ def main() -> None:
     random.Random(args.seed).shuffle(shuffled)
     split_idx = int(len(shuffled) * args.train_ratio)
     test_rows = shuffled[split_idx:]
+    train_rows = shuffled[:split_idx]
 
     tokenizer_bundle = load_tokenizer(args.tokenizer)
-    measured = add_lengths(test_rows, tokenizer_bundle, system_prompt)
+    measured = add_lengths(test_rows, tokenizer_bundle, system_prompt, source_split="test")
     if args.max_input_tokens is not None:
         measured = [row for row in measured if row.input_tokens <= args.max_input_tokens]
     selection_pool = sorted(measured, key=lambda row: row.stem)
@@ -246,11 +287,16 @@ def main() -> None:
     xlsx_path = output_dir / "benchmark_samples.xlsx"
     stems_path = output_dir / "test_stems.txt"
     metadata_path = output_dir / "benchmark_metadata.json"
+    train_split_path = output_dir / "hf_splits" / "train.jsonl"
+    test_split_path = output_dir / "hf_splits" / "test.jsonl"
 
     write_jsonl(selected, jsonl_path)
     stems_path.write_text("\n".join(row.stem for row in selected) + "\n", encoding="utf-8")
     if args.xlsx:
         write_xlsx(selected, xlsx_path)
+    if args.write_hf_splits:
+        write_plain_split_jsonl(train_rows, train_split_path, source_split="train")
+        write_split_jsonl(selected, test_split_path)
 
     _, _, tokenizer_name = tokenizer_bundle
     metadata = {
@@ -267,6 +313,8 @@ def main() -> None:
         "selected_count": len(selected),
         "candidate_rows_after_token_filter": len(measured),
         "max_input_tokens": args.max_input_tokens,
+        "hf_train_split_file": str(train_split_path.relative_to(PROJECT_ROOT)) if args.write_hf_splits else None,
+        "hf_test_split_file": str(test_split_path.relative_to(PROJECT_ROOT)) if args.write_hf_splits else None,
         "tokenizer": tokenizer_name,
         "system_prompt": args.system_prompt,
     }
@@ -284,6 +332,9 @@ def main() -> None:
     if args.xlsx:
         print(f"xlsx:  {xlsx_path}")
     print(f"stems: {stems_path}")
+    if args.write_hf_splits:
+        print(f"hf train split: {train_split_path}")
+        print(f"hf test split:  {test_split_path}")
     print(f"meta:  {metadata_path}")
 
 
