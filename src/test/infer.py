@@ -66,6 +66,7 @@ def run_batch_inference(
         max_new_tokens=max_new_tokens,
         temperature=0.0,
         top_p=1.0,
+        use_tqdm=False,
     )
     results = []
     for raw_output in outputs:
@@ -191,9 +192,10 @@ def main():
     )
 
     # 배치 추론 — 배치마다 저장
-    total = len(rows)
-    batch_indices = range(0, total, args.batch_size)
-    progress = tqdm(total=total, desc="infer", unit="sample") if tqdm is not None else None
+    remaining_total = len(rows)
+    final_total = len(saved_records) + remaining_total
+    batch_indices = range(0, remaining_total, args.batch_size)
+    progress = tqdm(total=final_total, initial=len(saved_records), desc="infer", unit="sample") if tqdm is not None else None
     try:
         for i in batch_indices:
             batch_rows = rows[i : i + args.batch_size]
@@ -220,7 +222,11 @@ def main():
             parsed = sum(1 for r in saved_records if r["pred_json"])
             if progress is not None:
                 progress.update(len(batch_rows))
-                progress.set_postfix(saved=len(saved_records), parsed=parsed)
+                progress.set_postfix(
+                    saved=len(saved_records),
+                    remaining=final_total - len(saved_records),
+                    parsed=parsed,
+                )
             else:
                 print(f"  → 저장 ({len(saved_records)}개 누적 / 파싱 성공 {parsed}개)")
     finally:

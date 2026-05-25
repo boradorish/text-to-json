@@ -5,7 +5,6 @@ JSON 파싱 실패(pred_json 비어 있음)는 모든 메트릭 0으로 집계�
 사용법:
     python src/test/evaluate.py
     python src/test/evaluate.py --input data/infer_sft.jsonl
-    python src/test/evaluate.py --llm --llm-model gpt-4o-mini
 """
 from __future__ import annotations
 
@@ -98,48 +97,6 @@ def _value_match_rule(pred_obj: Any, gold_obj: Any) -> float:
     return matched / len(gold_leaves)
 
 
-def _value_match_llm(pred_text: str, gold_obj: Any, model: str = "gpt-4o-mini") -> float | None:
-    import os
-    from openai import OpenAI
-
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        return None
-
-    client = OpenAI(api_key=api_key)
-    gold_str = json.dumps(gold_obj, ensure_ascii=False, indent=2)
-    prompt = f"""You are evaluating a JSON output against a ground truth JSON.
-
-## Ground Truth:
-{gold_str}
-
-## Model Output:
-{pred_text}
-
-Score from 1 to 5 based on value-level match:
-5 = all values match exactly
-4 = most values match, minor differences
-3 = about half match
-2 = few values match
-1 = no values match or output is invalid JSON
-
-Reply with ONLY a single integer 1-5."""
-
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=10,
-        )
-        raw = response.choices[0].message.content.strip()
-        m = re.search(r"[1-5]", raw)
-        if not m:
-            return None
-        return (float(m.group()) - 1) / 4  # 0-1 정규화
-    except Exception:
-        return None
-
-
 # ---------------------------------------------------------------------------
 # 행 평가
 # ---------------------------------------------------------------------------
@@ -148,8 +105,6 @@ def evaluate_row(
     pred_json_str: str,
     gold_json_str: str,
     schema_str: str,
-    use_llm: bool = False,
-    llm_model: str = "gpt-4o-mini",
 ) -> dict:
     try:
         gold_obj = json.loads(gold_json_str) if gold_json_str else None
@@ -177,24 +132,16 @@ def evaluate_row(
             "noise_ratio": 1.0,
             "value_match": 0.0,
         }
-        if use_llm:
-            result["llm_score"] = None
         return result
 
     sm = _schema_match(pred_obj, schema) if schema else {"valid": False, "noise_ratio": 1.0}
-    result = {
+    return {
         "no_output": False,
         "exact_match": _exact_match(pred_obj, gold_obj),
         "schema_valid": sm["valid"],
         "noise_ratio": sm["noise_ratio"],
         "value_match": _value_match_rule(pred_obj, gold_obj) if gold_obj is not None else 0.0,
     }
-    if use_llm:
-        result["llm_score"] = (
-            _value_match_llm(pred_json_str, gold_obj, llm_model) if gold_obj is not None else None
-        )
-
-    return result
 
 
 # ---------------------------------------------------------------------------
@@ -205,8 +152,6 @@ def main():
     parser = argparse.ArgumentParser(description="infer.py JSONL 결과 평가")
     parser.add_argument("--input", default="data/infer_results.jsonl", help="infer.py 출력 JSONL")
     parser.add_argument("--output", default=None, help="결과 저장 Excel 경로 (기본: input과 같은 위치에 .xlsx)")
-    parser.add_argument("--llm", action="store_true")
-    parser.add_argument("--llm-model", default="gpt-4o-mini")
     args = parser.parse_args()
 
     sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -239,7 +184,7 @@ def main():
         gold = row.get("gold_json", "") or ""
         schema = row.get("json_schema", "") or ""
 
-        m = evaluate_row(pred, gold, schema, use_llm=args.llm, llm_model=args.llm_model)
+        m = evaluate_row(pred, gold, schema)
         metric_rows.append(m)
 
         stem = row.get("stem", i)
@@ -268,10 +213,6 @@ def main():
     print(f"  schema_match 비율:          {metrics_df['schema_valid'].mean():.4f}")
     print(f"  평균 noise_ratio:           {metrics_df['noise_ratio'].mean():.4f}")
     print(f"  평균 value_match (rule):    {metrics_df['value_match'].mean():.4f}")
-    if args.llm and "llm_score" in metrics_df.columns:
-        valid_scores = metrics_df["llm_score"].dropna()
-        if len(valid_scores):
-            print(f"  평균 value_match (LLM):     {valid_scores.mean():.4f}  ({len(valid_scores)}개 평가)")
     print("=" * 55)
     print(f"\n결과 저장: {output_path}")
 

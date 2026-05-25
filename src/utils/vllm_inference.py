@@ -91,6 +91,7 @@ def generate_texts(
     max_new_tokens: int,
     temperature: float = 0.0,
     top_p: float = 1.0,
+    use_tqdm: bool = False,
 ) -> list[str]:
     from vllm import SamplingParams
 
@@ -103,5 +104,6 @@ def generate_texts(
         prompts,
         sampling_params,
         lora_request=engine.lora_request,
+        use_tqdm=use_tqdm,
     )
     return [output.outputs[0].text for output in outputs]
