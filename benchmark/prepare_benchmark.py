@@ -5,7 +5,8 @@ The default path mirrors src/train/prepare_dataset.ipynb:
 1. load valid local data rows sorted by user_prompt stem
 2. shuffle with seed=42
 3. keep the 10% test split
-4. select the shortest model inputs from that test split
+4. optionally filter the test split by max input tokens
+5. select a seed-stable random sample from that filtered test split
 
 Outputs:
   benchmark/benchmark_samples.jsonl
@@ -60,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-ratio", type=float, default=0.9)
     parser.add_argument("--tokenizer", default=DEFAULT_TOKENIZER)
     parser.add_argument("--system-prompt", default=str(DEFAULT_SYSTEM_PROMPT))
-    parser.add_argument("--max-input-tokens", type=int, default=None)
+    parser.add_argument("--max-input-tokens", type=int, default=None, help="Keep only test rows at or below this input token length.")
     parser.add_argument("--xlsx", action=argparse.BooleanOptionalAction, default=True)
     return parser.parse_args()
 
@@ -236,7 +237,9 @@ def main() -> None:
     measured = add_lengths(test_rows, tokenizer_bundle, system_prompt)
     if args.max_input_tokens is not None:
         measured = [row for row in measured if row.input_tokens <= args.max_input_tokens]
-    selected = sorted(measured, key=lambda row: (row.input_tokens, row.stem))[: args.count]
+    selection_pool = sorted(measured, key=lambda row: row.stem)
+    random.Random(args.seed).shuffle(selection_pool)
+    selected = selection_pool[: args.count]
 
     output_dir.mkdir(parents=True, exist_ok=True)
     jsonl_path = output_dir / "benchmark_samples.jsonl"
@@ -259,9 +262,10 @@ def main() -> None:
         "train_ratio": args.train_ratio,
         "train_rows": split_idx,
         "test_rows": len(test_rows),
-        "selection": "shortest_input_tokens_from_test_split",
+        "selection": "random_from_test_split_after_max_input_token_filter",
         "requested_count": args.count,
         "selected_count": len(selected),
+        "candidate_rows_after_token_filter": len(measured),
         "max_input_tokens": args.max_input_tokens,
         "tokenizer": tokenizer_name,
         "system_prompt": args.system_prompt,
@@ -270,6 +274,8 @@ def main() -> None:
 
     print(f"loaded valid rows: {len(source_rows)}")
     print(f"train/test: {split_idx}/{len(test_rows)}")
+    if args.max_input_tokens is not None:
+        print(f"candidates after max_input_tokens<={args.max_input_tokens}: {len(measured)}")
     print(f"selected: {len(selected)}")
     if selected:
         tokens = [row.input_tokens for row in selected]

@@ -12,8 +12,8 @@ python benchmark/prepare_benchmark.py
 ```
 
 The script mirrors `src/train/prepare_dataset.ipynb`: it loads valid rows,
-shuffles them with seed `42`, creates the 90/10 train/test split, then selects
-the shortest model inputs from the test split.
+shuffles them with seed `42`, creates the 90/10 train/test split, optionally
+filters test rows by max input tokens, then selects a seed-stable random sample.
 
 Outputs:
 
@@ -26,6 +26,12 @@ To build directly from Hugging Face:
 
 ```bash
 HF_TOKEN=... python benchmark/prepare_benchmark.py --source hf
+```
+
+To cap input length while keeping random sampling:
+
+```bash
+python benchmark/prepare_benchmark.py --max-input-tokens 3000
 ```
 
 ## 2. Run inference
