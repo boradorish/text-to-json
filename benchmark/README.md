@@ -14,6 +14,8 @@ python benchmark/prepare_benchmark.py
 The script mirrors `src/train/prepare_dataset.ipynb`: it loads valid rows,
 shuffles them with seed `42`, creates the 90/10 train/test split, optionally
 filters test rows by max input tokens, then selects a seed-stable random sample.
+Rows not selected for the final benchmark test split are added back to the HF
+train split.
 
 Outputs:
 

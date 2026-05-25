@@ -31,6 +31,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+sheetpedia_xlsx_processed/
 outputs/
 
 # PyInstaller
@@ -186,4 +187,9 @@ model/
 
 sheetpedia/
 sheetpedia_xlsx/
-sheetpedia_xlsx_processed/
+sheetpedia_xlsx_processed/benchmark/benchmark_samples.jsonl
+benchmark/benchmark_samples.xlsx
+benchmark/test_stems.txt
+benchmark/benchmark_metadata.json
+benchmark/hf_splits/
+benchmark/runs/

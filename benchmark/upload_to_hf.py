@@ -30,6 +30,18 @@ def load_jsonl(path: Path) -> list[dict]:
     return records
 
 
+def normalize_records(records: list[dict]) -> list[dict]:
+    token_cols = ("input_tokens", "user_tokens", "gold_tokens", "total_tokens")
+    normalized = []
+    for record in records:
+        row = dict(record)
+        for col in token_cols:
+            if row.get(col) is None:
+                row[col] = -1
+        normalized.append(row)
+    return normalized
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Upload benchmark train/test splits to HF Datasets.")
     parser.add_argument("--repo-id", required=True, help="Example: boradorish/text-to-json-benchmark")
@@ -48,8 +60,8 @@ def main() -> None:
     train_path = resolve_path(args.train_file)
     test_path = resolve_path(args.test_file)
 
-    train_records = load_jsonl(train_path)
-    test_records = load_jsonl(test_path)
+    train_records = normalize_records(load_jsonl(train_path))
+    test_records = normalize_records(load_jsonl(test_path))
     print(f"train: {len(train_records):,} ({train_path})")
     print(f"test:  {len(test_records):,} ({test_path})")
 
@@ -63,14 +75,27 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        from datasets import Dataset, DatasetDict
+        from datasets import Dataset, DatasetDict, Features, Value
     except ImportError as exc:  # pragma: no cover
         raise SystemExit("Install datasets first: pip install datasets") from exc
 
+    features = Features(
+        {
+            "stem": Value("string"),
+            "user_prompt": Value("string"),
+            "gold_json": Value("string"),
+            "json_schema": Value("string"),
+            "input_tokens": Value("int64"),
+            "user_tokens": Value("int64"),
+            "gold_tokens": Value("int64"),
+            "total_tokens": Value("int64"),
+            "source_split": Value("string"),
+        }
+    )
     dataset_dict = DatasetDict(
         {
-            "train": Dataset.from_list(train_records),
-            "test": Dataset.from_list(test_records),
+            "train": Dataset.from_list(train_records, features=features),
+            "test": Dataset.from_list(test_records, features=features),
         }
     )
     push_kwargs = {

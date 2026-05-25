@@ -6,7 +6,8 @@ The default path mirrors src/train/prepare_dataset.ipynb:
 2. shuffle with seed=42
 3. keep the 10% test split
 4. optionally filter the test split by max input tokens
-5. select a seed-stable random sample from that filtered test split
+5. select a seed-stable random benchmark sample from that filtered test split
+6. put every non-selected row back into the HF train split
 
 Outputs:
   benchmark/benchmark_samples.jsonl
@@ -241,13 +242,19 @@ def write_plain_split_jsonl(rows: list[dict], path: Path, *, source_split: str) 
                 "user_prompt": row["user_prompt"],
                 "gold_json": row["gold_json"],
                 "json_schema": row["json_schema"],
-                "input_tokens": None,
-                "user_tokens": None,
-                "gold_tokens": None,
-                "total_tokens": None,
+                "input_tokens": -1,
+                "user_tokens": -1,
+                "gold_tokens": -1,
+                "total_tokens": -1,
                 "source_split": source_split,
             }
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def append_split_jsonl(rows: list[BenchmarkRow], path: Path) -> None:
+    with path.open("a", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(asdict(row), ensure_ascii=False) + "\n")
 
 
 def write_xlsx(rows: list[BenchmarkRow], path: Path) -> None:
@@ -275,12 +282,17 @@ def main() -> None:
     train_rows = shuffled[:split_idx]
 
     tokenizer_bundle = load_tokenizer(args.tokenizer)
-    measured = add_lengths(test_rows, tokenizer_bundle, system_prompt, source_split="test")
+    measured_all_test = add_lengths(test_rows, tokenizer_bundle, system_prompt, source_split="train")
+    measured = measured_all_test
     if args.max_input_tokens is not None:
-        measured = [row for row in measured if row.input_tokens <= args.max_input_tokens]
+        measured = [row for row in measured_all_test if row.input_tokens <= args.max_input_tokens]
     selection_pool = sorted(measured, key=lambda row: row.stem)
     random.Random(args.seed).shuffle(selection_pool)
     selected = selection_pool[: args.count]
+    selected_stems = {row.stem for row in selected}
+    hf_train_remainder = [row for row in measured_all_test if row.stem not in selected_stems]
+    for row in selected:
+        row.source_split = "test"
 
     output_dir.mkdir(parents=True, exist_ok=True)
     jsonl_path = output_dir / "benchmark_samples.jsonl"
@@ -296,6 +308,7 @@ def main() -> None:
         write_xlsx(selected, xlsx_path)
     if args.write_hf_splits:
         write_plain_split_jsonl(train_rows, train_split_path, source_split="train")
+        append_split_jsonl(hf_train_remainder, train_split_path)
         write_split_jsonl(selected, test_split_path)
 
     _, _, tokenizer_name = tokenizer_bundle
@@ -307,11 +320,14 @@ def main() -> None:
         "seed": args.seed,
         "train_ratio": args.train_ratio,
         "train_rows": split_idx,
-        "test_rows": len(test_rows),
+        "original_test_rows": len(test_rows),
         "selection": "random_from_test_split_after_max_input_token_filter",
         "requested_count": args.count,
         "selected_count": len(selected),
         "candidate_rows_after_token_filter": len(measured),
+        "hf_train_rows": len(train_rows) + len(hf_train_remainder),
+        "hf_test_rows": len(selected),
+        "non_selected_test_rows_added_to_train": len(hf_train_remainder),
         "max_input_tokens": args.max_input_tokens,
         "hf_train_split_file": str(train_split_path.relative_to(PROJECT_ROOT)) if args.write_hf_splits else None,
         "hf_test_split_file": str(test_split_path.relative_to(PROJECT_ROOT)) if args.write_hf_splits else None,
@@ -325,6 +341,7 @@ def main() -> None:
     if args.max_input_tokens is not None:
         print(f"candidates after max_input_tokens<={args.max_input_tokens}: {len(measured)}")
     print(f"selected: {len(selected)}")
+    print(f"hf train/test: {len(train_rows) + len(hf_train_remainder)}/{len(selected)}")
     if selected:
         tokens = [row.input_tokens for row in selected]
         print(f"input tokens min/p50/max: {min(tokens)} / {tokens[len(tokens)//2]} / {max(tokens)}")
