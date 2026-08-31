@@ -36,6 +36,7 @@ REPO_ID = "boradorish/text-to-json-data"
 DEFAULT_TOKENIZER = "Qwen/Qwen3-0.6B-Base"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SYSTEM_PROMPT = "prompt/infer_SYSTEM_prompt.txt"
+DEFAULT_MAX_INPUT_TOKENS = 4096
 EXCEL_TRUNCATE = 32000
 
 
@@ -95,7 +96,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-ratio", type=float, default=0.9)
     parser.add_argument("--tokenizer", default=DEFAULT_TOKENIZER)
     parser.add_argument("--system-prompt", default=str(DEFAULT_SYSTEM_PROMPT))
-    parser.add_argument("--max-input-tokens", type=int, default=None, help="Keep only test rows at or below this input token length.")
+    parser.add_argument(
+        "--max-input-tokens",
+        type=int,
+        default=DEFAULT_MAX_INPUT_TOKENS,
+        help="Keep only test rows at or below this input token length. Use 0 to disable.",
+    )
     parser.add_argument("--write-hf-splits", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--xlsx", action=argparse.BooleanOptionalAction, default=True)
     return parser.parse_args()
@@ -284,7 +290,8 @@ def main() -> None:
     tokenizer_bundle = load_tokenizer(args.tokenizer)
     measured_all_test = add_lengths(test_rows, tokenizer_bundle, system_prompt, source_split="train")
     measured = measured_all_test
-    if args.max_input_tokens is not None:
+    max_input_tokens = args.max_input_tokens if args.max_input_tokens and args.max_input_tokens > 0 else None
+    if max_input_tokens is not None:
         measured = [row for row in measured_all_test if row.input_tokens <= args.max_input_tokens]
     selection_pool = sorted(measured, key=lambda row: row.stem)
     random.Random(args.seed).shuffle(selection_pool)
@@ -328,7 +335,7 @@ def main() -> None:
         "hf_train_rows": len(train_rows) + len(hf_train_remainder),
         "hf_test_rows": len(selected),
         "non_selected_test_rows_added_to_train": len(hf_train_remainder),
-        "max_input_tokens": args.max_input_tokens,
+        "max_input_tokens": max_input_tokens,
         "hf_train_split_file": str(train_split_path.relative_to(PROJECT_ROOT)) if args.write_hf_splits else None,
         "hf_test_split_file": str(test_split_path.relative_to(PROJECT_ROOT)) if args.write_hf_splits else None,
         "tokenizer": tokenizer_name,
@@ -338,8 +345,8 @@ def main() -> None:
 
     print(f"loaded valid rows: {len(source_rows)}")
     print(f"train/test: {split_idx}/{len(test_rows)}")
-    if args.max_input_tokens is not None:
-        print(f"candidates after max_input_tokens<={args.max_input_tokens}: {len(measured)}")
+    if max_input_tokens is not None:
+        print(f"candidates after max_input_tokens<={max_input_tokens}: {len(measured)}")
     print(f"selected: {len(selected)}")
     print(f"hf train/test: {len(train_rows) + len(hf_train_remainder)}/{len(selected)}")
     if selected:

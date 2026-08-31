@@ -28,6 +28,7 @@ def load_vllm_model(
     tensor_parallel_size: int = 1,
     gpu_memory_utilization: float = 0.9,
     max_model_len: int | None = None,
+    enforce_eager: bool = False,
 ) -> VllmModel:
     try:
         from vllm import LLM
@@ -44,6 +45,7 @@ def load_vllm_model(
         "dtype": "bfloat16",
         "tensor_parallel_size": tensor_parallel_size,
         "gpu_memory_utilization": gpu_memory_utilization,
+        "enforce_eager": enforce_eager,
     }
     if max_model_len is not None:
         kwargs["max_model_len"] = max_model_len

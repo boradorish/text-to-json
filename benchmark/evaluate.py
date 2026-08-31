@@ -18,8 +18,6 @@ except ImportError as exc:  # pragma: no cover
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-HANGUL_RE = re.compile(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]")
-LATIN_RE = re.compile(r"[A-Za-z]")
 
 
 def resolve_path(path_text: str | Path) -> Path:
@@ -78,32 +76,6 @@ def value_match(pred_obj: Any, gold_obj: Any) -> float:
     return matched / len(gold_leaves)
 
 
-def detect_language_group(text: str) -> dict:
-    hangul_count = len(HANGUL_RE.findall(text or ""))
-    latin_count = len(LATIN_RE.findall(text or ""))
-    letter_count = hangul_count + latin_count
-    if letter_count == 0:
-        group = "unknown"
-        hangul_ratio = 0.0
-        latin_ratio = 0.0
-    else:
-        hangul_ratio = hangul_count / letter_count
-        latin_ratio = latin_count / letter_count
-        if hangul_ratio >= 0.2:
-            group = "ko"
-        elif hangul_count > 0:
-            group = "mixed"
-        else:
-            group = "non_ko"
-    return {
-        "language_group": group,
-        "hangul_chars": hangul_count,
-        "latin_chars": latin_count,
-        "hangul_ratio": hangul_ratio,
-        "latin_ratio": latin_ratio,
-    }
-
-
 def evaluate_row(record: dict) -> dict:
     try:
         pred_obj = json.loads(record.get("pred_json") or "")
@@ -148,11 +120,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate benchmark inference results.")
     parser.add_argument("--input", default="benchmark/runs/infer_results.jsonl")
     parser.add_argument("--output", default=None, help="Default: input path with _eval.xlsx suffix")
-    parser.add_argument(
-        "--language-field",
-        default="user_prompt",
-        help="Record field used for ko/non_ko grouping. Default: user_prompt",
-    )
     return parser.parse_args()
 
 
@@ -171,36 +138,26 @@ def main() -> None:
             if line:
                 records.append(json.loads(line))
 
-    metrics = []
-    for record in records:
-        metrics.append(
-            {
-                **detect_language_group(str(record.get(args.language_field) or "")),
-                **evaluate_row(record),
-            }
-        )
+    metrics = [evaluate_row(record) for record in records]
     metrics_df = pd.DataFrame(metrics)
     out_df = pd.concat([pd.DataFrame(records), metrics_df], axis=1)
-    summary_df = (
-        metrics_df.groupby("language_group", dropna=False)
-        .agg(
-            samples=("language_group", "size"),
-            no_output_ratio=("no_output", "mean"),
-            exact_match_ratio=("exact_match", "mean"),
-            schema_valid_ratio=("schema_valid", "mean"),
-            mean_noise_ratio=("noise_ratio", "mean"),
-            mean_value_match=("value_match", "mean"),
-            mean_hangul_ratio=("hangul_ratio", "mean"),
-            mean_latin_ratio=("latin_ratio", "mean"),
-        )
-        .reset_index()
-        .sort_values("language_group")
+    summary_df = pd.DataFrame(
+        [
+            {
+                "samples": len(metrics_df),
+                "no_output_ratio": metrics_df["no_output"].mean(),
+                "exact_match_ratio": metrics_df["exact_match"].mean(),
+                "schema_valid_ratio": metrics_df["schema_valid"].mean(),
+                "mean_noise_ratio": metrics_df["noise_ratio"].mean(),
+                "mean_value_match": metrics_df["value_match"].mean(),
+            }
+        ]
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(output_path) as writer:
         out_df.to_excel(writer, sheet_name="rows", index=False)
-        summary_df.to_excel(writer, sheet_name="language_summary", index=False)
+        summary_df.to_excel(writer, sheet_name="summary", index=False)
 
     print("=" * 55)
     print("Benchmark evaluation")
@@ -211,14 +168,6 @@ def main() -> None:
     print(f"  schema_valid ratio:        {metrics_df['schema_valid'].mean():.4f}")
     print(f"  mean noise_ratio:          {metrics_df['noise_ratio'].mean():.4f}")
     print(f"  mean value_match (rule):   {metrics_df['value_match'].mean():.4f}")
-    print("\nBy language group")
-    for row in summary_df.to_dict("records"):
-        print(
-            f"  {row['language_group']:<8} n={int(row['samples']):>4}  "
-            f"schema={row['schema_valid_ratio']:.4f}  "
-            f"value={row['mean_value_match']:.4f}  "
-            f"no_output={row['no_output_ratio']:.4f}"
-        )
     print("=" * 55)
     print(f"saved: {output_path}")
 

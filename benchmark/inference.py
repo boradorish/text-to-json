@@ -1,9 +1,8 @@
 """
-Run model inference on benchmark/benchmark_samples.jsonl or a Hugging Face
+Run model inference on a downloaded benchmark JSONL file or a Hugging Face
 Dataset split.
 
-Works with either a local model path or a Hugging Face model id. LoRA adapter
-directories are handled by src/utils/vllm_inference.py.
+Works with either a local model path or a Hugging Face model id.
 """
 from __future__ import annotations
 
@@ -131,15 +130,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", required=True, help="Local model path or HF model id")
     parser.add_argument("--tokenizer", default=None)
     parser.add_argument("--benchmark-source", choices=["local", "hf"], default="local")
-    parser.add_argument("--benchmark-file", default="benchmark/benchmark_samples.jsonl")
-    parser.add_argument("--hf-dataset", default=None, help="HF dataset id when --benchmark-source hf")
+    parser.add_argument("--benchmark-file", default="benchmark/data/test.jsonl")
+    parser.add_argument("--hf-dataset", default="boradorish/text-to-json-benchmark", help="HF dataset id when --benchmark-source hf")
     parser.add_argument("--hf-split", default="test")
     parser.add_argument("--output", default="benchmark/runs/infer_results", help="Output path without suffix")
-    parser.add_argument("--max-new-tokens", type=int, default=512)
+    parser.add_argument("--max-new-tokens", type=int, default=3100)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
     parser.add_argument("--max-model-len", type=int, default=None)
+    parser.add_argument(
+        "--enforce-eager",
+        action="store_true",
+        help="Disable vLLM/Torch compile paths; useful on servers without a C compiler.",
+    )
     return parser.parse_args()
 
 
@@ -180,6 +184,7 @@ def main() -> None:
         tensor_parallel_size=args.tensor_parallel_size,
         gpu_memory_utilization=args.gpu_memory_utilization,
         max_model_len=args.max_model_len,
+        enforce_eager=args.enforce_eager,
     )
 
     final_total = len(saved_records) + len(rows)
