@@ -193,3 +193,4 @@ benchmark/test_stems.txt
 benchmark/benchmark_metadata.json
 benchmark/hf_splits/
 benchmark/runs/
+overleaf-paper/
