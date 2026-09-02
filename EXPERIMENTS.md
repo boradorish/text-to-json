@@ -449,6 +449,23 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 
 - 두 모델 모두 SFT가 전체 VA/SCR와 8k를 넘는 medium 구간 VA에서 우위다. 따라서 4B 장문맥 재학습의 진입 조건(8k 초과 구간 SFT 열세)은 충족하지 않아 실행하지 않는다. 기존 n=27 결과는 이 200개 결과로 교체한다. 산출물: `benchmark/data/extractbench_context32768.jsonl`, `outputs/extractbench/*_ctx32768.{jsonl,xlsx}` 및 `_eval.xlsx`, `_summary.csv`.
 
+### 2026-09-02 — 실험 6·7 인계 상태 (추론 대기)
+
+- **완료된 준비와 커밋**: `41fcbd8`(비용 측정기·SGD 변환기), `cdc4e67`(공식 SGD metric 기반 evaluator), `057bf1b`(동일 vLLM 엔진에서 cold→warm 캐시 pass), `41cb818`(GPU 없는 컴파일 전수 측정). 모두 origin/master에 push돼 있다. 원출력·XLSX는 커밋하지 않았다.
+- **실험 6 확정 수치(추론 전)**: STAGE-Eval 851개 중 vLLM xgrammar 호환은 **798**, 비호환은 **53 (6.2%)**. `xgrammar.GrammarCompiler(..., cache_enabled=False)`로 798개를 각각 컴파일한 결과 중앙 **20.3 ms**, p90 **26.3 ms**, 합계 **16.62 s**. 산출물: `outputs/inference_cost/summary.csv`, `xgrammar_skipped.json`.
+- **실험 6 재개 명령**: 반드시 `nvidia-smi`에서 완전히 빈 GPU를 확인한 뒤 아래를 실행한다. 비용 수치는 다른 작업과 GPU를 공유하면 무효이므로, 수 GB라도 외부 프로세스가 있으면 시작하지 않는다.
+
+  ```bash
+  CUDA_VISIBLE_DEVICES=<빈GPU> ~/work/sunghee/venv/bin/python benchmark/measure_inference_cost.py \
+    --model /root/work/sunghee/models/Qwen3-4B --label base_free --batch-size 1 \
+    --pass-name cold --second-pass --output-dir outputs/inference_cost
+  ```
+
+  이후 같은 명령을 `{base_xgrammar, sft_free, sft_xgrammar}`에 대해 실행한다. xgrammar 조건은 `--guided-json`을 추가한다. batch 32 처리량은 각 조건을 `--batch-size 32 --pass-name throughput`으로 별도 실행한다. `--second-pass`는 cold run 뒤 같은 엔진에서 warm run을 기록한다. `summary.csv`의 중복 행은 재시작 전 확인한다.
+- **실험 7 파일럿 준비 완료**: 원자료는 `/mnt/nvme/cache/interns/sgd/`, 공식 metric 참조는 `/mnt/nvme/cache/interns/schema-guided-dst-metrics/`. `benchmark/prepare_sgd.py --format standard --split pilot` 및 `--format explicit`를 실행해 두었고, 각각 `benchmark/data/sgd_pilot_{standard,explicit}.jsonl` 100개가 생성됐다. 동일 `sgd_pilot_ids.json`을 공유하며 seen/unseen service가 50/50이다.
+- **실험 7 재개 순서**: 빈 GPU에서 Qwen3 base와 STAGE SFT 각각을 `benchmark/inference.py`로 `sgd_pilot_standard.jsonl`에 실행하고, `benchmark/evaluate_sgd.py --format standard`로 평가한다. SFT가 판정 기준(JGA ≥ base−3pt, 환각 ≤ base+5pt)을 못 넘으면 같은 100 turn을 explicit 형식으로 반복한다. evaluator는 Google Research의 fuzzy non-categorical matching과 JGA 함수를 직접 사용하며, `"no output"`은 explicit에서 빈 슬롯으로 되돌린다.
+- **당시 GPU 상태(인계 시점)**: GPU 0은 `seonhong`의 Spatial-TTT `lmms_eval`(Qwen3-VL-2B)이 약 8.8GB, GPU 1은 부모 PID 1의 고아 `VLLM::EngineCore`가 약 130GB를 점유했다. 두 작업 모두 이 저장소 작업이 아니므로 종료하지 않았다.
+
 ## 다음 실행 (3차) — 실험 4 ExtractBench 장문맥 / 실험 5 실세계 xgrammar 비교 (에이전트 runbook)
 
 > 2026-09-03 등록. 목적은 실세계 벤치마크(CORD, ExtractBench)에서 "형식을 올리는 다른 방법(xgrammar)과 같은 조건에서 우리가 값·의미를 더 잘 보존한다"를 보이는 것. 우선순위 **5 → 4A → (4B는 4A 결과를 보고)**. 4A·5는 추론만이라 합쳐 GPU 약 2시간, 4B는 재학습이라 반나절 이상.
