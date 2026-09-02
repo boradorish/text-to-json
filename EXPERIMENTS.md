@@ -352,6 +352,42 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - 2e의 oraclefill(과 selectfill)이 처방이 된다. 워크숍 청중에게는 "SLM을 라우터가 아닌 인자 구성기로 배치"가 실용적 메시지다.
 - Glaive의 공식 프롬프트 multiple 7.0을 인용해 프로토콜 고정이 narrow-SFT SLM의 일반 현상임을 한 문장으로 언급한다.
 
+## 실행 기록 (2차 후속)
+
+### 2026-09-02 — 실험 2f 프롬프트 ablation (완료; 200개 simple/multiple 서브셋)
+
+- Qwen3-4B STAGE-SFT에 대해 `simple_python`과 `multiple` 각 첫 200개를 같은 생성 설정으로 실행했다. JSON-native AST는 분석용 decoder 결과다.
+
+| Condition | simple AST | multiple AST | multiple wrong_count |
+|---|---:|---:|---:|
+| 2b STAGE prompt (전체) | 79.8 | 5.0 | 185/200 |
+| no function dump | 81.0 | 9.0 | 175/200 |
+| one-shot (3 functions → 1 call) | 82.5 | 11.0 | 168/200 |
+
+- `--no-function-dump`은 simple 값을 일부 개선했지만 86.0 근방 회복 기준에는 못 미쳤다. `--one-shot`도 coverage bias를 17건만 줄였고 목표(≤100)에 크게 미달했다. 따라서 함수 목록의 중복이나 단일 in-context 예시로는 format lock-in을 교정할 수 없으며, 2e에서는 명시적 planner를 사용했다.
+- 산출물: `outputs/bfcl/qwen3_4b_sft_stageprompt_{nodump,oneshot}/score/json_decoder/`.
+
+### 2026-09-02 — 실험 2e Select-then-fill (완료)
+
+- `benchmark/run_bfcl_select_fill.py`로 (1) 함수·호출 수 계획, (2) 라우팅된 단일 함수의 인자 채움을 분리했다. Planner는 함수명 enum과 함수별 설명만, filler는 원문 전체와 sub-request 및 단일 함수 schema만 받는다. `oraclefill`은 gold 함수 멀티셋을 사용해 라우팅 오류를 제거했다. 모든 조건은 800개, H200 1장, temperature 0.6, top-p 1.0, seed 42, max_new_tokens 3100, max_model_len 8192이다.
+
+| Condition | simple AST | multiple AST | parallel AST | Call-set exact (simple / multiple / parallel) |
+|---|---:|---:|---:|---:|
+| STAGE-SFT selectfill | 76.2 | 79.0 | 41.5 | 99.2 / 94.0 / 57.5 |
+| Qwen3-4B base selectfill | 87.5 | 87.0 | 81.0 | 98.2 / 95.0 / 92.0 |
+| STAGE-SFT oraclefill | 78.5 | 85.0 | 0.5 | 100 / 100 / 100 |
+| Qwen3-4B base oraclefill | 89.8 | 92.5 | 0.0 | 100 / 100 / 100 |
+
+| Oraclefill argument metric | simple: SFT / base | multiple: SFT / base | parallel: SFT / base |
+|---|---:|---:|---:|
+| Function selection | 99.5 / 100.0 | 100.0 / 99.5 | 99.6 / 70.2 |
+| Schema validity | 100.0 / 100.0 | 100.0 / 100.0 | 99.6 / 100.0 |
+| Value accuracy | **89.5 / 84.8** | **90.7 / 83.4** | 53.2 / 60.4 |
+
+- **판정:** SFT selectfill은 multiple을 79.0으로 끌어올리고 `wrong_count`를 9/200으로 낮췄지만, parallel 41.5가 기준 75에 미달했다. 따라서 단일 4B plan-then-fill 배치를 본문 성과로 주장하지 않는다. Oracle routing에서는 SFT가 simple/multiple 인자값 정확도에서 base를 각각 +4.7pt/+7.3pt 앞섰고 스키마 유효성은 100%였다. 하지만 AST는 base 대비 −11.3pt/−7.5pt라 runbook의 −5pt 조건을 만족하지 못한다. 본문은 "인자값 정확도 향상"을 제한적으로 서술하고, 전체 표는 Appendix에 둔다.
+- **parallel oraclefill 한계:** gold 함수·개수만 주어 atomic sub-request를 복원할 수 없어 각 반복 호출의 filler에는 같은 전체 질문을 넣었다. 호출 수는 맞아도 어느 값이 어느 반복 호출에 대응하는지 구분하지 못해 두 모델 모두 AST가 0에 가까웠다. 이는 STAGE의 인자 구성 회귀로 해석하지 않고, 계획 표현에 slot-level sub-request/argument hints가 필요하다는 설계 한계로 기록한다.
+- 산출물: `outputs/bfcl/qwen3_4b_{sft,base}_{selectfill,oraclefill}/score/json_decoder/` 및 `plan_diagnostics.json`; 원출력은 재현용으로 로컬 `result/`에만 보존한다.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)

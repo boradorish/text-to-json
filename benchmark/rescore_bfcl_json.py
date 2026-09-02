@@ -102,7 +102,11 @@ def summarize_with_funcs(category, result_path):
     rows = {row["id"]: row for row in summarize_bfcl.read_jsonl(result_path)}
     from collections import Counter as _C
     counters = _C()
+    # Ablations may deliberately evaluate a prefix/subset.  Score only result
+    # IDs present on disk rather than counting absent reference items as fails.
     for item_id, question in questions.items():
+        if item_id not in rows:
+            continue
         handler.funcs = {f["name"] for f in question["function"]}
         handler.props = set(question["function"][0]["parameters"]["properties"]) if len(question["function"]) == 1 else set()
         prediction = json_decode_for_diag(rows.get(item_id, {}).get("result"))
@@ -130,10 +134,11 @@ def summarize_with_funcs(category, result_path):
             "argument_schema_validity": r("argument_schema_valid", "matched_calls"), "argument_value_accuracy": r("argument_value_correct", "expected_arguments")}
 summarize_bfcl.summarize_category = summarize_with_funcs
 
-def rescore(run: str, model_dir: str = "qwen3-4b"):
+def rescore(run: str, model_dir: str = "qwen3-4b", categories: list[str] | None = None):
     out_dir = ROOT / run / "score" / "json_decoder"; out_dir.mkdir(parents=True, exist_ok=True)
     summary = {}
-    for cat in CATS:
+    categories = categories or CATS
+    for cat in categories:
         prompts = {r["id"]: r for r in read_jsonl(PROMPT_PATH / f"BFCL_v4_{cat}.json")}
         answers = {r["id"]: r for r in read_jsonl(POSSIBLE_ANSWER_PATH / f"BFCL_v4_{cat}.json")}
         results = read_jsonl(ROOT / run / "result" / model_dir / "non_live" / f"BFCL_v4_{cat}_result.json")
@@ -151,7 +156,7 @@ def rescore(run: str, model_dir: str = "qwen3-4b"):
             fh.write(json.dumps({"accuracy": acc, "correct_count": correct, "total_count": len(results)}) + "\n")
             for e in failed: fh.write(json.dumps(e, default=str) + "\n")
     # diagnostics with JSON decoder
-    diag = [summarize_with_funcs(cat, ROOT / run / "result" / model_dir / "non_live" / f"BFCL_v4_{cat}_result.json") for cat in CATS]
+    diag = [summarize_with_funcs(cat, ROOT / run / "result" / model_dir / "non_live" / f"BFCL_v4_{cat}_result.json") for cat in categories]
     (out_dir / "stage_diagnostics.json").write_text(json.dumps(diag, indent=2) + "\n")
     return summary, diag
 
@@ -167,6 +172,7 @@ def main() -> None:
     parser.add_argument("--runs", nargs="+", default=["qwen3_4b_sft", "qwen3_4b_base"])
     parser.add_argument("--baseline", default="qwen3_4b_base", help="Run whose official scores are shown for comparison.")
     parser.add_argument("--model-dir", default="qwen3-4b", help="BFCL result subdirectory below result/.")
+    parser.add_argument("--categories", nargs="+", choices=CATS, default=CATS)
     args = parser.parse_args()
     baseline_off = None
     try:
@@ -175,13 +181,13 @@ def main() -> None:
         pass
     summaries = {}
     for run in args.runs:
-        summary, diagnostics = rescore(run, args.model_dir)
+        summary, diagnostics = rescore(run, args.model_dir, args.categories)
         summaries[run] = (summary, diagnostics)
     print("\n=== JSON-native AST accuracy (%) ===")
     header = "category" + (f"  {args.baseline} official" if baseline_off else "")
     header += "".join(f"  {run}" for run in args.runs)
     print(header)
-    for cat in CATS:
+    for cat in args.categories:
         values = [f"{cat:14}"]
         if baseline_off:
             values.append(f"{baseline_off[cat] * 100:>18.1f}")
@@ -192,7 +198,7 @@ def main() -> None:
         for row in diagnostics:
             print(f"{row['category']:14} {row['function_selection_accuracy']*100:.1f} / {row['argument_schema_validity']*100:.1f} / {row['argument_value_accuracy']*100:.1f}")
         print(f"=== {run}: error breakdown ===")
-        for cat in CATS:
+        for cat in args.categories:
             print(cat, summary[cat]["errors"])
 
 

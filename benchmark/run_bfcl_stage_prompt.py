@@ -36,7 +36,11 @@ def convert_parameter_schema(schema: Any) -> dict[str, Any]:
         if key not in allowed:
             continue
         if key == "type":
-            result[key] = type_map.get(value, value)
+            mapped_type = type_map.get(value, value)
+            # BFCL's ``any`` means unconstrained JSON; JSON Schema expresses
+            # that by omitting ``type``, not by writing an invalid null type.
+            if mapped_type is not None:
+                result[key] = mapped_type
         elif key == "properties" and isinstance(value, dict):
             result[key] = {name: convert_parameter_schema(child) for name, child in value.items()}
         elif key == "items":
@@ -72,13 +76,35 @@ def bfcl_function_to_call_schema(functions: list[dict[str, Any]]) -> dict[str, A
     }
 
 
-def user_prompt(question: str, functions: list[dict[str, Any]], schema: dict[str, Any]) -> str:
-    return (
-        "Extract the tool calls needed to fulfil the request below as JSON that conforms to the schema.\n\n"
-        f"=== Report ===\n{question}\n\n"
-        f"=== Available functions ===\n{json.dumps(functions, ensure_ascii=False, indent=2)}\n\n"
-        f"=== JSON Schema ===\n{json.dumps(schema, ensure_ascii=False, indent=2)}"
+ONE_SHOT_EXAMPLE = """Example (select only the function needed; do not call every listed function):
+Available functions: get_weather(city), book_flight(origin, destination), send_email(to, subject).
+Request: What is the weather in Seoul today?
+Answer: {"calls": [{"name": "get_weather", "arguments": {"city": "Seoul"}}]}
+
+"""
+
+
+def user_prompt(
+    question: str,
+    functions: list[dict[str, Any]],
+    schema: dict[str, Any],
+    *,
+    include_function_dump: bool,
+    one_shot: bool,
+) -> str:
+    parts = []
+    if one_shot:
+        parts.append(ONE_SHOT_EXAMPLE.rstrip())
+    parts.extend(
+        [
+            "Extract the tool calls needed to fulfil the request below as JSON that conforms to the schema.",
+            f"=== Report ===\n{question}",
+        ]
     )
+    if include_function_dump:
+        parts.append(f"=== Available functions ===\n{json.dumps(functions, ensure_ascii=False, indent=2)}")
+    parts.append(f"=== JSON Schema ===\n{json.dumps(schema, ensure_ascii=False, indent=2)}")
+    return "\n\n".join(parts)
 
 
 def clean_output(text: str) -> str:
@@ -115,6 +141,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-name", required=True)
     parser.add_argument("--categories", nargs="+", choices=CATEGORIES, default=list(CATEGORIES))
     parser.add_argument("--guided-json", action="store_true")
+    parser.add_argument(
+        "--no-function-dump",
+        action="store_true",
+        help="Omit the redundant full function JSON; the call schema remains available.",
+    )
+    parser.add_argument(
+        "--one-shot",
+        action="store_true",
+        help="Prefix a fixed one-of-three-functions, one-call selection example.",
+    )
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--temperature", type=float, default=0.6)
@@ -146,7 +182,19 @@ def main() -> None:
                 rows.append({"id": item["id"], "skip_reason": f"schema_invalid: {exc}"})
                 continue
             question = item["question"][0][-1]["content"]
-            rows.append({"id": item["id"], "prompt": user_prompt(question, functions, schema), "schema": schema})
+            rows.append(
+                {
+                    "id": item["id"],
+                    "prompt": user_prompt(
+                        question,
+                        functions,
+                        schema,
+                        include_function_dump=not args.no_function_dump,
+                        one_shot=args.one_shot,
+                    ),
+                    "schema": schema,
+                }
+            )
         prepared[category] = rows[: args.limit] if args.limit else rows
 
     engine = load_vllm_model(
