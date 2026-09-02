@@ -21,6 +21,11 @@ def get_base_model_id(adapter_path: str | Path) -> str:
     return cfg["base_model_name_or_path"]
 
 
+def get_lora_rank(adapter_path: str | Path) -> int:
+    cfg = json.loads((Path(adapter_path) / "adapter_config.json").read_text(encoding="utf-8"))
+    return int(cfg.get("r", 16))
+
+
 def load_vllm_model(
     model_path: str | Path,
     tokenizer_path: str | Path | None = None,
@@ -69,6 +74,10 @@ def load_vllm_model(
     lora_request = None
     if is_lora_adapter(model_path):
         base_model = get_base_model_id(model_path)
+        # vLLM defaults to rank 16, but the published Glaive baseline uses
+        # rank 64.  Set the engine limit from the adapter metadata so valid
+        # adapters do not fail only after expensive model initialization.
+        kwargs["max_lora_rank"] = max(16, get_lora_rank(model_path))
         tokenizer_src = str(tokenizer_path) if tokenizer_path else base_model
         print(f"LoRA 어댑터 감지. vLLM 베이스 모델: {base_model}")
         llm = LLM(

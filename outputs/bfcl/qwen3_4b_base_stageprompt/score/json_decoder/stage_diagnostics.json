@@ -1,0 +1,41 @@
+[
+  {
+    "category": "simple_python",
+    "examples": 400,
+    "expected_calls": 400,
+    "function_selected": 396,
+    "matched_calls": 396,
+    "argument_schema_valid": 396,
+    "expected_arguments": 1147,
+    "argument_value_correct": 996,
+    "function_selection_accuracy": 0.99,
+    "argument_schema_validity": 1.0,
+    "argument_value_accuracy": 0.8683522231909329
+  },
+  {
+    "category": "multiple",
+    "examples": 200,
+    "expected_calls": 200,
+    "function_selected": 199,
+    "matched_calls": 199,
+    "argument_schema_valid": 199,
+    "expected_arguments": 566,
+    "argument_value_correct": 492,
+    "function_selection_accuracy": 0.995,
+    "argument_schema_validity": 1.0,
+    "argument_value_accuracy": 0.8692579505300353
+  },
+  {
+    "category": "parallel",
+    "examples": 200,
+    "expected_calls": 540,
+    "function_selected": 529,
+    "matched_calls": 529,
+    "argument_schema_valid": 529,
+    "expected_arguments": 1454,
+    "argument_value_correct": 1305,
+    "function_selection_accuracy": 0.9796296296296296,
+    "argument_schema_validity": 1.0,
+    "argument_value_accuracy": 0.8975240715268226
+  }
+]

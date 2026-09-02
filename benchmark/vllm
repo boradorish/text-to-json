@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""vLLM CLI entry point with the Transformers 5 tokenizer compatibility shim."""
+from transformers.tokenization_utils_tokenizers import TokenizersBackend
+
+if not hasattr(TokenizersBackend, "all_special_tokens_extended"):
+    TokenizersBackend.all_special_tokens_extended = property(
+        lambda tokenizer: tokenizer.all_special_tokens
+    )
+
+from vllm.entrypoints.cli.main import main
+
+if __name__ == "__main__":
+    main()

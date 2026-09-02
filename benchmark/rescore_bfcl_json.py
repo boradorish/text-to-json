@@ -1,5 +1,6 @@
 """Re-score BFCL-v4 offline results with a JSON-native decode_ast (official ast_checker unchanged)."""
 from __future__ import annotations
+import argparse
 import ast, json, re, sys
 from collections import Counter
 from pathlib import Path
@@ -129,19 +130,19 @@ def summarize_with_funcs(category, result_path):
             "argument_schema_validity": r("argument_schema_valid", "matched_calls"), "argument_value_accuracy": r("argument_value_correct", "expected_arguments")}
 summarize_bfcl.summarize_category = summarize_with_funcs
 
-def rescore(run: str):
+def rescore(run: str, model_dir: str = "qwen3-4b"):
     out_dir = ROOT / run / "score" / "json_decoder"; out_dir.mkdir(parents=True, exist_ok=True)
     summary = {}
     for cat in CATS:
         prompts = {r["id"]: r for r in read_jsonl(PROMPT_PATH / f"BFCL_v4_{cat}.json")}
         answers = {r["id"]: r for r in read_jsonl(POSSIBLE_ANSWER_PATH / f"BFCL_v4_{cat}.json")}
-        results = read_jsonl(ROOT / run / "result" / "qwen3-4b" / "non_live" / f"BFCL_v4_{cat}_result.json")
+        results = read_jsonl(ROOT / run / "result" / model_dir / "non_live" / f"BFCL_v4_{cat}_result.json")
         errors = Counter(); failed = []; correct = 0
         for r in results:
             p = prompts[r["id"]]; handler.funcs = {f["name"] for f in p["function"]}
             handler.props = set(p["function"][0]["parameters"]["properties"]) if len(p["function"]) == 1 else set()
             e = _evaluate_single_ast_entry(handler, r["id"], r["result"], answers[r["id"]]["ground_truth"], p,
-                                           "qwen3-4b", cat, language=Language.PYTHON, return_format=ReturnFormat.PYTHON)
+                                           model_dir, cat, language=Language.PYTHON, return_format=ReturnFormat.PYTHON)
             if e["valid"]: correct += 1
             else: errors[e["error_type"]] += 1; failed.append(e)
         acc = correct / len(results)
@@ -150,31 +151,50 @@ def rescore(run: str):
             fh.write(json.dumps({"accuracy": acc, "correct_count": correct, "total_count": len(results)}) + "\n")
             for e in failed: fh.write(json.dumps(e, default=str) + "\n")
     # diagnostics with JSON decoder
-    diag = [summarize_with_funcs(cat, ROOT / run / "result" / "qwen3-4b" / "non_live" / f"BFCL_v4_{cat}_result.json") for cat in CATS]
+    diag = [summarize_with_funcs(cat, ROOT / run / "result" / model_dir / "non_live" / f"BFCL_v4_{cat}_result.json") for cat in CATS]
     (out_dir / "stage_diagnostics.json").write_text(json.dumps(diag, indent=2) + "\n")
     return summary, diag
 
-def official(run: str):
+def official(run: str, model_dir: str = "qwen3-4b"):
     out = {}
     for cat in CATS:
-        p = ROOT / run / "score" / "qwen3-4b" / "non_live" / f"BFCL_v4_{cat}_score.json"
+        p = ROOT / run / "score" / model_dir / "non_live" / f"BFCL_v4_{cat}_score.json"
         out[cat] = json.loads(p.open().readline())["accuracy"]
     return out
 
-base_off = official("qwen3_4b_base"); sft_off = official("qwen3_4b_sft")
-sft_sum, sft_diag = rescore("qwen3_4b_sft")
-base_sum, base_diag = rescore("qwen3_4b_base")  # sanity: JSON decoder on base (should mostly fail -> it outputs python calls)
-base_diag_off = json.load((ROOT / "qwen3_4b_base/score/stage_diagnostics.json").open())
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Re-score BFCL output with the JSON-native decoder.")
+    parser.add_argument("--runs", nargs="+", default=["qwen3_4b_sft", "qwen3_4b_base"])
+    parser.add_argument("--baseline", default="qwen3_4b_base", help="Run whose official scores are shown for comparison.")
+    parser.add_argument("--model-dir", default="qwen3-4b", help="BFCL result subdirectory below result/.")
+    args = parser.parse_args()
+    baseline_off = None
+    try:
+        baseline_off = official(args.baseline, args.model_dir)
+    except FileNotFoundError:
+        pass
+    summaries = {}
+    for run in args.runs:
+        summary, diagnostics = rescore(run, args.model_dir)
+        summaries[run] = (summary, diagnostics)
+    print("\n=== JSON-native AST accuracy (%) ===")
+    header = "category" + (f"  {args.baseline} official" if baseline_off else "")
+    header += "".join(f"  {run}" for run in args.runs)
+    print(header)
+    for cat in CATS:
+        values = [f"{cat:14}"]
+        if baseline_off:
+            values.append(f"{baseline_off[cat] * 100:>18.1f}")
+        values.extend(f"{summaries[run][0][cat]['accuracy'] * 100:>10.1f}" for run in args.runs)
+        print(" ".join(values))
+    for run, (summary, diagnostics) in summaries.items():
+        print(f"\n=== {run}: function selection / schema validity / value accuracy (%) ===")
+        for row in diagnostics:
+            print(f"{row['category']:14} {row['function_selection_accuracy']*100:.1f} / {row['argument_schema_validity']*100:.1f} / {row['argument_value_accuracy']*100:.1f}")
+        print(f"=== {run}: error breakdown ===")
+        for cat in CATS:
+            print(cat, summary[cat]["errors"])
 
-print("\n=== AST accuracy (%) ===")
-print(f"{'cat':14}{'base official':>15}{'sft official':>14}{'sft JSON-decoder':>18}")
-for cat in CATS:
-    print(f"{cat:14}{base_off[cat]*100:15.1f}{sft_off[cat]*100:14.1f}{sft_sum[cat]['accuracy']*100:18.1f}")
-print("\n=== SFT error breakdown under JSON decoder ===")
-for cat in CATS: print(cat, sft_sum[cat]["errors"])
-print("\n=== Diagnostics (%): function selection / arg schema validity / arg value accuracy ===")
-for b, s in zip(base_diag_off, sft_diag):
-    print(f"{b['category']:14} base {b['function_selection_accuracy']*100:5.1f} / {b['argument_schema_validity']*100:5.1f} / {b['argument_value_accuracy']*100:5.1f}"
-          f"   |  sft(JSON) {s['function_selection_accuracy']*100:5.1f} / {s['argument_schema_validity']*100:5.1f} / {s['argument_value_accuracy']*100:5.1f}")
-print("\n=== sanity: base under JSON decoder (expect ~0) ===")
-for cat in CATS: print(cat, round(base_sum[cat]["accuracy"]*100, 1))
+
+if __name__ == "__main__":
+    main()

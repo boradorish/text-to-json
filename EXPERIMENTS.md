@@ -251,6 +251,41 @@ JSON 추출 학습이 함수 호출 능력으로 전이되는지(최소한 해�
 - Appendix: (i) 공식 규약 0점과 원인(출력 프로토콜 고정, 지시 포맷 준수 0/800), (ii) JSON-native 디코더 정의와 결과, (iii) 과호출·parallel 표현 한계 분석. "narrow SFT 후 SLM의 format lock-in"을 limitation 겸 discussion으로 한 단락.
 - 하지 말 것: 추가 학습(BFCL 포맷 혼합 SFT)은 마감상 제외. 공식 0점을 표에서 지우지 말 것.
 
+## 실행 기록 (후속)
+
+### 2026-09-02 — 실험 2b STAGE-native BFCL 오프라인 (완료; Appendix 음성 결과)
+
+- `benchmark/run_bfcl_stage_prompt.py`로 BFCL-v4 offline 800개(`simple_python` 400, `multiple` 200, `parallel` 200)를 STAGE 입력 규약으로 다시 실행했다. 출력 스키마는 `{"calls": [{"name", "arguments"}, ...]}`이며, 함수별 parameter schema를 `oneOf`로 보존한다. 자유 생성 및 xgrammar-guided decoding을 각각 base/STAGE-SFT에 적용했다. 모든 조건은 H200 1장, temperature 0.6, top-p 1.0, seed 42, max_new_tokens 3100, max_model_len 8192이다.
+- JSON-native AST는 분석용 decoder 결과이며 공식 BFCL 리더보드 점수가 아니다. 비교를 위해 기존 base의 공식 AST도 함께 제시한다.
+
+| Condition | simple AST | multiple AST | parallel AST |
+|---|---:|---:|---:|
+| Qwen3-4B base, official BFCL prompt | 96.0 | 94.0 | 92.0 |
+| Qwen3-4B base, STAGE prompt | 94.2 | 94.5 | 92.5 |
+| Qwen3-4B base, STAGE prompt + xgrammar | 89.0 | 87.0 | 88.0 |
+| Qwen3-4B STAGE SFT, STAGE prompt | 79.8 | 5.0 | 66.5 |
+| Qwen3-4B STAGE SFT, STAGE prompt + xgrammar | 79.2 | 5.0 | 65.0 |
+
+- SFT 자유 생성의 함수 선택 / 인자 스키마 유효 / 인자 값 정확도는 simple **99.5 / 100.0 / 88.3**, multiple **98.5 / 99.5 / 82.5**, parallel **84.4 / 100.0 / 87.7**이었다. xgrammar도 각각 **99.8 / 100.0 / 87.9**, **99.5 / 100.0 / 82.7**, **83.3 / 100.0 / 87.6**으로 호출 집합 문제를 해소하지 못했다.
+- 가설 판정: **불성립**. 목표였던 parallel 함수 선택 90 이상에는 미달(84.4), multiple `wrong_count`도 185/200(가이드 조건 187/200)으로 목표 10 이하에 크게 못 미쳤다. 모든 후보 함수를 schema에 나열한 것이 STAGE-SFT 모델에 과호출 유인을 주는 것으로 해석된다. base는 같은 STAGE 프롬프트에서 강했으므로, 이 결과는 구현 문제가 아니라 STAGE-SFT의 call-set 일반화 한계다. 본문 헤드라인에는 쓰지 않고 Appendix의 protocol/prompt-alignment 음성 결과로 둔다.
+- 산출물: `outputs/bfcl/qwen3_4b_{base,sft}_stageprompt*/result/`, `score/json_decoder/`; 재현 스크립트: `benchmark/run_bfcl_stage_prompt.py`, `benchmark/rescore_bfcl_json.py`.
+
+### 2026-09-02 — 실험 2c Glaive-SFT BFCL 비교 (완료)
+
+- 함수 호출 데이터로 학습한 공개 Glaive LoRA(rank 64)를 Qwen3-4B base에 장착했다. `benchmark/run_bfcl_local.py`는 adapter metadata에서 LoRA rank를 읽고, base checkpoint로 vLLM을 띄운 뒤 `bfcl-adapter` 요청 모델로 adapter를 선택하도록 보완했다. BFCL이 자식 vLLM 프로세스를 띄울 때도 Transformers 5 tokenizer 호환 패치를 적용하는 `benchmark/vllm` 래퍼를 사용했다.
+
+| Condition | simple AST | multiple AST | parallel AST | Function / schema / value (simple) | (multiple) | (parallel) |
+|---|---:|---:|---:|---:|---:|---:|
+| Glaive, official BFCL prompt | 93.5 | 7.0 | 70.0 | 99.2 / 99.7 / 88.2 | 7.0 / 100.0 / 84.4 | 76.5 / 100.0 / 92.8 |
+| Glaive, STAGE prompt (JSON-native) | 91.8 | 87.5 | 73.5 | 99.0 / 100.0 / 86.2 | 98.0 / 100.0 / 85.6 | 78.5 / 99.5 / 92.0 |
+
+- STAGE 프롬프트는 Glaive의 multiple AST를 **+80.5pt** 높였지만, parallel AST는 73.5에 머물렀다. 공식 프롬프트 multiple의 7.0은 185건의 Python-call AST decode 실패가 주원인이며, STAGE 출력 형식과 공식 포맷의 alignment가 성능을 좌우함을 재확인한다. 따라서 “STAGE가 Glaive보다 BFCL 인자값 정확도에서 앞선다”는 주장은 이 결과로 뒷받침되지 않으며, Glaive 비교 역시 Appendix 표로 한정한다.
+- 산출물: `outputs/bfcl/qwen3_4b_glaive_{official,stageprompt}/result/`, 공식 `score/`, JSON-native `score/json_decoder/`.
+
+### 후속 우선순위 판정
+
+- runbook의 실험 2d(Llama-3.2 1B/3B)는 명시적으로 **선택** 항목이다. 2b와 2c의 필수 실행·분석을 완료했으며, 2b가 본문 가설을 지지하지 않아 추가 Llama 실행은 동일한 음성 결과를 늘리기보다 논문 Appendix 정리보다 우선하지 않는다. 추가 학습은 수행하지 않았다.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
