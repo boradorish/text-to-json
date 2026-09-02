@@ -1,0 +1,26 @@
+[
+  {
+    "category": "simple_python",
+    "examples": 400,
+    "expected_calls": 400,
+    "function_selection_accuracy": 0.0,
+    "argument_schema_validity": 0.0,
+    "argument_value_accuracy": 0.0
+  },
+  {
+    "category": "multiple",
+    "examples": 200,
+    "expected_calls": 200,
+    "function_selection_accuracy": 0.0,
+    "argument_schema_validity": 0.0,
+    "argument_value_accuracy": 0.0
+  },
+  {
+    "category": "parallel",
+    "examples": 200,
+    "expected_calls": 540,
+    "function_selection_accuracy": 0.0,
+    "argument_schema_validity": 0.0,
+    "argument_value_accuracy": 0.0
+  }
+]

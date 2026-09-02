@@ -29,8 +29,19 @@ def load_vllm_model(
     gpu_memory_utilization: float = 0.9,
     max_model_len: int | None = None,
     enforce_eager: bool = False,
+    guided_decoding_backend: str | None = None,
+    tokenizer_mode: str = "auto",
 ) -> VllmModel:
     try:
+        # transformers 5's TokenizersBackend dropped this compatibility
+        # property, while vLLM 0.10.2 still reads it when creating its cached
+        # tokenizer wrapper.  Its semantic replacement is the same list of
+        # special tokens for these checkpoints.
+        from transformers.tokenization_utils_tokenizers import TokenizersBackend
+        if not hasattr(TokenizersBackend, "all_special_tokens_extended"):
+            TokenizersBackend.all_special_tokens_extended = property(  # type: ignore[attr-defined]
+                lambda tokenizer: tokenizer.all_special_tokens
+            )
         from vllm import LLM
         from vllm.lora.request import LoRARequest
     except ImportError as exc:
@@ -49,6 +60,11 @@ def load_vllm_model(
     }
     if max_model_len is not None:
         kwargs["max_model_len"] = max_model_len
+    if guided_decoding_backend is not None:
+        # vLLM 0.10 configures structured-output backends at engine scope.
+        kwargs["guided_decoding_backend"] = guided_decoding_backend
+    if tokenizer_mode != "auto":
+        kwargs["tokenizer_mode"] = tokenizer_mode
 
     lora_request = None
     if is_lora_adapter(model_path):
@@ -80,6 +96,18 @@ def build_chat_prompts(tokenizer, system_prompt: str, user_texts: list[str]) -> 
         [{"role": "system", "content": system_prompt}, {"role": "user", "content": text}]
         for text in user_texts
     ]
+    # Meta's base Llama-3.2 checkpoints intentionally ship without a chat
+    # template.  Use the standard Llama-3 header form only for that missing-
+    # template case; tokenizers with a declared template retain their native
+    # formatting.
+    tokenizer_id = str(getattr(tokenizer, "name_or_path", ""))
+    if getattr(tokenizer, "chat_template", None) is None and "Llama" in tokenizer_id:
+        return [
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+            f"{system_prompt}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
+            f"{user_text}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+            for user_text in user_texts
+        ]
     return [
         tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         for messages in messages_list
@@ -93,6 +121,7 @@ def generate_texts(
     max_new_tokens: int,
     temperature: float = 0.0,
     top_p: float = 1.0,
+    seed: int | None = None,
     use_tqdm: bool = False,
 ) -> list[str]:
     from vllm import SamplingParams
@@ -101,6 +130,7 @@ def generate_texts(
         max_tokens=max_new_tokens,
         temperature=temperature,
         top_p=top_p,
+        seed=seed,
     )
     outputs = engine.llm.generate(
         prompts,

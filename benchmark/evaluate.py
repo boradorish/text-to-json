@@ -138,6 +138,10 @@ def main() -> None:
             if line:
                 records.append(json.loads(line))
 
+    skipped_records = [record for record in records if record.get("skip_reason")]
+    records = [record for record in records if not record.get("skip_reason")]
+    if not records:
+        raise SystemExit("No evaluable records after excluding skipped rows.")
     metrics = [evaluate_row(record) for record in records]
     metrics_df = pd.DataFrame(metrics)
     out_df = pd.concat([pd.DataFrame(records), metrics_df], axis=1)
@@ -145,6 +149,7 @@ def main() -> None:
         [
             {
                 "samples": len(metrics_df),
+                "skipped_samples": len(skipped_records),
                 "no_output_ratio": metrics_df["no_output"].mean(),
                 "exact_match_ratio": metrics_df["exact_match"].mean(),
                 "schema_valid_ratio": metrics_df["schema_valid"].mean(),
@@ -155,14 +160,24 @@ def main() -> None:
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Preserve exact raw records in JSONL, but XLSX is XML-backed and cannot
+    # represent control bytes occasionally emitted by unconstrained models.
+    excel_df = out_df.copy()
+    for column in excel_df.select_dtypes(include="object"):
+        excel_df[column] = excel_df[column].map(
+            lambda value: re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F]", "", value)
+            if isinstance(value, str)
+            else value
+        )
     with pd.ExcelWriter(output_path) as writer:
-        out_df.to_excel(writer, sheet_name="rows", index=False)
+        excel_df.to_excel(writer, sheet_name="rows", index=False)
         summary_df.to_excel(writer, sheet_name="summary", index=False)
 
     print("=" * 55)
     print("Benchmark evaluation")
     print("=" * 55)
     print(f"  samples:                  {len(metrics_df)}")
+    print(f"  skipped samples:          {len(skipped_records)}")
     print(f"  no_output ratio:           {metrics_df['no_output'].mean():.4f}")
     print(f"  exact_match ratio:         {metrics_df['exact_match'].mean():.4f}")
     print(f"  schema_valid ratio:        {metrics_df['schema_valid'].mean():.4f}")
