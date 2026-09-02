@@ -37,6 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--guided-json", action="store_true")
     parser.add_argument("--batch-size", type=int, choices=(1, 32), default=1)
     parser.add_argument("--pass-name", choices=("cold", "warm"), default="cold")
+    parser.add_argument("--second-pass", action="store_true", help="Measure a cached warm pass in the same engine.")
     parser.add_argument("--warmup", type=int, default=10)
     parser.add_argument("--limit", type=int, default=None, help="Debug-only cap after compatibility filtering.")
     parser.add_argument("--max-new-tokens", type=int, default=3100)
@@ -117,43 +118,28 @@ def main() -> None:
     if args.warmup:
         generate(engine, prompts[: args.warmup], compatible[: args.warmup], args)
 
-    records = []
-    whole_start = time.perf_counter()
-    for start in range(0, len(compatible), args.batch_size):
-        batch_rows = compatible[start : start + args.batch_size]
-        batch_prompts = prompts[start : start + args.batch_size]
-        outputs, batch_seconds = generate(engine, batch_prompts, batch_rows, args)
-        # A batch timing is allocated only for display; throughput uses its true total.
-        for row, output in zip(batch_rows, outputs):
-            token_count = len(output.outputs[0].token_ids)
-            records.append({
-                "stem": row["stem"], "latency_seconds": batch_seconds / len(batch_rows),
-                "batch_seconds": batch_seconds, "generated_tokens": token_count,
-            })
-    wall_seconds = time.perf_counter() - whole_start
-    record_path = out_dir / f"{args.label}_{args.pass_name}_b{args.batch_size}.jsonl"
-    with record_path.open("w", encoding="utf-8") as handle:
-        for record in records:
-            handle.write(json.dumps(record) + "\n")
-    latencies = [record["latency_seconds"] for record in records]
-    token_total = sum(record["generated_tokens"] for record in records)
-    summary = {
-        "label": args.label, "pass": args.pass_name, "batch_size": args.batch_size,
-        "samples": len(records), "xgrammar_skipped": len(skipped), "warmup_samples": args.warmup,
-        "latency_median_seconds": stats(latencies)["median"], "latency_p90_seconds": stats(latencies)["p90"],
-        "wall_seconds": wall_seconds, "examples_per_second": len(records) / wall_seconds,
-        "generated_tokens": token_total, "tokens_per_second": token_total / wall_seconds,
-        "mean_generated_tokens": token_total / len(records),
-        "token_seconds": wall_seconds / token_total if token_total else float("nan"),
-        "grammar_compile_median_seconds": stats(compile_seconds)["median"] if compile_seconds else 0.0,
-        "grammar_compile_p90_seconds": stats(compile_seconds)["p90"] if compile_seconds else 0.0,
-        "grammar_compile_total_seconds": sum(compile_seconds),
-    }
     summary_path = out_dir / "summary.csv"
+    summaries = []
+    for pass_name in [args.pass_name] + (["warm"] if args.second_pass else []):
+        records = []
+        whole_start = time.perf_counter()
+        for start in range(0, len(compatible), args.batch_size):
+            batch_rows = compatible[start : start + args.batch_size]
+            batch_prompts = prompts[start : start + args.batch_size]
+            outputs, batch_seconds = generate(engine, batch_prompts, batch_rows, args)
+            for row, output in zip(batch_rows, outputs):
+                records.append({"stem": row["stem"], "latency_seconds": batch_seconds / len(batch_rows), "batch_seconds": batch_seconds, "generated_tokens": len(output.outputs[0].token_ids)})
+        wall_seconds = time.perf_counter() - whole_start
+        record_path = out_dir / f"{args.label}_{pass_name}_b{args.batch_size}.jsonl"
+        with record_path.open("w", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record) + "\n")
+        latencies, token_total = [record["latency_seconds"] for record in records], sum(record["generated_tokens"] for record in records)
+        summaries.append({"label": args.label, "pass": pass_name, "batch_size": args.batch_size, "samples": len(records), "xgrammar_skipped": len(skipped), "warmup_samples": args.warmup, "latency_median_seconds": stats(latencies)["median"], "latency_p90_seconds": stats(latencies)["p90"], "wall_seconds": wall_seconds, "examples_per_second": len(records) / wall_seconds, "generated_tokens": token_total, "tokens_per_second": token_total / wall_seconds, "mean_generated_tokens": token_total / len(records), "token_seconds": wall_seconds / token_total if token_total else float("nan"), "grammar_compile_median_seconds": stats(compile_seconds)["median"] if compile_seconds else 0.0, "grammar_compile_p90_seconds": stats(compile_seconds)["p90"] if compile_seconds else 0.0, "grammar_compile_total_seconds": sum(compile_seconds)})
     existing = pd.read_csv(summary_path) if summary_path.exists() else pd.DataFrame()
-    pd.concat([existing, pd.DataFrame([summary])], ignore_index=True).to_csv(summary_path, index=False)
+    pd.concat([existing, pd.DataFrame(summaries)], ignore_index=True).to_csv(summary_path, index=False)
     (out_dir / "xgrammar_skipped.json").write_text(json.dumps(skipped, indent=2), encoding="utf-8")
-    print(json.dumps(summary, indent=2))
+    print(json.dumps(summaries, indent=2))
 
 
 if __name__ == "__main__":
