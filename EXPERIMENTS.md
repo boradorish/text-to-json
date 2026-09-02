@@ -282,9 +282,75 @@ JSON 추출 학습이 함수 호출 능력으로 전이되는지(최소한 해�
 - STAGE 프롬프트는 Glaive의 multiple AST를 **+80.5pt** 높였지만, parallel AST는 73.5에 머물렀다. 공식 프롬프트 multiple의 7.0은 185건의 Python-call AST decode 실패가 주원인이며, STAGE 출력 형식과 공식 포맷의 alignment가 성능을 좌우함을 재확인한다. 따라서 “STAGE가 Glaive보다 BFCL 인자값 정확도에서 앞선다”는 주장은 이 결과로 뒷받침되지 않으며, Glaive 비교 역시 Appendix 표로 한정한다.
 - 산출물: `outputs/bfcl/qwen3_4b_glaive_{official,stageprompt}/result/`, 공식 `score/`, JSON-native `score/json_decoder/`.
 
+### 2026-09-02 — 실험 2b/2c 결과 해석 (원출력 전수 분석)
+
+- **multiple 과호출은 규칙적이다.** SFT는 제시된 함수 N개에 대해 정확히 N개 호출을 냈다(2/2: 72, 3/3: 77, 4/4: 35 = 184/200). 정답 함수는 190건 실패 중 187건에 포함돼 있고, 불필요한 호출의 인자도 311/332건이 그럴듯하게 전부 채워져 있다(빈 값·placeholder 아님). 같은 프롬프트에서 base는 189/200, Glaive는 175/200이 1개 호출이다. 즉 `oneOf` 변형 목록을 "채워야 할 필드 목록"으로 취급하는 **coverage bias**이며, 프롬프트 결함이 아니다.
+- **parallel은 선택 문제가 아니다.** BFCL parallel은 800개 중 확인된 전부가 함수 1개만 제시한다. SFT의 wrong_count 40건은 전부 정답보다 **적게** 호출(gold 3→1: 11, 2→1: 10, 4→2: 9 …)한 경우로, 여러 요청을 한 호출의 배열 인자로 병합하는 습관이다.
+- **simple 79.8 (STAGE 프롬프트) < 86.0 (공식 프롬프트+JSON 디코더)**: 새로 실패한 38건은 전부 값 오류(문자열 16, 리스트 13, 단위 스케일 등 7)다. `=== Available functions ===`에 함수 JSON을 통째로 넣은 것이 스키마와 중복돼 값 주의력을 떨어뜨린 것으로 보인다(2f에서 ablation).
+- **학습 데이터에서의 원인**: STAGE-Eval 1,000개 스키마의 객체 3,988개 중 3,807개(95.5%)가 모든 속성을 `required`로 두고, `oneOf`/`anyOf`는 54개(1.4%)뿐이다. "여럿 중 하나를 고른다", "요청에 따라 호출 개수가 달라진다"를 STAGE 데이터는 가르치지 않는다. 이것이 인자 구성은 전이되고(값 정확도 base 이상, 스키마 유효 100) 호출 집합 구성은 전이되지 않는 이유다.
+- **Glaive 2c의 읽기**: Glaive는 함수 호출 데이터로 학습했는데도 공식 프롬프트 multiple이 7.0(Python-call 디코드 실패 185건)이다. 즉 "SFT 후 출력 프로토콜 고정"은 STAGE 고유 현상이 아니라 narrow SFT를 거친 4B 모델의 일반적 현상이며, 논문에서는 이 점을 STAGE 한계가 아닌 SLM 일반 현상으로 서술할 수 있다.
+
 ### 후속 우선순위 판정
 
 - runbook의 실험 2d(Llama-3.2 1B/3B)는 명시적으로 **선택** 항목이다. 2b와 2c의 필수 실행·분석을 완료했으며, 2b가 본문 가설을 지지하지 않아 추가 Llama 실행은 동일한 음성 결과를 늘리기보다 논문 Appendix 정리보다 우선하지 않는다. 추가 학습은 수행하지 않았다.
+
+## 다음 실행 (2차) — 실험 2e/2f (에이전트 runbook)
+
+> 2b에서 확인된 병목은 **호출 집합 구성**(어느 함수를 몇 번)이고, **인자 구성**은 STAGE-SFT가 base 이상이다. 따라서 다음 실험은 두 단계를 분리해 STAGE-SFT를 "인자 구성기"로 쓰는 배치를 검증한다. 추가 학습 없음. 우선순위 **2f(15분) → 2e(약 1시간)**. 2f 결과로 2e 프롬프트의 함수 목록 형식을 정한다.
+
+### 2f. 프롬프트 ablation (GPU 약 15분, simple/multiple 각 200개 서브셋 가능)
+
+`benchmark/run_bfcl_stage_prompt.py`에 옵션 두 개를 추가해 SFT만 실행한다.
+
+- `--no-function-dump`: `=== Available functions ===` 블록을 제거한다(스키마의 `description`이 같은 정보를 담음). 판정: simple AST가 79.8에서 86.0 근방으로 회복되면 이후 실험은 모두 이 옵션으로 실행.
+- `--one-shot`: user 메시지 앞에 고정 예시 1개(함수 3개 제시, 호출 1개만 담긴 `{"calls": [...]}` 정답)를 붙인다. BFCL 데이터가 아닌 자체 작성 예시를 쓴다. 판정: multiple `wrong_count`가 185에서 유의미하게(≤100) 줄면 coverage bias가 in-context로 완화됨을 Appendix에 기록. 줄지 않으면 "지시·예시로 교정 불가 → format lock-in"의 추가 근거.
+- run 이름: `qwen3_4b_sft_stageprompt_nodump`, `qwen3_4b_sft_stageprompt_oneshot`. 채점은 `rescore_bfcl_json.py --runs …`.
+
+### 2e. Select-then-fill: 계획 단계와 인자 채움 단계 분리 (핵심, GPU 약 1시간)
+
+새 스크립트 `benchmark/run_bfcl_select_fill.py`. 두 pass 모두 STAGE 입력 규약(system=`prompt/infer_SYSTEM_prompt.txt`, `=== Report ===` + `=== JSON Schema ===`)이며 카테고리 정보는 모델에 주지 않는다.
+
+**Pass 1 — 계획.** 사용자 질문을 원자 요청으로 분해하고 각 요청에 함수를 배정한다. 스키마:
+```json
+{"type":"object","additionalProperties":false,"required":["plan"],
+ "properties":{"plan":{"type":"array","minItems":1,"items":{
+   "type":"object","additionalProperties":false,"required":["request","function"],
+   "properties":{"request":{"type":"string","description":"One atomic sub-request from the user message, copied or minimally paraphrased"},
+                 "function":{"type":"string","enum":[<제시된 함수명들>]}}}}}}
+```
+- Report에는 질문과 함수별 `name`+`description` 한 줄씩만 넣는다(파라미터 스키마 제외). `enum` 단일 선택은 STAGE-Eval에 2,846회 등장하는 in-distribution 구조다.
+- 기록: `plan` 길이, 함수 집합. 지표: **호출 집합 정확도** = 예측 (함수, 개수) multiset이 gold와 일치하는 비율. 2b의 함수 선택 지표는 재현율만 봐서 과호출을 못 잡았으므로 이번엔 정밀도 포함.
+
+**Pass 2 — 인자 채움.** plan의 각 항목마다 해당 함수 **하나**의 스키마로 호출을 만든다:
+```json
+{"type":"object","additionalProperties":false,"required":["name","arguments"],
+ "properties":{"name":{"const":"<fn>"},"arguments":<fn.parameters 변환(2b와 동일 규칙)>}}
+```
+- Report = 원래 질문 전체 + `Sub-request: <plan.request>`. 원문을 함께 주는 이유는 값(단위·날짜·지명)이 질문 전체에 흩어져 있기 때문이다.
+- 배치: pass 1 결과를 모아 pass 2를 한 번에 배치 추론(호출 수 합계 ≈ 1,140).
+
+**조립과 채점.** 항목별로 pass 2 결과를 `{"calls": [...]}`로 합쳐 BFCL 레이아웃 `outputs/bfcl/<run>/result/qwen3-4b/non_live/BFCL_v4_{cat}_result.json`에 저장하면 `rescore_bfcl_json.py`가 그대로 채점한다.
+
+**실행 조건 4개** (모두 Qwen3-4B):
+1. `qwen3_4b_sft_selectfill` — pass 1·2 모두 STAGE-SFT (단일 모델 배치).
+2. `qwen3_4b_base_selectfill` — 둘 다 base (동일 절차의 공정 대조).
+3. `qwen3_4b_sft_oraclefill` — pass 1을 gold (함수, 개수)로 대체하고 pass 2만 SFT. **인자 구성 능력의 상한**이며, 이 값이 논문에서 "STAGE가 가르친 것"을 가장 깨끗하게 보여준다. base도 같은 조건으로(`qwen3_4b_base_oraclefill`).
+4. (선택) `qwen3_4b_mixed_selectfill` — pass 1 base, pass 2 SFT. 라우터/채움기를 분리하는 실제 에이전트 배치.
+
+**판정 조건.**
+- (a) `oraclefill`에서 SFT의 인자 값 정확도·스키마 유효성이 base 이상이고 세 카테고리 AST가 base 대비 −5pt 이내 → 본문 Table: "given the routed function, STAGE-SFT constructs arguments at least as accurately as base".
+- (b) `selectfill` SFT의 multiple·parallel AST가 각각 **75 이상** → 본문에 "plan-then-fill 배치로 단일 4B 모델 tool calling 가능" 추가. 미달이면 (a)만 본문, selectfill은 Appendix.
+- (c) 어떤 경우에도 2b 표(공식 0, JSON-native, STAGE 프롬프트)와 coverage bias 분석은 Appendix에 유지한다.
+
+### 2g. (이번 마감에는 하지 않음) 데이터 측 교정
+
+STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마, (ii) 요청 수에 따라 길이가 달라지는 배열, (iii) 선택 안 된 필드를 비워두는 예시를 소량 섞어 재학습하면 coverage bias가 교정되는지 확인. 카메라레디 또는 후속 논문용. 논문 Limitations/Future work에 한 문장으로 적는다.
+
+### 논문 반영 지침 (2e 결과 확정 후)
+
+- 본문 BFCL 소절의 주장을 **"인자 구성은 전이되고, 호출 집합 계획은 전이되지 않는다"**로 잡는다. 근거 수치: 인자 값 정확도 91.3/87.4 vs base 87.5/85.0(simple/multiple, JSON-native), 스키마 유효 100; 과호출 184/200 N-for-N; STAGE 데이터의 all-required 95.5%, oneOf 1.4%.
+- 2e의 oraclefill(과 selectfill)이 처방이 된다. 워크숍 청중에게는 "SLM을 라우터가 아닌 인자 구성기로 배치"가 실용적 메시지다.
+- Glaive의 공식 프롬프트 multiple 7.0을 인용해 프로토콜 고정이 narrow-SFT SLM의 일반 현상임을 한 문장으로 언급한다.
 
 ## 인프라 메모
 
