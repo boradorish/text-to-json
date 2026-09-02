@@ -1,0 +1,28 @@
+[
+  {
+    "category": "simple_python",
+    "examples": 200,
+    "expected_calls": 200,
+    "function_selected": 199,
+    "matched_calls": 199,
+    "argument_schema_valid": 199,
+    "expected_arguments": 573,
+    "argument_value_correct": 521,
+    "function_selection_accuracy": 0.995,
+    "argument_schema_validity": 1.0,
+    "argument_value_accuracy": 0.9092495636998255
+  },
+  {
+    "category": "multiple",
+    "examples": 200,
+    "expected_calls": 200,
+    "function_selected": 197,
+    "matched_calls": 197,
+    "argument_schema_valid": 196,
+    "expected_arguments": 561,
+    "argument_value_correct": 461,
+    "function_selection_accuracy": 0.985,
+    "argument_schema_validity": 0.9949238578680203,
+    "argument_value_accuracy": 0.82174688057041
+  }
+]

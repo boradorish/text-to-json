@@ -388,6 +388,20 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - **parallel oraclefill 한계:** gold 함수·개수만 주어 atomic sub-request를 복원할 수 없어 각 반복 호출의 filler에는 같은 전체 질문을 넣었다. 호출 수는 맞아도 어느 값이 어느 반복 호출에 대응하는지 구분하지 못해 두 모델 모두 AST가 0에 가까웠다. 이는 STAGE의 인자 구성 회귀로 해석하지 않고, 계획 표현에 slot-level sub-request/argument hints가 필요하다는 설계 한계로 기록한다.
 - 산출물: `outputs/bfcl/qwen3_4b_{sft,base}_{selectfill,oraclefill}/score/json_decoder/` 및 `plan_diagnostics.json`; 원출력은 재현용으로 로컬 `result/`에만 보존한다.
 
+### 2026-09-02 — Base vs. STAGE SFT few-shot prompting (완료)
+
+- 동일한 BFCL `simple_python`/`multiple` 각 첫 200개에, 비벤치마크 고정 예시를 프롬프트 앞에 **0·1·3·5개** 넣었다. 예시는 필요한 함수만 고르기, 두 함수 고르기, 같은 함수 반복 호출을 포함한다. 두 모델 모두 같은 예시·순서·생성 설정을 사용했다. 따라서 모델 가중치를 바꾸지 않는 in-context few-shot 비교다.
+
+| Prompt examples | Base simple AST | STAGE simple AST | Base multiple AST | STAGE multiple AST | Base / STAGE multiple wrong_count |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 93.5 | 82.0 | 95.0 | 5.0 | 5 / 185 |
+| 1 | 92.0 | 82.5 | 94.5 | 11.5 | 2 / 168 |
+| 3 | 93.0 | 82.5 | 95.0 | 12.5 | 3 / 166 |
+| 5 | 92.5 | 83.5 | 93.8 | 12.5 | 2 / 167 |
+
+- **판정:** base는 예시 수와 무관하게 simple 92.0–93.5, multiple 93.8–95.0으로 안정적이다. STAGE SFT는 1개 예시만으로 multiple AST가 +6.5pt(5.0→11.5), 3개에서 +7.5pt(12.5) 개선되고 과호출은 185→166으로 감소했다. 그러나 3→5개에서 더 좋아지지 않았고 base 수준에는 크게 미달한다. 즉 prompt few-shot은 coverage bias를 **부분 완화**하지만, STAGE SFT의 tool-selection format lock-in을 해결하지는 못한다.
+- 시각화: `outputs/bfcl/fewshot_prompting.png`; 수치 CSV: `outputs/bfcl/fewshot_prompting_summary.csv`. 재현: `benchmark/run_bfcl_stage_prompt.py --few-shot-count {0,1,3,5}`, `benchmark/plot_bfcl_fewshot.py`.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)

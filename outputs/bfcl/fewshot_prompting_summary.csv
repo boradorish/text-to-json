@@ -1,0 +1,9 @@
+model,shots,simple_ast_accuracy,multiple_ast_accuracy,multiple_wrong_count
+base,0,93.5,95.0,5
+base,1,92.0,94.5,2
+base,3,93.0,95.0,3
+base,5,92.5,93.75,2
+STAGE SFT,0,82.0,5.0,185
+STAGE SFT,1,82.5,11.5,168
+STAGE SFT,3,82.5,12.5,166
+STAGE SFT,5,83.5,12.5,167

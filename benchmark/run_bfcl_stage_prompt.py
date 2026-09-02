@@ -76,12 +76,28 @@ def bfcl_function_to_call_schema(functions: list[dict[str, Any]]) -> dict[str, A
     }
 
 
-ONE_SHOT_EXAMPLE = """Example (select only the function needed; do not call every listed function):
+FEW_SHOT_EXAMPLES = (
+    """Example 1 (select only the function needed; do not call every listed function):
 Available functions: get_weather(city), book_flight(origin, destination), send_email(to, subject).
 Request: What is the weather in Seoul today?
-Answer: {"calls": [{"name": "get_weather", "arguments": {"city": "Seoul"}}]}
-
-"""
+Answer: {"calls": [{"name": "get_weather", "arguments": {"city": "Seoul"}}]}""",
+    """Example 2 (use every function the request needs, and no others):
+Available functions: create_event(title, date), send_email(to, subject), order_food(item).
+Request: Schedule a budget review on Friday and email Mina its subject.
+Answer: {"calls": [{"name": "create_event", "arguments": {"title": "budget review", "date": "Friday"}}, {"name": "send_email", "arguments": {"to": "Mina", "subject": "budget review"}}]}""",
+    """Example 3 (a function can be called more than once):
+Available functions: get_weather(city), translate(text, language), set_alarm(time).
+Request: Compare the weather in Seoul and Busan.
+Answer: {"calls": [{"name": "get_weather", "arguments": {"city": "Seoul"}}, {"name": "get_weather", "arguments": {"city": "Busan"}}]}""",
+    """Example 4 (ignore tempting but irrelevant functions):
+Available functions: find_restaurant(city, cuisine), reserve_hotel(city, nights), send_email(to, subject).
+Request: Find an Italian restaurant in Rome.
+Answer: {"calls": [{"name": "find_restaurant", "arguments": {"city": "Rome", "cuisine": "Italian"}}]}""",
+    """Example 5 (keep separate requests as separate calls):
+Available functions: add_task(title), mark_task_done(title), play_music(song).
+Request: Add tasks to buy milk and call Mom.
+Answer: {"calls": [{"name": "add_task", "arguments": {"title": "buy milk"}}, {"name": "add_task", "arguments": {"title": "call Mom"}}]}""",
+)
 
 
 def user_prompt(
@@ -90,11 +106,11 @@ def user_prompt(
     schema: dict[str, Any],
     *,
     include_function_dump: bool,
-    one_shot: bool,
+    few_shot_count: int,
 ) -> str:
     parts = []
-    if one_shot:
-        parts.append(ONE_SHOT_EXAMPLE.rstrip())
+    if few_shot_count:
+        parts.append("\n\n".join(FEW_SHOT_EXAMPLES[:few_shot_count]))
     parts.extend(
         [
             "Extract the tool calls needed to fulfil the request below as JSON that conforms to the schema.",
@@ -146,10 +162,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Omit the redundant full function JSON; the call schema remains available.",
     )
-    parser.add_argument(
+    example_group = parser.add_mutually_exclusive_group()
+    example_group.add_argument(
         "--one-shot",
         action="store_true",
-        help="Prefix a fixed one-of-three-functions, one-call selection example.",
+        help="Deprecated alias for --few-shot-count 1.",
+    )
+    example_group.add_argument(
+        "--few-shot-count",
+        type=int,
+        choices=range(0, len(FEW_SHOT_EXAMPLES) + 1),
+        default=0,
+        help="Number of fixed tool-selection demonstrations prefixed to every request.",
     )
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--limit", type=int, default=None)
@@ -164,6 +188,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.one_shot:
+        args.few_shot_count = 1
     try:
         from bfcl_eval.constants.eval_config import PROMPT_PATH
         from jsonschema import Draft202012Validator
@@ -190,7 +216,7 @@ def main() -> None:
                         functions,
                         schema,
                         include_function_dump=not args.no_function_dump,
-                        one_shot=args.one_shot,
+                        few_shot_count=args.few_shot_count,
                     ),
                     "schema": schema,
                 }
