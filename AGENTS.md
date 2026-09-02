@@ -8,10 +8,16 @@
 추가 실험 3개(xgrammar 비교 / BFCL / CORD·ExtractBench 실세계 평가)가 정의되어 있고,
 이 실험들의 구현·실행·논문 반영이 현재 이 레포의 목표입니다.
 
-실험 1·2(2b~2f 포함)·3은 완료됐습니다(`## 실행 기록*`). **지금 할 일은 실험 5 → 4A → 6 → 7 파일럿** 입니다.
-`EXPERIMENTS.md`의 `## 포지셔닝 변경 (2026-09-03)`을 먼저 읽고, `## 다음 실행 (3차)`와 `## 다음 실행 (4차)` runbook을 순서대로 따르세요.
+실험 1·2(2b~2f 포함)·3, ExtractBench 장문맥 추론(4A), CORD·ExtractBench xgrammar 2×2의 Qwen 조건,
+Llama Instruct 기준선 정정, SGD 파일럿, **실험 6 비용 측정**까지 완료됐습니다(`## 실행 기록*`).
+**현재 필수 미완료 실험은 없습니다.** 새 작업은 `EXPERIMENTS.md`의 `## 현재 실행 상태`와 완료 결과를 먼저 확인하고,
+이미 완료된 결과를 재실행하지 않습니다. 논문 반영 시에는 각 결과의 부정적 판정(Qwen3 ExtractBench xgrammar VA,
+SGD zero-shot)도 누락하지 않습니다.
+
+**실험 4B 장문맥 SFT 재학습은 시작하지 않았고 현재 실행 금지입니다.** 4A에서 8k 초과 medium 구간도 SFT가 base보다 좋아 재학습 진입 조건이 충족되지 않았습니다.
+`EXPERIMENTS.md`의 `## 포지셔닝 변경 (2026-09-03)`과 `## 현재 실행 상태`를 먼저 읽으세요.
 포지셔닝: STAGE-SFT는 tool router가 아니라 에이전트의 지각/상태 추출 계층. BFCL은 Appendix scope 근거로만 사용.
-CORD/ExtractBench의 Llama base는 Instruct가 아닌 사전학습 모델로 잘못 실행됐으므로 Instruct로 재실행 전까지 인용 금지.
+CORD/ExtractBench Llama base는 Instruct checkpoint로 교체 완료됐으며, 기존 pretrained 행은 인용하지 않습니다.
 
 ## 레포 구조
 

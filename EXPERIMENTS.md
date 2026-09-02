@@ -466,6 +466,56 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - **실험 7 재개 순서**: 빈 GPU에서 Qwen3 base와 STAGE SFT 각각을 `benchmark/inference.py`로 `sgd_pilot_standard.jsonl`에 실행하고, `benchmark/evaluate_sgd.py --format standard`로 평가한다. SFT가 판정 기준(JGA ≥ base−3pt, 환각 ≤ base+5pt)을 못 넘으면 같은 100 turn을 explicit 형식으로 반복한다. evaluator는 Google Research의 fuzzy non-categorical matching과 JGA 함수를 직접 사용하며, `"no output"`은 explicit에서 빈 슬롯으로 되돌린다.
 - **당시 GPU 상태(인계 시점)**: GPU 0은 `seonhong`의 Spatial-TTT `lmms_eval`(Qwen3-VL-2B)이 약 8.8GB, GPU 1은 부모 PID 1의 고아 `VLLM::EngineCore`가 약 130GB를 점유했다. 두 작업 모두 이 저장소 작업이 아니므로 종료하지 않았다.
 
+## 현재 실행 상태 (2026-09-02, 모든 필수 실험 완료)
+
+> 이 섹션은 이전 runbook의 계획이 아니라 **파일·로그로 확인한 실제 완료 상태**다. 새 세션은 이 표와 `outputs/`를 먼저 확인하고, 완료된 GPU 측정을 중복 실행하지 않는다.
+
+| 우선순위 | 작업 | 현재 상태 / 판정 | 바로 할 일 | 완료 기준 |
+|---:|---|---|---|---|
+| 완료 | ExtractBench xgrammar 2×2 (실험 5 잔여) | Qwen3-4B/Qwen2.5-3B의 base·SFT xgrammar 4개를 200개에 실행·채점. xgrammar 호환 표본은 194개(6개 제외) | 결과 표를 `## 실행 기록`에 반영 | `outputs/extractbench_xgr/`의 JSONL·XLSX·summary |
+| 완료 | Llama 기준선 정정 | `Llama-3.2-{1B,3B}-Instruct`로 CORD·ExtractBench base를 재실행. 두 모델 모두 거의 전부 no-output인 음성 기준선 | 기존 pretrained 행을 인용하지 않음 | `outputs/cord_v2/`, `outputs/extractbench/`의 Instruct 결과 |
+| 완료 | 구조 보장 비용 (실험 6) | compile-only 1행, 네 조건의 batch=1 cold/warm 8행, batch=32 4행 완료. 모든 run은 798개 공통 xgrammar-호환 표본(53개 제외) | 결과 표·판정을 인용 | `outputs/inference_cost/summary.csv` 13행 및 조건별 JSONL |
+| 완료 | SGD 상태 추적 파일럿 (실험 7) | standard에서 SFT JGA 7.64%로 base 28.60%보다 낮고 환각 54.03%로 base 26.48%보다 높아 기준 실패. explicit도 SFT JGA 14.39% < base 30.21% | 음성 결과로 기록, 본실행 중단 | standard·explicit `_eval.json` 보존 |
+
+### 완료 결과 — ExtractBench xgrammar 공통 분모 비교
+
+ExtractBench의 200개 32k 표본 중 xgrammar가 컴파일하지 못한 6개를 모든 조건에서 제외해 **194개(짧음 137, medium 57)** 공통 분모로 다시 채점했다. `PFR=1−no output`, SCR은 schema-valid, VA는 rule-based value match다. free 조건의 재채점 JSONL/summary는 `outputs/extractbench_xgr/*_free_compatible194.*`에 있다.
+
+| Model | condition | PFR | SCR | VA | medium VA |
+|---|---|---:|---:|---:|---:|
+| Qwen3-4B | base free | 40.2 | 39.2 | 22.2 | 14.8 |
+| Qwen3-4B | base + xgrammar | 71.1 | 71.1 | 34.7 | 24.5 |
+| Qwen3-4B | STAGE SFT free | 79.4 | 78.4 | 32.5 | 29.8 |
+| Qwen3-4B | STAGE SFT + xgrammar | 81.4 | 81.4 | 33.1 | 28.7 |
+| Qwen2.5-3B | base free | 28.4 | 19.6 | 9.6 | 1.1 |
+| Qwen2.5-3B | base + xgrammar | 56.2 | 56.2 | 19.8 | 12.1 |
+| Qwen2.5-3B | STAGE SFT free | 78.9 | 76.3 | 21.6 | 17.0 |
+| Qwen2.5-3B | STAGE SFT + xgrammar | 79.4 | 79.4 | 22.1 | 17.8 |
+
+해석은 모델별로 분리한다. Qwen2.5-3B에서는 SFT+xgrammar가 base+xgrammar보다 VA도 높다(22.1 vs 19.8). Qwen3-4B에서는 xgrammar가 base의 VA까지 크게 끌어올려 SFT+xgrammar의 VA(33.1)가 base+xgrammar(34.7)를 넘지 못했다. 따라서 이 벤치마크에서 “같은 구조 준수 수준의 값 보존 우위” 주장은 Qwen2.5에 한정하고, Qwen3는 구조 준수·medium VA에서의 SFT 이득만 보고한다.
+
+### 완료 결과 — 구조 보장 비용 (실험 6)
+
+H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100, max_model_len 8192에서 실행했다. STAGE-Eval 851개 중 xgrammar 호환 798개를 **모든** 조건의 공통 분모로 썼고 53개(6.2%)는 제외했다. 각 batch=1 조건은 warm-up 10개 후 cold→warm을 같은 엔진에서, throughput은 별도 batch=32 엔진에서 측정했다.
+
+| condition | b1 cold median / p90 (s) | b1 warm median / p90 (s) | b32 ex/s | b32 tok/s | mean generated tokens |
+|---|---:|---:|---:|---:|---:|
+| base free | 10.98 / 14.01 | 10.99 / 14.00 | 1.23 | 2,656.8 | 2,146–2,152 |
+| base + xgrammar | 2.02 / 6.52 | 1.99 / 6.47 | 2.10 | 1,323.7 | 631–633 |
+| STAGE SFT free | 1.78 / 5.63 | 1.78 / 5.61 | 2.66 | 1,488.4 | 560 |
+| STAGE SFT + xgrammar | 1.92 / 5.86 | 1.89 / 5.82 | 2.34 | 1,387.4 | 593 |
+
+`GrammarCompiler(cache_enabled=False)`의 798개 개별 compile은 중앙 20.3 ms, p90 26.3 ms, 합계 16.62 s였다(조건별 재측정도 16.34–16.65 s). xgrammar는 base에서 생성 길이를 크게 줄여 end-to-end 지연/처리량이 좋아졌으므로, 이 표로 “제약 디코딩이 항상 느리다” 혹은 “SFT가 무조건 xgrammar보다 빠르다”라고 주장하지 않는다. 지연 차이는 생성량까지 함께 보고하며, SFT free는 이미 짧은 출력을 생성해 base+xgrammar보다 batch-1에서 더 빠르다(1.78 vs 1.99 s warm).
+
+### 완료 결과 — Llama Instruct 기준선과 SGD 파일럿
+
+- Llama base는 pretrained checkpoint 대신 `Llama-3.2-1B-Instruct` (`.../9213176726f574b556790deb65791e0c5aa438b6`)와 `Llama-3.2-3B-Instruct` (`.../0cb88a4f764b7a12671c53f0838cd831a0843b95`)로 재실행했다. CORD에서는 1B가 no-output 100%, 3B가 97%(SCR 1%, VA 0.63%)였고, ExtractBench에서는 1B no-output 99.5%(SCR 0.5%, VA 0.02%), 3B 100%였다. 이는 유효한 음성 Instruct 기준선이며 기존 pretrained 행은 인용하지 않는다.
+- SGD 100-turn pilot은 standard base/SFT와, standard 실패 뒤 동일 turn의 explicit base/SFT를 모두 공식 metric으로 평가했다. standard: base JGA 28.60%, SFT 7.64%, 환각 26.48%/54.03%; explicit: base JGA 30.21%, SFT 14.39%, 환각 23.95%/38.31%. explicit은 SFT JGA를 6.75pt 높였지만 base에는 여전히 못 미쳐(−15.82pt) full SGD 실행을 하지 않는다.
+
+### 명시적 보류 — 실험 4B 장문맥 SFT 재학습
+
+실험 4B는 **시작하지 않았으며 현재 실행하지 않는다.** 4A에서 32k 문맥으로 표본을 27개에서 200개로 늘렸고, 8k 초과 medium 구간에서도 SFT가 base보다 우위였다(Qwen3 VA 29.8 vs 14.8, Qwen2.5 VA 17.0 vs 1.1). 따라서 “장문맥에서 SFT가 열세일 때만 재학습”이라는 진입 조건이 불충족이다. 긴 8k–24k 보고서 데이터를 추가 생성해 32k SFT를 하는 4B-2는 카메라레디/후속 작업이다.
+
 ## 다음 실행 (3차) — 실험 4 ExtractBench 장문맥 / 실험 5 실세계 xgrammar 비교 (에이전트 runbook)
 
 > 2026-09-03 등록. 목적은 실세계 벤치마크(CORD, ExtractBench)에서 "형식을 올리는 다른 방법(xgrammar)과 같은 조건에서 우리가 값·의미를 더 잘 보존한다"를 보이는 것. 우선순위 **5 → 4A → (4B는 4A 결과를 보고)**. 4A·5는 추론만이라 합쳐 GPU 약 2시간, 4B는 재학습이라 반나절 이상.
@@ -496,12 +546,13 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - 리포트: 전체 200개 표 + **문서 길이 구간별(short/medium/long) 분해**. 핵심 질문은 "SFT 모델이 학습 cutoff(8k)를 넘는 입력에서 base 대비 무너지는가"이다. 8k 초과 구간에서 SFT의 PFR/VA가 base보다 낮으면 4B로 간다.
 - 판정: 200개에서 SFT가 base 대비 VA·SCR 우위이면 ExtractBench를 Appendix에서 본문 한 문장으로 승격("digital-text 문서 200개에서도 일관"). n=27 결과는 폐기하고 200개로 교체.
 
-### 실험 4B — 장문맥 SFT 재학습 (4A에서 8k 초과 구간 열세가 확인될 때만, 반나절 이상)
+### 실험 4B — 장문맥 SFT 재학습 (보류: 4A에서 8k 초과 구간 열세가 확인될 때만, 반나절 이상)
 
 - **주의**: STAGE 학습 데이터의 토큰 길이는 p50 3,076 / p90 7,145 / p99 8,102 / max 8,192로, cutoff 8,192에 잘린 예시가 1% 미만이다. 즉 **같은 데이터로 cutoff만 16k/32k로 올려 재학습하면 새로 배우는 장문맥 감독은 거의 없다.** 재학습이 의미 있으려면 긴 입력 예시가 필요하다.
 - 4B-1 (빠른 확인, 약 3시간): `src/train/qwen3_4B_full_guide.yaml`에서 `cutoff_len: 16384`, 나머지 동일(3 epoch, lr 4e-5, full-parameter)로 재학습 → 4A와 같은 200개 평가. 기대 효과는 잘린 1%의 복원과 위치 인코딩 적응 정도이므로 개선이 작아도 실패가 아니다. 결과가 기존 SFT와 ±2pt 이내면 "cutoff는 원인이 아님"으로 기록.
 - 4B-2 (데이터 확장, 카메라레디 권장): STAGE 파이프라인으로 8k~24k 토큰 보고서를 추가 생성(같은 스프레드시트에서 여러 시트·섹션을 이어 붙이는 방식)해 기존 데이터에 10~20% 섞고 `cutoff_len: 32768`로 재학습. 마감(2026-09-07) 전 완료는 어렵다고 보고 Limitations/Future work에 한 문장으로 적는다.
 - 새 체크포인트는 HF `boradorish/`에 `qwen3-4b-stage-ctx16k` 식으로 올리고, `EXPERIMENTS.md`에 학습 로그 경로와 wall-clock을 남긴다.
+- **현재 판정:** 4A의 medium 구간에서 SFT가 두 Qwen 모델 모두 base보다 VA가 높아 진입 조건이 충족되지 않았다. 이 재학습은 아직 시작하지 않았으며, 새 근거 없이 실행하지 않는다.
 
 ### 논문 반영 지침
 
@@ -516,7 +567,7 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 
 ## 다음 실행 (4차) — 실험 6 구조 보장 비용 / 실험 7 SGD 대화 상태 추적 (에이전트 runbook)
 
-> 2026-09-03 등록. 우선순위 **5 → 4A → 6 → 7 파일럿 → (7 본실행은 파일럿 판정 후)**. 6은 GPU 약 1시간, 7 파일럿은 데이터 변환 반나절 + GPU 30분.
+> 2026-09-03 등록. 이 runbook의 4A·실험 5·실험 6·SGD 파일럿은 모두 완료됐다. 최종 판정과 재실행 금지 사항은 `## 현재 실행 상태`를 따른다.
 
 ### 실험 6 — 구조 보장 방식의 추론 비용 비교 (GPU 약 1시간)
 

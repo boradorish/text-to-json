@@ -257,6 +257,12 @@ def main() -> None:
         benchmark_rows = load_benchmark(benchmark_path)
     if args.limit is not None:
         benchmark_rows = benchmark_rows[: args.limit]
+    # STAGE/CORD use ``stem`` while the prepared SGD turns use their stable
+    # dialogue-turn ``id``.  Keep one resume key so both benchmark families
+    # can use this runner without silently dropping SGD metadata.
+    def record_key(row: dict) -> str:
+        return str(row.get("stem", row.get("id")))
+
     saved_records: list[dict] = []
     done_stems: set[str] = set()
     if jsonl_path.exists():
@@ -266,10 +272,10 @@ def main() -> None:
                 if line:
                     record = json.loads(line)
                     saved_records.append(record)
-                    done_stems.add(str(record["stem"]))
+                    done_stems.add(record_key(record))
         print(f"[RESUME] existing records: {len(done_stems)}")
 
-    rows = [row for row in benchmark_rows if row["stem"] not in done_stems]
+    rows = [row for row in benchmark_rows if record_key(row) not in done_stems]
     if not rows:
         if saved_records:
             save_records(saved_records, jsonl_path, xlsx_path)
@@ -305,7 +311,10 @@ def main() -> None:
             for row, result in zip(batch_rows, results):
                 saved_records.append(
                     {
-                        "stem": row["stem"],
+                        "stem": record_key(row),
+                        **({"id": row["id"]} if "id" in row else {}),
+                        **({"service": row["service"]} if "service" in row else {}),
+                        **({"seen_service": row["seen_service"]} if "seen_service" in row else {}),
                         "user_prompt": row["user_prompt"],
                         "gold_json": row["gold_json"],
                         "json_schema": row["json_schema"],

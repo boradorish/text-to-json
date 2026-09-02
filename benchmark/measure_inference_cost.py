@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--guided-json", action="store_true")
     parser.add_argument("--compile-only", action="store_true", help="Measure xgrammar compilation without loading vLLM/GPU.")
     parser.add_argument("--batch-size", type=int, choices=(1, 32), default=1)
-    parser.add_argument("--pass-name", choices=("cold", "warm"), default="cold")
+    parser.add_argument("--pass-name", choices=("cold", "warm", "throughput"), default="cold")
     parser.add_argument("--second-pass", action="store_true", help="Measure a cached warm pass in the same engine.")
     parser.add_argument("--warmup", type=int, default=10)
     parser.add_argument("--limit", type=int, default=None, help="Debug-only cap after compatibility filtering.")
