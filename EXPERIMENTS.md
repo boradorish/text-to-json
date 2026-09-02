@@ -459,6 +459,52 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - 실험 5가 성립하면 Results에 "Real-world transfer" 소절: CORD·ExtractBench 각 표에 {base, base+xgrammar, SFT, SFT+xgrammar} 4행, 본문은 VA 중심으로 서술하고 EMR은 언급하지 않는다(ExtractBench EMR은 전 조건 0).
 - 실험 1과 같은 프레임("구조는 xgrammar로도 오르지만 값은 데이터 학습이 올린다")을 in-distribution → OOD 실세계로 확장하는 것이 서사의 핵심이다.
 
+## 포지셔닝 변경 (2026-09-03)
+
+- BFCL 계열 결과(2, 2b~2f)는 STAGE-SFT가 **도구 선택(라우팅)** 에서 base보다 약함을 일관되게 보였다. 따라서 논문은 STAGE-SFT를 tool router로 주장하지 않는다. 대신 **에이전트의 지각/상태 추출 계층**(긴 비정형 관측 → 스키마 타입의 상태)으로 포지셔닝한다. 강점 근거: 제약 디코딩 없는 구조 준수(PFR 99.6, SCR 97.6, BFCL 인자 스키마 유효 100), 긴 문서에서의 값 보존(VA 84.7 vs base+xgrammar 66.0), 잡음 억제(NR 36.9→1.4), 최소 모델에서 최대 이득(Llama-1B VA 19.5→80.7).
+- BFCL은 Appendix에 "라우팅은 이 모델의 역할이 아니며 그 원인은 학습 스키마 분포(all-required 95.5%, oneOf 1.4%)"라는 scope 근거 한 단락으로만 남긴다.
+- (선택, GPU 0, 30분) 기존 채점 결과로 "무작위 값 k개가 모두 맞을 확률" 곡선(k=1은 VA, k=전부는 EMR)을 그려 값 정확도 차이가 값 묶음 단위에서 어떻게 증폭되는지 보이는 그림 1개. 새 지표로 주장하지 않는다.
+
+## 다음 실행 (4차) — 실험 6 구조 보장 비용 / 실험 7 SGD 대화 상태 추적 (에이전트 runbook)
+
+> 2026-09-03 등록. 우선순위 **5 → 4A → 6 → 7 파일럿 → (7 본실행은 파일럿 판정 후)**. 6은 GPU 약 1시간, 7 파일럿은 데이터 변환 반나절 + GPU 30분.
+
+### 실험 6 — 구조 보장 방식의 추론 비용 비교 (GPU 약 1시간)
+
+- **주장하려는 것**: STAGE SFT는 제약 디코딩과 같은 구조 준수를 **추론 시 추가 비용 0**으로 달성하고, 스키마 커버리지 구멍도 없다. 실험 1(정확도)의 짝이 되는 비용 표다.
+- 대상: STAGE-Eval xgrammar 호환 798개, Qwen3-4B. 조건 4개: base 자유 / base+xgrammar / SFT 자유 / SFT+xgrammar. 환경은 실험 1과 동일(vLLM 0.10.2, xgrammar 0.1.23, H200 1장, temp 0.6, max_new 3100, max_len 8192).
+- 측정 항목:
+  1. **예제당 지연 시간 (batch=1)**: 요청 제출부터 완료까지 wall-clock. 전 798개, 중앙값·p90. 에이전트의 호출 단위 조건.
+  2. **처리량 (batch=32)**: 생성 토큰/초와 예제/초.
+  3. **문법 컴파일 시간**: vLLM 밖에서 `xgrammar.GrammarCompiler(tokenizer_info, cache_enabled=False)`로 798개 스키마를 각각 `compile_json_schema`해 예제당 컴파일 시간 중앙값·p90·합계. 에이전트는 툴마다 스키마가 달라 매 호출 컴파일이 실제 비용임을 본문에 설명한다.
+  4. **end-to-end에서 컴파일 포함 여부**: vLLM은 문법을 캐시하므로, (a) 캐시 유효 상태(같은 798개를 두 번째 실행)와 (b) 콜드 상태(첫 실행) 지연을 모두 기록한다. 캐시를 끄는 옵션이 있으면 그것을 우선 사용하고 옵션명을 기록한다.
+  5. **생성 토큰 수** 조건별 평균. SFT가 짧게 생성해서 빠른 것인지 분리해서 보고한다(지연 시간과 함께 "토큰당 시간"도 제시).
+  6. **스키마 커버리지**: 실험 1의 xgrammar 미지원 53/851(6.2%)을 그대로 인용하고 미지원 사유 상위 3개를 표기.
+- 스크립트: `benchmark/measure_inference_cost.py`. 추론은 `benchmark/inference.py` 경로를 재사용하되 타이머만 추가한다. 결과는 `outputs/inference_cost/{condition}_{batch}.jsonl`(예제별 시간) + `summary.csv`.
+- 주의: GPU를 독점한 상태에서 측정한다. 다른 사람의 작업이 같은 카드에 있으면 측정하지 않는다. 각 조건은 워밍업 10개 후 측정하고, 실행 순서를 기록한다.
+- 리포트: 조건 × {지연 중앙값/p90, 처리량, 컴파일 시간, 평균 생성 토큰, 토큰당 시간}. 판정: SFT 자유의 지연·처리량이 base+xgrammar 이상이면 본문 한 단락 + 작은 표("no inference-time overhead"). 반대로 나오면 그 사실을 그대로 적고 "커버리지·값 정확도"로 논거를 한정한다.
+
+### 실험 7 — Schema-Guided Dialogue(SGD) 대화 상태 추적 zero-shot (파일럿 → 조건부 본실행)
+
+- **주장하려는 것**: 스프레드시트 보고서로만 학습한 스키마 추출 능력이 에이전트 도메인(태스크 지향 대화의 상태 추적)으로 전이된다. SGD는 서비스별 슬롯 스키마가 명시된 표준 DST 데이터셋이며 test에 학습 미포함 서비스가 있어 스키마 일반화도 함께 측정된다.
+- **리스크(사전 명시)**: DST는 "언급되지 않은 슬롯은 비워두기"가 핵심인데 STAGE-SFT는 스키마의 모든 필드를 채우는 성향(BFCL coverage bias)이 있다. 아래 스키마 설계로 "비우기"를 "명시적 값 채우기"로 바꿔 완화한다. 파일럿에서 해소되지 않으면 본실행하지 않는다.
+- 데이터: `git clone https://github.com/google-research-datasets/dstc8-schema-guided-dialogue` → `test/dialogues_*.json`, `test/schema.json`. 캐시는 `/mnt/nvme/cache/interns/`에 둔다.
+- 변환 (`benchmark/prepare_sgd.py`): 대화의 각 **사용자 턴**과 그 턴의 활성 서비스 frame마다 예제 1개.
+  - Report: `USER: …` / `SYSTEM: …`로 해당 턴까지의 이력 전체. 맨 위에 한 문장 지시: "Fill each slot with the value the user has requested so far in this conversation. Use \"not mentioned\" for any slot the user has not specified."
+  - JSON Schema: 서비스의 슬롯마다 property 1개. 범주형 슬롯은 `enum: possible_values + ["not mentioned"]`, 비범주형은 `type: string`과 슬롯 `description`. 모든 슬롯 `required`, `additionalProperties: false`. (STAGE 데이터의 all-required·enum 관행과 동일한 형태)
+  - Gold: `frame.state.slot_values`의 첫 값. 없는 슬롯은 `"not mentioned"`.
+  - 파일럿 표본: test에서 서비스별 균등 100턴(학습 포함/미포함 서비스 반반). 본실행은 2,000턴 균등 샘플.
+- 모델: Qwen3-4B base vs STAGE SFT (파일럿). 본실행 시 Qwen2.5-3B, Llama-3.2-1B/3B **Instruct** base와 각 SFT 추가.
+- 채점 (`benchmark/evaluate_sgd.py`): 예측 JSON을 SGD 공식 예측 포맷으로 변환해 저장소의 공식 `evaluate.py`로 **JGA와 슬롯 정확도**를 계산한다(범주형 exact, 비범주형은 공식 스크립트의 fuzzy 매칭 그대로). 추가로 두 가지 진단을 기록한다: **환각 슬롯률**(gold가 not mentioned인데 값을 채운 비율)과 **누락 슬롯률**(gold에 값이 있는데 not mentioned로 둔 비율). 파싱 실패는 해당 턴 JGA 0.
+- **파일럿 판정**: (a) SFT JGA ≥ base JGA − 3pt 그리고 (b) SFT 환각 슬롯률 ≤ base 환각 슬롯률 + 5pt 이면 본실행. 하나라도 어긋나면 파일럿 수치와 환각 사례 5개를 `## 실행 기록`에 음성 결과로 남기고 중단한다(논문에는 싣지 않음).
+- 본실행 리포트: 모델별 JGA / 슬롯 정확도 / 환각 / 누락, 학습 포함 vs 미포함 서비스 분리. 판정: SFT가 base 대비 JGA 우위이면 본문 "Transfer to agent state tracking" 소절, 동률이면 Appendix.
+- 산출물: `benchmark/data/sgd_{pilot,full}.jsonl`, `outputs/sgd/{model}_{base,sft}.jsonl`, `_eval.json`.
+
+### 논문 반영 지침 (전체)
+
+- 본문 Results 구성안(6페이지): (1) STAGE-Eval 주결과(기존), (2) 학습 vs 제약 디코딩: 정확도(실험 1)+비용(실험 6) 한 묶음, (3) 실세계 전이: CORD·ExtractBench × xgrammar(실험 5, 4A), (4) 에이전트 상태 추적(실험 7, 성립 시). BFCL과 few-shot/256-SFT는 Appendix "Scope: tool routing".
+- Limitations: coverage bias(도구 선택·비우기)와 데이터 측 교정 방향(oneOf, 가변 길이, 미언급 필드) 각 한 문장.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
