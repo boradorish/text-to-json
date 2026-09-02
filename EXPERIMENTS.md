@@ -150,6 +150,12 @@ JSON 추출 학습이 함수 호출 능력으로 전이되는지(최소한 해�
 
 - SFT는 single/multiple에서 함수 선택과 인자값 정확도를 유지 또는 향상시켰으나, parallel 호출 수·집합 구성은 약해졌다. 즉 JSON 추출 SFT가 function-call **출력 프로토콜**을 STAGE JSON으로 고정해 공식 BFCL 리더보드 형식에는 비호환이고, template alignment가 필요하다는 한계를 명확히 보여준다.
 - 산출물: `outputs/bfcl/qwen3_4b_{base,sft}/score/json_decoder/`; 재현 스크립트: `benchmark/rescore_bfcl_json.py`.
+- **실패 원인 분해 (SFT, JSON-native 디코더 기준, 800개 전수 확인)**:
+  - 출력 포맷: 프롬프트가 지시한 `[func(arg=val)]` 형식을 따른 출력은 **0/800**. 90.5% (simple) / 96% (multiple) / 85.5% (parallel)가 `{"함수명": {"인자": 값}}` 사전 구조였고, 나머지는 `{"func_name":…, "params":…}`류 래퍼 변형이다. 디코더는 이 변형과 **중복 키**(같은 함수 반복 호출)를 모두 보존한다. `json.loads` 기본 동작은 중복 키를 마지막 것만 남기므로 parallel에서 35.0→56.5로 차이가 났다.
+  - multiple 잔여 오류 32/200 = **과호출**: 함수 2개를 제시하면 정답은 1개인데 둘 다 호출. 추출 학습의 "스키마의 모든 필드를 채운다"가 "제시된 모든 함수를 채운다"로 전이된 것으로, 진짜 회귀이므로 finding으로 보고한다.
+  - parallel 잔여 오류 87/200 = **JSON 객체의 표현 한계**: parallel 200개 전부가 같은 함수의 반복 호출을 요구하는데 JSON 객체는 키 중복이 불가하다. 모델은 키 반복, `play2`식 접미사, 인자 배열 병합 중 하나를 택했고 그 중 일부만 복원된다. 함수 선택 68.0은 이 표현 문제의 결과이고, 매칭된 호출의 인자 값 정확도(90.2)는 base(90.7)와 같다.
+- **두 가지 읽기를 모두 유지한다.** (a) 공식 BFCL 규약(공용 Python-call 디코더) 기준 SFT는 0점이며 이 수치는 Appendix에 그대로 둔다. (b) BFCL 리더보드의 모든 모델은 자기 출력 포맷을 파싱하는 모델별 `decode_ast` 핸들러로 채점되므로, JSON-native 디코더 결과는 "모델 전용 핸들러" 규약 하의 정당한 수치다. 본문에 (b)를 쓸지는 아래 실험 2b 결과로 결정한다: 2b에서 parallel/과호출이 해소되면 2b가 본문 헤드라인이 되고 (a)(b)는 프로토콜 분석으로 Appendix에 간다.
+- 분석·재채점 수행: 2026-09-02, pod `~/work/sunghee/text-to-json` (bfcl_eval은 `~/work/sunghee/venv`에 설치).
 
 ### 2026-09-02 — 실험 3 ExtractBench zero-shot (완료)
 
@@ -169,6 +175,81 @@ JSON 추출 학습이 함수 호출 능력으로 전이되는지(최소한 해�
 
 - Qwen 계열에서는 STAGE SFT가 PFR/SCR/VA를 일관되게 높였다(Qwen3 VA +3.6pt, Qwen2.5 VA +8.2pt). 이 문서 길이·스키마 조합에서는 EMR은 모든 모델에서 0이므로 헤드라인 지표로 쓰지 않는다. Llama는 CORD와 마찬가지로 이 프롬프트 조건에서 유효 JSON을 만들지 못한 모델별 음성 결과이며 Appendix에 보고한다.
 - 산출물: 공통 입력 `benchmark/data/extractbench_context8192.jsonl`, 재현 가능한 필터 `benchmark/filter_extractbench_context.py`, 각 모델의 `outputs/extractbench/{model}.jsonl`, `{model}.xlsx`, `{model}_eval.xlsx`.
+
+## 다음 실행 — 실험 2b/2c BFCL 후속 (에이전트 runbook)
+
+> 아래는 새 세션의 에이전트가 **추가 판단 없이** 실행할 수 있게 쓴 절차다. 순서대로 실행하고, 각 단계의 산출물 경로와 완료 조건을 확인한 뒤 결과를 이 문서 `## 실행 기록`에 추기한다.
+> 우선순위: **2b > 2c > 2d**. 2b만 끝나도 논문 반영 가능. 총 GPU 예산 약 3~4시간 (H200 1장).
+
+### 0. 환경 (5분)
+
+- 작업 위치: k8s 예약 pod의 `~/work/sunghee/text-to-json` (= `/mnt/ddn/prod-runs/interns/sunghee/text-to-json`). 먼저 `git pull`로 origin/master와 맞춘다.
+- Python: `~/work/sunghee/venv/bin/python` (vLLM 0.10.2, xgrammar 0.1.23, `bfcl_eval` 설치됨). 없으면 `pip install bfcl-eval`.
+- GPU: `nvidia-smi`로 메모리가 비어 있는 카드를 고르고 `CUDA_VISIBLE_DEVICES`로 지정한다. 다른 사람의 작업이 돌고 있는 카드는 쓰지 않는다.
+- 체크포인트 (모두 HF public): STAGE SFT `boradorish/baseline-qwen3-4b-best`, base `Qwen/Qwen3-4B`, Glaive SFT `boradorish/baseline-qwen3-4b-glaive`, Llama SFT `boradorish/llama3-1B-sft`, `boradorish/llama3-3B-sft`.
+- 기존 BFCL 원출력·공식 점수는 `outputs/bfcl/qwen3_4b_{base,sft}/`에 있다. 재실행하지 않는다.
+
+### 1. `rescore_bfcl_json.py`에 CLI 추가 (15분, GPU 불필요)
+
+현재 스크립트는 `qwen3_4b_sft`/`qwen3_4b_base` 두 run을 하드코딩해 재채점·출력한다. 다음으로 일반화한다.
+
+- `--runs RUN [RUN ...]`: 재채점할 `outputs/bfcl/<run>` 목록. `--baseline RUN` (기본 `qwen3_4b_base`): 비교 열로 쓸 공식 점수의 run.
+- 출력 위치·형식은 유지: `outputs/bfcl/<run>/score/json_decoder/BFCL_v4_{cat}_score.json` + `stage_diagnostics.json`.
+- 디코더가 받아야 하는 출력 형태 (이미 구현됨, 회귀 테스트로 확인): `{"f": {…}}`, 중복 키 `{"f": {…}, "f": {…}}`, `{"name": "f", "arguments": {…}}`, `{"calls": [{"name": …, "arguments": …}, …]}`, 단일 함수 프롬프트에서의 flat 인자 사전, 코드펜스 감싼 JSON, 파이썬 튜플 리터럴.
+- 완료 조건: `--runs qwen3_4b_sft`로 실행했을 때 86.0 / 73.5 / 56.5가 재현된다.
+
+### 2. 실험 2b — STAGE 네이티브 프롬프트로 BFCL 오프라인 재실행 (핵심, GPU 약 1.5시간)
+
+**가설**: STAGE SFT 모델은 "스키마를 주면 그 스키마대로 채우는" 모델이다. tool call을 STAGE 입력 형식(보고서 + JSON Schema)으로 제시하면 (i) parallel 반복 호출을 배열로 표현할 수 있고, (ii) 스키마에 `minItems: 1`만 있으므로 과호출 유인이 사라진다.
+
+새 스크립트 `benchmark/run_bfcl_stage_prompt.py`:
+
+1. 입력: `bfcl_eval.constants.eval_config.PROMPT_PATH / "BFCL_v4_{cat}.json"` (cat ∈ simple_python, multiple, parallel). 각 항목의 `question[0][-1]["content"]`(사용자 질문)과 `function`(함수 목록)을 쓴다.
+2. 프롬프트 (STAGE-Eval과 동일 규약): system = `prompt/infer_SYSTEM_prompt.txt`, user =
+   ```
+   Extract the tool calls needed to fulfil the request below as JSON that conforms to the schema.
+
+   === Report ===
+   {사용자 질문}
+
+   === Available functions ===
+   {function 목록을 JSON으로 pretty-print}
+
+   === JSON Schema ===
+   {아래 3의 스키마}
+   ```
+3. 스키마 생성 (`bfcl_function_to_call_schema(functions)`):
+   ```json
+   {"type":"object","additionalProperties":false,"required":["calls"],
+    "properties":{"calls":{"type":"array","minItems":1,"items":{"oneOf":[ <함수별 항목> ]}}}}
+   ```
+   함수별 항목: `{"type":"object","additionalProperties":false,"required":["name","arguments"],"properties":{"name":{"const":"<fn.name>"},"arguments":<fn.parameters 변환>}}`.
+   BFCL 파라미터 타입 변환: `dict→object`, `float→number`, `tuple→array`, `any→{}`(제약 없음), `integer/string/boolean/array`는 그대로. `properties`·`required`·`description`·`enum`·`items`는 유지하고, 그 외 키(`default` 등)는 제거한다. 변환 후 `jsonschema.Draft202012Validator.check_schema`로 검증하고, 실패하면 그 항목은 `skip_reason`과 함께 기록하고 제외한다(실험 1과 같은 규약).
+4. 추론: `src/utils/vllm_inference.py`의 `VllmModel` / `build_chat_prompts` / `generate_texts` 재사용. temp 0.6, top-p 1.0, seed 42, max_model_len 8192, max_new_tokens 3100 (규칙 기본값). 옵션 `--guided-json`을 주면 3의 스키마를 xgrammar guided decoding으로 강제한다(실험 1과 연결되는 조건).
+5. 출력: BFCL 레이아웃 그대로 `outputs/bfcl/<run>/result/qwen3-4b/non_live/BFCL_v4_{cat}_result.json`, 각 줄 `{"id": …, "result": <모델 원문 문자열>}`. `</think>` 이후만 남기고, 코드펜스는 벗긴다. 이렇게 하면 1의 재채점기가 그대로 동작한다.
+6. 실행 run 4개 (모두 같은 프롬프트라 공정 비교):
+   - `qwen3_4b_sft_stageprompt`, `qwen3_4b_base_stageprompt` (자유 디코딩)
+   - `qwen3_4b_sft_stageprompt_xgr`, `qwen3_4b_base_stageprompt_xgr` (`--guided-json`)
+7. 채점: `python benchmark/rescore_bfcl_json.py --runs <위 4개>`.
+8. 리포트 (이 문서에 추기): 카테고리별 AST accuracy + 함수 선택 / 인자 스키마 유효 / 인자 값 정확도 + 오류 유형 분해. 기존 표(공식 base, 공식 SFT 0, JSON-native SFT)와 한 표에 놓는다.
+9. **완료·판정 조건**: (a) SFT parallel 함수 선택이 68.0 → **90 이상**, (b) multiple `wrong_count`가 32 → **10 이하**로 떨어지면 가설 성립. 그러면 2b의 SFT vs base(동일 프롬프트) 비교가 본문 Table, 공식 0점과 JSON-native 재채점은 Appendix "output-protocol analysis"로 간다. 미달이면 2b도 Appendix로 내리고, 본문은 "인자 구성 능력은 유지·향상, 호출 집합 구성은 회귀"로 범위를 한정한다.
+
+### 3. 실험 2c — Glaive-SFT 베이스라인 BFCL (GPU 약 1시간)
+
+- 논문 Table의 baseline 중 `boradorish/baseline-qwen3-4b-glaive`는 함수 호출 데이터(Glaive)로 학습한 모델이다. STAGE-Eval에서는 STAGE가 크게 앞선다(EMR 70.28 vs 74.27, VA 46.89 vs 90.69).
+- 실행: (1) 공식 러너 `python benchmark/run_bfcl_local.py --model-path boradorish/baseline-qwen3-4b-glaive --run-name qwen3_4b_glaive` → 공식 AST + `summarize_bfcl.py`. (2) 2b 스크립트로 `qwen3_4b_glaive_stageprompt`.
+- 판정: BFCL 인자 값 정확도에서 STAGE ≥ Glaive이면 "함수 호출 데이터 없이 인자 구성 능력이 전이된다"를 본문 한 문장으로 쓴다. Glaive가 앞서면 Appendix 비교표로만 둔다.
+
+### 4. 실험 2d — Llama-3.2-1B/3B SFT (선택, GPU 약 1시간)
+
+- 2b 스크립트로 `llama3_2_1b_sft_stageprompt`, `llama3_2_3b_sft_stageprompt`. base Llama는 CORD/ExtractBench와 같이 JSON을 거의 못 만들었으므로 base 비교는 생략 가능(그 사실을 명시).
+- 결과 파일 경로의 `qwen3-4b` 디렉토리명은 `rescore_bfcl_json.py`가 기대하는 고정 레이아웃이므로 모델이 달라도 그대로 둔다(스크립트에 `--model-dir` 옵션을 추가하면 바꿔도 된다).
+
+### 5. 논문 반영 (2b 결과 확정 후, 반나절)
+
+- 본문 §Results에 "Tool-calling transfer (BFCL-v4 offline)" 소절 1개 + Table 1개(6페이지 유지). 반드시 함수 선택 / 인자 스키마 유효성 / 인자 값 정확도를 분리해 보고한다.
+- Appendix: (i) 공식 규약 0점과 원인(출력 프로토콜 고정, 지시 포맷 준수 0/800), (ii) JSON-native 디코더 정의와 결과, (iii) 과호출·parallel 표현 한계 분석. "narrow SFT 후 SLM의 format lock-in"을 limitation 겸 discussion으로 한 단락.
+- 하지 말 것: 추가 학습(BFCL 포맷 혼합 SFT)은 마감상 제외. 공식 0점을 표에서 지우지 말 것.
 
 ## 인프라 메모
 
