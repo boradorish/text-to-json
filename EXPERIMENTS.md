@@ -402,6 +402,21 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - **판정:** base는 예시 수와 무관하게 simple 92.0–93.5, multiple 93.8–95.0으로 안정적이다. STAGE SFT는 1개 예시만으로 multiple AST가 +6.5pt(5.0→11.5), 3개에서 +7.5pt(12.5) 개선되고 과호출은 185→166으로 감소했다. 그러나 3→5개에서 더 좋아지지 않았고 base 수준에는 크게 미달한다. 즉 prompt few-shot은 coverage bias를 **부분 완화**하지만, STAGE SFT의 tool-selection format lock-in을 해결하지는 못한다.
 - 시각화: `outputs/bfcl/fewshot_prompting.png`; 수치 CSV: `outputs/bfcl/fewshot_prompting_summary.csv`. 재현: `benchmark/run_bfcl_stage_prompt.py --few-shot-count {0,1,3,5}`, `benchmark/plot_bfcl_fewshot.py`.
 
+### 2026-09-02 — 256-example continued tool-call SFT (완료; 부분 개선, 전체 해법 아님)
+
+- 프롬프트에 예시를 넣는 few-shot prompting이 아니라, 새로 만든 **256개**의 비-BFCL 도구 호출 예시로 LoRA(rank 16)를 3회 추가 학습했다. 각 예시는 필요한 호출 1–3개, 무관한 도구 1–3개, 같은 도구의 반복 호출을 섞고 `{"calls": [{"name", "arguments"}]}`만 정답으로 삼았다. BFCL 이름·문항은 학습 데이터에 쓰지 않았고, 별도 64개를 검증용으로 분리했다. base와 기존 STAGE SFT에 완전히 같은 데이터·학습 설정을 적용하고, STAGE-native BFCL 800개로 평가했다.
+
+| Condition | simple AST | multiple AST | parallel AST | multiple call-count errors |
+|---|---:|---:|---:|---:|
+| Base | 94.2 | 94.5 | 92.5 | 5 / 200 |
+| Base + 256-example SFT | 90.0 | 80.0 | 85.5 | 22 / 200 |
+| STAGE SFT | 79.8 | 5.0 | 66.5 | 185 / 200 |
+| STAGE SFT + 256-example SFT | 82.8 | **52.0** | 63.0 | **76 / 200** |
+
+- **쉽게 말하면:** 적은 수의 학습 예시는 STAGE가 "나열된 도구를 전부 호출하는" 문제를 꽤 줄였다. 여러 호출 문제는 5.0%에서 52.0%로 올랐고, 호출 개수를 틀린 경우는 185개에서 76개로 109개 줄었다. 하지만 base에 같은 학습을 하면 모든 범주가 떨어졌고, STAGE의 parallel은 오히려 66.5→63.0으로 하락했다. 따라서 이 결과는 "작은 추가 학습으로 STAGE의 여러-도구 선택을 부분 복구할 수 있음"이지, base보다 잘하는 범용 해법은 아니다.
+- 해석: 데이터가 짧고 반복되는 합성 도구/인자 조합이라 STAGE의 coverage bias에는 신호를 줬지만, BFCL의 긴 함수 설명·복잡한 인자·parallel의 같은 함수 반복에는 충분히 일반화하지 못했다. 다음 SFT는 단순 예시 수를 늘리기보다, 어려운 여러-호출/parallel 구조와 BFCL과 다른 복잡한 JSON schema를 의도적으로 더 포함해야 한다.
+- 산출물: `outputs/bfcl/toolfew_sft.{png,csv}`, 새 run의 `score/json_decoder/`; 재현: `benchmark/generate_toolfew_sft_data.py`, `benchmark/train_toolfew_lora.py`, `benchmark/plot_bfcl_toolfew_sft.py`.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)

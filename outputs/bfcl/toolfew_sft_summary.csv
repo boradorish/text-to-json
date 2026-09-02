@@ -1,0 +1,13 @@
+condition,category,ast_accuracy,wrong_count
+Base,simple_python,94.25,0
+Base,multiple,94.5,5
+Base,parallel,92.5,5
+Base + 256-example SFT,simple_python,90.0,0
+Base + 256-example SFT,multiple,80.0,22
+Base + 256-example SFT,parallel,85.5,13
+STAGE SFT,simple_python,79.75,0
+STAGE SFT,multiple,5.0,185
+STAGE SFT,parallel,66.5,40
+STAGE + 256-example SFT,simple_python,82.75,0
+STAGE + 256-example SFT,multiple,52.0,76
+STAGE + 256-example SFT,parallel,63.0,54
