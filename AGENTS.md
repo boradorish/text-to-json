@@ -8,9 +8,10 @@
 추가 실험 3개(xgrammar 비교 / BFCL / CORD·ExtractBench 실세계 평가)가 정의되어 있고,
 이 실험들의 구현·실행·논문 반영이 현재 이 레포의 목표입니다.
 
-실험 1·3, 그리고 2b/2c까지 완료됐습니다(`## 실행 기록`, `## 실행 기록 (후속)`). **지금 할 일은 실험 2f → 2e** 입니다.
-`EXPERIMENTS.md`의 `## 다음 실행 (2차) — 실험 2e/2f (에이전트 runbook)` 절차를 그대로 따르세요.
-배경: SFT의 BFCL 병목은 호출 집합 구성(과호출 N-for-N, parallel 과소 호출)이고 인자 구성은 base 이상. 2e는 두 단계를 분리해 STAGE-SFT를 인자 구성기로 검증합니다.
+실험 1·2(2b~2f 포함)·3은 완료됐습니다(`## 실행 기록*`). **지금 할 일은 실험 5 → 4A** 입니다.
+`EXPERIMENTS.md`의 `## 다음 실행 (3차) — 실험 4 ExtractBench 장문맥 / 실험 5 실세계 xgrammar 비교` 절차를 그대로 따르세요.
+배경: CORD/ExtractBench에서 "형식을 올리는 다른 방법(xgrammar)과 같은 조건에서 STAGE SFT가 값을 더 보존한다"를 보여야 하고, ExtractBench는 max_model_len 32768로 200/244개를 평가해야 합니다.
+CORD/ExtractBench의 Llama base는 Instruct가 아닌 사전학습 모델로 잘못 실행됐으므로 Instruct로 재실행 전까지 인용 금지.
 
 ## 레포 구조
 

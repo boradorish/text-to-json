@@ -417,6 +417,48 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - 해석: 데이터가 짧고 반복되는 합성 도구/인자 조합이라 STAGE의 coverage bias에는 신호를 줬지만, BFCL의 긴 함수 설명·복잡한 인자·parallel의 같은 함수 반복에는 충분히 일반화하지 못했다. 다음 SFT는 단순 예시 수를 늘리기보다, 어려운 여러-호출/parallel 구조와 BFCL과 다른 복잡한 JSON schema를 의도적으로 더 포함해야 한다.
 - 산출물: `outputs/bfcl/toolfew_sft.{png,csv}`, 새 run의 `score/json_decoder/`; 재현: `benchmark/generate_toolfew_sft_data.py`, `benchmark/train_toolfew_lora.py`, `benchmark/plot_bfcl_toolfew_sft.py`.
 
+## 다음 실행 (3차) — 실험 4 ExtractBench 장문맥 / 실험 5 실세계 xgrammar 비교 (에이전트 runbook)
+
+> 2026-09-03 등록. 목적은 실세계 벤치마크(CORD, ExtractBench)에서 "형식을 올리는 다른 방법(xgrammar)과 같은 조건에서 우리가 값·의미를 더 잘 보존한다"를 보이는 것. 우선순위 **5 → 4A → (4B는 4A 결과를 보고)**. 4A·5는 추론만이라 합쳐 GPU 약 2시간, 4B는 재학습이라 반나절 이상.
+> 공통: temp 0.6, top-p 1.0, seed 42, max_new_tokens 3100, `benchmark/evaluate.py` 지표 그대로. 모든 조건은 **같은 예제 집합**으로 채점한다.
+
+### 실험 5 — CORD-v2·ExtractBench에서 xgrammar 2×2 비교 (GPU 약 1시간)
+
+- **주장하려는 것**: xgrammar도 PFR/SCR을 올리지만 값(VA)은 STAGE SFT가 더 보존한다. 실험 1(STAGE-Eval)과 같은 2×2를 OOD 실세계 데이터에서 반복하는 것이며, CORD에서 Qwen2.5-3B의 VA 하락(70.3→60.6)이 "SFT 때문"인지 "형식을 강제하면 누구나 겪는 손실"인지 가리는 데도 필요하다.
+- 조건 (모델별 4개): {base, STAGE SFT} × {자유 디코딩, xgrammar `guided_json`}. 모델: Qwen3-4B, Qwen2.5-3B (필수), Llama-3.2-1B/3B (아래 수정 후).
+- 데이터: CORD-v2 test 100개 (`benchmark/prepare_cord.py` 산출물), ExtractBench는 실험 4A의 32k 집합(200개)을 쓰고, 4A 전이면 기존 27개.
+- 실행: `benchmark/inference.py`에 실험 1에서 쓴 `--guided-json`(xgrammar) 경로가 있으므로 CORD/ExtractBench 입력 파일에 그대로 적용. 스키마 컴파일 실패 예제는 실험 1과 같이 `skip_reason`으로 기록하고 **네 조건 모두에서 제외**해 분모를 맞춘다.
+- run 이름: `outputs/cord_v2_xgr/{model}_{base,sft}_{free,xgrammar}.jsonl` 및 `_eval.xlsx`; ExtractBench는 `outputs/extractbench_xgr/`.
+- **Llama 수정 (필수)**: 기존 CORD/ExtractBench의 Llama base는 `meta-llama/Llama-3.2-1B`, `-3B`(사전학습 모델)로 실행돼 논문의 base(`Llama-3.2-1B-Instruct`, `-3B-Instruct`)와 다르다. `benchmark/run_cord_suite.py`의 경로를 Instruct로 바꿔 base 행을 재실행하고, 기존 Llama base 행은 표에서 교체한다. 재실행 전까지 Llama 행은 어디에도 인용하지 않는다.
+- 판정: (a) base+xgrammar의 PFR/SCR이 SFT와 비슷한 수준(±3pt)으로 올라오고 (b) VA는 SFT가 base+xgrammar보다 높으면 "같은 형식 준수 수준에서 의미 보존 우위"를 본문 한 단락 + 표로 쓴다. Qwen2.5-3B에서 SFT VA < base+xgrammar VA이면 그 사실을 그대로 보고하고 Qwen3-4B로 범위를 한정한다.
+
+### 실험 4A — ExtractBench 장문맥 추론 (재학습 없음, GPU 약 1시간)
+
+- **배경**: 기존 27개는 `max_model_len=8192`(추론 설정) 때문이다. Qwen3-4B와 STAGE SFT 체크포인트는 모델 자체가 32k 이상 문맥을 지원한다. 제외된 217개의 프롬프트 토큰은 p50 13,824, p90 49,097이며, `max_model_len`을 늘리면 들어오는 문서 수는 아래와 같다.
+
+| max_model_len | 포함 문서 (244개 중) |
+|---:|---:|
+| 8,192 (현재) | 27 |
+| 16,384 | 132 |
+| 32,768 | 200 |
+| 40,960 | 210 |
+
+- 실행: `--max-model-len 32768`로 Qwen3-4B base/SFT, Qwen2.5-3B base/SFT를 200개에 대해 실행. `benchmark/filter_extractbench_context.py`의 예산 계산(prompt + 3100 ≤ max_model_len)을 32768로 재실행해 `benchmark/data/extractbench_context32768.jsonl`을 만든다. 나머지 44개는 `context_skipped.jsonl`에 사유 유지.
+- 리포트: 전체 200개 표 + **문서 길이 구간별(short/medium/long) 분해**. 핵심 질문은 "SFT 모델이 학습 cutoff(8k)를 넘는 입력에서 base 대비 무너지는가"이다. 8k 초과 구간에서 SFT의 PFR/VA가 base보다 낮으면 4B로 간다.
+- 판정: 200개에서 SFT가 base 대비 VA·SCR 우위이면 ExtractBench를 Appendix에서 본문 한 문장으로 승격("digital-text 문서 200개에서도 일관"). n=27 결과는 폐기하고 200개로 교체.
+
+### 실험 4B — 장문맥 SFT 재학습 (4A에서 8k 초과 구간 열세가 확인될 때만, 반나절 이상)
+
+- **주의**: STAGE 학습 데이터의 토큰 길이는 p50 3,076 / p90 7,145 / p99 8,102 / max 8,192로, cutoff 8,192에 잘린 예시가 1% 미만이다. 즉 **같은 데이터로 cutoff만 16k/32k로 올려 재학습하면 새로 배우는 장문맥 감독은 거의 없다.** 재학습이 의미 있으려면 긴 입력 예시가 필요하다.
+- 4B-1 (빠른 확인, 약 3시간): `src/train/qwen3_4B_full_guide.yaml`에서 `cutoff_len: 16384`, 나머지 동일(3 epoch, lr 4e-5, full-parameter)로 재학습 → 4A와 같은 200개 평가. 기대 효과는 잘린 1%의 복원과 위치 인코딩 적응 정도이므로 개선이 작아도 실패가 아니다. 결과가 기존 SFT와 ±2pt 이내면 "cutoff는 원인이 아님"으로 기록.
+- 4B-2 (데이터 확장, 카메라레디 권장): STAGE 파이프라인으로 8k~24k 토큰 보고서를 추가 생성(같은 스프레드시트에서 여러 시트·섹션을 이어 붙이는 방식)해 기존 데이터에 10~20% 섞고 `cutoff_len: 32768`로 재학습. 마감(2026-09-07) 전 완료는 어렵다고 보고 Limitations/Future work에 한 문장으로 적는다.
+- 새 체크포인트는 HF `boradorish/`에 `qwen3-4b-stage-ctx16k` 식으로 올리고, `EXPERIMENTS.md`에 학습 로그 경로와 wall-clock을 남긴다.
+
+### 논문 반영 지침
+
+- 실험 5가 성립하면 Results에 "Real-world transfer" 소절: CORD·ExtractBench 각 표에 {base, base+xgrammar, SFT, SFT+xgrammar} 4행, 본문은 VA 중심으로 서술하고 EMR은 언급하지 않는다(ExtractBench EMR은 전 조건 0).
+- 실험 1과 같은 프레임("구조는 xgrammar로도 오르지만 값은 데이터 학습이 올린다")을 in-distribution → OOD 실세계로 확장하는 것이 서사의 핵심이다.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
