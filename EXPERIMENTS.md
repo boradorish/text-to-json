@@ -417,6 +417,38 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - 해석: 데이터가 짧고 반복되는 합성 도구/인자 조합이라 STAGE의 coverage bias에는 신호를 줬지만, BFCL의 긴 함수 설명·복잡한 인자·parallel의 같은 함수 반복에는 충분히 일반화하지 못했다. 다음 SFT는 단순 예시 수를 늘리기보다, 어려운 여러-호출/parallel 구조와 BFCL과 다른 복잡한 JSON schema를 의도적으로 더 포함해야 한다.
 - 산출물: `outputs/bfcl/toolfew_sft.{png,csv}`, 새 run의 `score/json_decoder/`; 재현: `benchmark/generate_toolfew_sft_data.py`, `benchmark/train_toolfew_lora.py`, `benchmark/plot_bfcl_toolfew_sft.py`.
 
+## 실행 기록 (3차 후속)
+
+### 2026-09-02 — 실험 5 CORD-v2 xgrammar 2×2 (완료, 음성 결과)
+
+- CORD-v2 test 100개를 Qwen3-4B와 Qwen2.5-3B에 대해 `{base, STAGE SFT} × {자유, xgrammar}`로 실행했다. 모든 조건은 temp 0.6, top-p 1.0, seed 42, max_new_tokens 3100을 썼고 xgrammar 스키마 호환 실패는 없었다(각 100개 채점).
+
+| Model | Condition | PFR | EMR | SCR | NR | VA |
+|---|---|---:|---:|---:|---:|---:|
+| Qwen3-4B | base | 75.0 | 34.0 | 75.0 | 25.0 | 65.8 |
+| Qwen3-4B | base + xgrammar | 100.0 | 38.0 | 100.0 | 0.0 | 81.5 |
+| Qwen3-4B | STAGE SFT | 100.0 | 22.0 | 97.0 | 1.1 | 71.7 |
+| Qwen3-4B | STAGE SFT + xgrammar | 99.0 | 22.0 | 99.0 | 1.0 | 71.7 |
+| Qwen2.5-3B | base | 98.0 | 23.0 | 96.0 | 2.8 | 70.3 |
+| Qwen2.5-3B | base + xgrammar | 98.0 | 24.0 | 98.0 | 2.0 | 71.7 |
+| Qwen2.5-3B | STAGE SFT | 100.0 | 7.0 | 98.0 | 0.8 | 60.6 |
+| Qwen2.5-3B | STAGE SFT + xgrammar | 100.0 | 7.0 | 100.0 | 0.0 | 60.5 |
+
+- 계획했던 "형식 준수는 비슷하되 STAGE가 값을 더 보존"한다는 주장은 성립하지 않았다. 두 모델 모두 base+xgrammar가 VA 최고이며, 특히 Qwen3은 81.5 대 71.7이다. 이 CORD 결과는 음성 결과로 보존하고 본문 실세계 전이의 근거로 쓰지 않는다. 산출물: `outputs/cord_v2_xgr/`.
+
+### 2026-09-02 — 실험 4A ExtractBench 32k 장문맥 (완료)
+
+- `prompt + 3,100 생성 토큰 ≤ 32,768`의 공통 예산으로 ExtractBench 244개 중 200개를 유지했다(short 143, medium 57; 더 긴 44개는 제외). Qwen3-4B와 Qwen2.5-3B의 base/STAGE SFT를 같은 200개에 실행했다. 지표는 기존 evaluator의 PFR=1−no-output, EMR, SCR, NR, VA이며 길이별 요약은 `benchmark/summarize_extractbench.py`로 같은 원본 레이블을 사용해 냈다.
+
+| Model | Condition | PFR | EMR | SCR | NR | VA | medium VA |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Qwen3-4B | base | 41.5 | 1.0 | 40.5 | 59.5 | 23.5 | 14.8 |
+| Qwen3-4B | STAGE SFT | 80.0 | 0.0 | 78.5 | 20.7 | 33.7 | 29.8 |
+| Qwen2.5-3B | base | 30.0 | 0.0 | 20.5 | 75.5 | 10.7 | 1.1 |
+| Qwen2.5-3B | STAGE SFT | 79.5 | 0.0 | 77.0 | 21.9 | 22.7 | 17.0 |
+
+- 두 모델 모두 SFT가 전체 VA/SCR와 8k를 넘는 medium 구간 VA에서 우위다. 따라서 4B 장문맥 재학습의 진입 조건(8k 초과 구간 SFT 열세)은 충족하지 않아 실행하지 않는다. 기존 n=27 결과는 이 200개 결과로 교체한다. 산출물: `benchmark/data/extractbench_context32768.jsonl`, `outputs/extractbench/*_ctx32768.{jsonl,xlsx}` 및 `_eval.xlsx`, `_summary.csv`.
+
 ## 다음 실행 (3차) — 실험 4 ExtractBench 장문맥 / 실험 5 실세계 xgrammar 비교 (에이전트 runbook)
 
 > 2026-09-03 등록. 목적은 실세계 벤치마크(CORD, ExtractBench)에서 "형식을 올리는 다른 방법(xgrammar)과 같은 조건에서 우리가 값·의미를 더 잘 보존한다"를 보이는 것. 우선순위 **5 → 4A → (4B는 4A 결과를 보고)**. 4A·5는 추론만이라 합쳐 GPU 약 2시간, 4B는 재학습이라 반나절 이상.
