@@ -484,21 +484,41 @@ STAGE 생성 파이프라인에 (i) `oneOf` 중 하나만 채워지는 스키마
 - 주의: GPU를 독점한 상태에서 측정한다. 다른 사람의 작업이 같은 카드에 있으면 측정하지 않는다. 각 조건은 워밍업 10개 후 측정하고, 실행 순서를 기록한다.
 - 리포트: 조건 × {지연 중앙값/p90, 처리량, 컴파일 시간, 평균 생성 토큰, 토큰당 시간}. 판정: SFT 자유의 지연·처리량이 base+xgrammar 이상이면 본문 한 단락 + 작은 표("no inference-time overhead"). 반대로 나오면 그 사실을 그대로 적고 "커버리지·값 정확도"로 논거를 한정한다.
 
-### 실험 7 — Schema-Guided Dialogue(SGD) 대화 상태 추적 zero-shot (파일럿 → 조건부 본실행)
+### 실험 7 — Schema-Guided Dialogue(SGD) 대화 상태 추적 zero-shot (2단계: 표준 형식 → 명시 값 형식)
 
 - **주장하려는 것**: 스프레드시트 보고서로만 학습한 스키마 추출 능력이 에이전트 도메인(태스크 지향 대화의 상태 추적)으로 전이된다. SGD는 서비스별 슬롯 스키마가 명시된 표준 DST 데이터셋이며 test에 학습 미포함 서비스가 있어 스키마 일반화도 함께 측정된다.
-- **리스크(사전 명시)**: DST는 "언급되지 않은 슬롯은 비워두기"가 핵심인데 STAGE-SFT는 스키마의 모든 필드를 채우는 성향(BFCL coverage bias)이 있다. 아래 스키마 설계로 "비우기"를 "명시적 값 채우기"로 바꿔 완화한다. 파일럿에서 해소되지 않으면 본실행하지 않는다.
-- 데이터: `git clone https://github.com/google-research-datasets/dstc8-schema-guided-dialogue` → `test/dialogues_*.json`, `test/schema.json`. 캐시는 `/mnt/nvme/cache/interns/`에 둔다.
-- 변환 (`benchmark/prepare_sgd.py`): 대화의 각 **사용자 턴**과 그 턴의 활성 서비스 frame마다 예제 1개.
-  - Report: `USER: …` / `SYSTEM: …`로 해당 턴까지의 이력 전체. 맨 위에 한 문장 지시: "Fill each slot with the value the user has requested so far in this conversation. Use \"not mentioned\" for any slot the user has not specified."
-  - JSON Schema: 서비스의 슬롯마다 property 1개. 범주형 슬롯은 `enum: possible_values + ["not mentioned"]`, 비범주형은 `type: string`과 슬롯 `description`. 모든 슬롯 `required`, `additionalProperties: false`. (STAGE 데이터의 all-required·enum 관행과 동일한 형태)
-  - Gold: `frame.state.slot_values`의 첫 값. 없는 슬롯은 `"not mentioned"`.
-  - 파일럿 표본: test에서 서비스별 균등 100턴(학습 포함/미포함 서비스 반반). 본실행은 2,000턴 균등 샘플.
-- 모델: Qwen3-4B base vs STAGE SFT (파일럿). 본실행 시 Qwen2.5-3B, Llama-3.2-1B/3B **Instruct** base와 각 SFT 추가.
-- 채점 (`benchmark/evaluate_sgd.py`): 예측 JSON을 SGD 공식 예측 포맷으로 변환해 저장소의 공식 `evaluate.py`로 **JGA와 슬롯 정확도**를 계산한다(범주형 exact, 비범주형은 공식 스크립트의 fuzzy 매칭 그대로). 추가로 두 가지 진단을 기록한다: **환각 슬롯률**(gold가 not mentioned인데 값을 채운 비율)과 **누락 슬롯률**(gold에 값이 있는데 not mentioned로 둔 비율). 파싱 실패는 해당 턴 JGA 0.
-- **파일럿 판정**: (a) SFT JGA ≥ base JGA − 3pt 그리고 (b) SFT 환각 슬롯률 ≤ base 환각 슬롯률 + 5pt 이면 본실행. 하나라도 어긋나면 파일럿 수치와 환각 사례 5개를 `## 실행 기록`에 음성 결과로 남기고 중단한다(논문에는 싣지 않음).
-- 본실행 리포트: 모델별 JGA / 슬롯 정확도 / 환각 / 누락, 학습 포함 vs 미포함 서비스 분리. 판정: SFT가 base 대비 JGA 우위이면 본문 "Transfer to agent state tracking" 소절, 동률이면 Appendix.
-- 산출물: `benchmark/data/sgd_{pilot,full}.jsonl`, `outputs/sgd/{model}_{base,sft}.jsonl`, `_eval.json`.
+- **실행 원칙**: 먼저 **표준 DST 형식(7-A)** 그대로 돌린다. 여기서 STAGE-SFT가 base 대비 열세이면, 그 원인이 "빈 슬롯을 비워두지 못함"인지 확인하고 **명시 값 형식(7-B)** 으로 다시 돌린다. 7-B는 우리 모델의 학습 관행(모든 필드 required, enum/const로 값 선택)에 맞춘 형식이므로 성능이 오르면 "형식이 맞으면 전이된다"는 결과가 되고, 그래도 안 오르면 coverage bias의 음성 결과로 기록한다. 두 형식 모두 base에도 동일하게 적용해 공정 비교한다.
+
+**공통 준비**
+
+- 데이터: `git clone https://github.com/google-research-datasets/dstc8-schema-guided-dialogue` → `test/dialogues_*.json`, `test/schema.json`. 저장 위치 `/mnt/nvme/cache/interns/sgd/`.
+- 예제 단위: 대화의 각 **사용자 턴**과 그 턴의 활성 서비스 frame마다 예제 1개. Report는 해당 턴까지의 이력 전체를 `USER: …` / `SYSTEM: …` 줄로 나열.
+- 표본: 파일럿은 test에서 서비스별 균등 **100턴**(학습 포함 서비스와 미포함 서비스 절반씩). 본실행은 **2,000턴** 균등 샘플. 파일럿과 본실행의 턴 id를 `benchmark/data/sgd_{pilot,full}_ids.json`으로 고정해 7-A와 7-B가 같은 턴을 쓰게 한다.
+- 모델: 파일럿은 Qwen3-4B base vs STAGE SFT. 본실행은 Qwen2.5-3B, Llama-3.2-1B/3B **Instruct** base와 각 SFT 추가.
+- 채점 (`benchmark/evaluate_sgd.py`): 예측을 SGD 공식 예측 포맷(dialogue json에 `state.slot_values` 채움)으로 변환해 저장소의 공식 `evaluate.py`로 **JGA와 슬롯 정확도(active-intent 제외)** 를 계산한다. 범주형은 exact, 비범주형은 공식 스크립트의 fuzzy 매칭 그대로. 파싱 실패 턴은 JGA 0. 여기에 두 진단을 반드시 추가: **환각 슬롯률**(gold에 없는 슬롯에 값을 채운 비율)과 **누락 슬롯률**(gold에 값이 있는데 비우거나 not mentioned로 둔 비율).
+- 스크립트: `benchmark/prepare_sgd.py --format {standard,explicit}`, `benchmark/evaluate_sgd.py`. 산출물 `benchmark/data/sgd_{pilot,full}_{standard,explicit}.jsonl`, `outputs/sgd/{model}_{base,sft}_{standard,explicit}.jsonl`, `_eval.json`.
+
+**7-A. 표준 DST 형식 (먼저 실행)**
+
+- JSON Schema: 서비스의 슬롯마다 property 1개. 범주형은 `enum: possible_values`, 비범주형은 `type: string` + 슬롯 `description`. **`required`는 비워 두고** `additionalProperties: false`. 즉 "언급된 슬롯만 넣어라"는 통상의 DST 정의이며, 스키마 상단 `description`에 "Include only slots the user has specified so far"를 적는다.
+- Gold: `frame.state.slot_values`의 첫 값. 언급 안 된 슬롯은 키 자체가 없음.
+- 예상되는 실패 양상: STAGE-SFT가 required가 비어 있어도 모든 슬롯을 채워 환각 슬롯률이 높게 나오는 것. 파일럿 결과에서 **환각 슬롯률**과 **누락 슬롯률**을 base와 나란히 기록하고, SFT 오답 턴 10개를 뽑아 "빈 슬롯을 채운 것"이 주원인인지 확인한다.
+- 판정: SFT JGA ≥ base JGA − 3pt 이고 환각 슬롯률 ≤ base + 5pt이면 7-A 형식으로 본실행하고 7-B는 생략(보고 시 "표준 형식에서 전이됨"). 아니면 7-B로 간다.
+
+**7-B. 명시 값 형식 (7-A에서 SFT 열세이고 원인이 빈 슬롯 채움일 때)**
+
+- 아이디어: "비워두기"를 우리 모델이 잘하는 "값 고르기"로 바꾼다. 모든 슬롯을 `required`로 두고, 비어 있음을 명시적 값으로 표현한다.
+  - 범주형: `enum: possible_values + ["no output"]`
+  - 비범주형: `type: string`, description 끝에 `Use "no output" if the user has not specified this slot.` 추가
+  - 스키마 상단 description: `Fill every slot. Write "no output" for any slot the user has not specified so far.`
+  - `additionalProperties: false`, 전체 `required`.
+- Gold: 언급 안 된 슬롯에 `"no output"`을 채운 형태. 채점 시 `"no output"`은 "슬롯 없음"으로 되돌린 뒤 공식 evaluate.py에 넣는다(공식 지표는 7-A와 완전히 같은 정의로 계산됨).
+- 빈 값 표기는 `"no output"` 하나로 고정한다. 대소문자·공백 변형은 채점 전 정규화한다. STAGE 학습 데이터에서 실제로 쓰인 빈 값 표기가 있으면(`""`, `null`, `"N/A"` 등 `data/` 학습 파일에서 빈도 확인) 그 표기를 7-B' 변형으로 하나 더 시도하되, 파일럿 100턴에서 가장 좋은 표기 하나만 본실행에 쓴다. 어떤 표기를 골랐고 왜 골랐는지 기록한다.
+- 판정: 7-B에서 SFT JGA가 7-A 대비 유의미하게 오르고(≥ +5pt) base와 동률 이상이면 본실행(7-B 형식, 전 모델). 본문에는 "명시 값 형식에서 전이" + "표준 형식에서는 빈 슬롯 채움으로 열세"를 **둘 다** 적는다. 7-B도 열세이면 파일럿 수치와 환각 사례 5개를 음성 결과로 `## 실행 기록`에 남기고 중단(논문 미수록).
+
+**리포트 (본실행)**
+
+- 모델 × 형식(7-A, 7-B) × {JGA, 슬롯 정확도, 환각 슬롯률, 누락 슬롯률}, 학습 포함 vs 미포함 서비스 분리 열. 본문은 JGA 1개 표, 나머지는 Appendix.
 
 ### 논문 반영 지침 (전체)
 
