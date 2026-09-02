@@ -35,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--benchmark-file", default="benchmark/data/stage_eval_test.jsonl")
     parser.add_argument("--output-dir", default="outputs/inference_cost")
     parser.add_argument("--guided-json", action="store_true")
+    parser.add_argument("--compile-only", action="store_true", help="Measure xgrammar compilation without loading vLLM/GPU.")
     parser.add_argument("--batch-size", type=int, choices=(1, 32), default=1)
     parser.add_argument("--pass-name", choices=("cold", "warm"), default="cold")
     parser.add_argument("--second-pass", action="store_true", help="Measure a cached warm pass in the same engine.")
@@ -107,6 +108,27 @@ def main() -> None:
         compatible = compatible[: args.limit]
     if not compatible:
         raise SystemExit("No xgrammar-compatible rows.")
+    if args.compile_only:
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(resolve_model(args.model), trust_remote_code=True)
+        compile_seconds = grammar_compile_times(compatible, tokenizer)
+        summary = {
+            "label": args.label, "pass": "compile_only", "batch_size": 0,
+            "samples": len(compatible), "xgrammar_skipped": len(skipped), "warmup_samples": 0,
+            "latency_median_seconds": 0.0, "latency_p90_seconds": 0.0, "wall_seconds": sum(compile_seconds),
+            "examples_per_second": 0.0, "generated_tokens": 0, "tokens_per_second": 0.0,
+            "mean_generated_tokens": 0.0, "token_seconds": 0.0,
+            "grammar_compile_median_seconds": stats(compile_seconds)["median"],
+            "grammar_compile_p90_seconds": stats(compile_seconds)["p90"],
+            "grammar_compile_total_seconds": sum(compile_seconds),
+        }
+        summary_path = out_dir / "summary.csv"
+        existing = pd.read_csv(summary_path) if summary_path.exists() else pd.DataFrame()
+        pd.concat([existing, pd.DataFrame([summary])], ignore_index=True).to_csv(summary_path, index=False)
+        (out_dir / "xgrammar_skipped.json").write_text(json.dumps(skipped, indent=2), encoding="utf-8")
+        print(json.dumps(summary, indent=2))
+        return
     # Free decoding still uses exactly this compatibility-filtered population.
     engine = load_vllm_model(
         resolve_model(args.model), gpu_memory_utilization=args.gpu_memory_utilization,
