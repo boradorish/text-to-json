@@ -794,7 +794,16 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - 파일럿 100턴(base 28.6)은 2,000턴(36.4)보다 base를 과소평가했다. 100턴 파일럿 수치는 인용하지 않는다.
 - 진행 중: STAGE-SFT explicit 2,000턴, STAGE-Eval 200개 회귀 검사(STAGE-SFT / +STAGE-Dialog / base+STAGE-Dialog), 그리고 대화 데이터 비중을 높인 2차 믹스(STAGE-Dialog 8,000 + STAGE 2,000, `stage_dialog_mix_v2.jsonl`)의 STAGE-SFT 초기화 학습·평가(`lora_stage_sft_mix_v2`).
 
-**회귀 검사 (STAGE-Eval 첫 200개, 자유 디코딩).** STAGE-SFT + STAGE-Dialog LoRA는 원래 STAGE-SFT와 같다(PFR 100 / EMR 60.5→61.0 / SCR 99.0 / VA 84.5→84.5). 즉 in-distribution 성능을 잃지 않고 SGD만 고쳐졌다. base + STAGE-Dialog는 STAGE-Eval VA 78.8, EMR 50.5로 STAGE-SFT(84.5)보다 낮지만 base(69.3)보다는 높다. 두 과제를 함께 보면 STAGE-SFT 초기화가 균형이 맞고, SGD 단독으로는 base 초기화가 낫다. 851개 전체 회귀 수치는 `outputs/stage_dialog/stage_eval851_*`로 실행 중.
+**회귀 검사 (STAGE-Eval 첫 200개, 자유 디코딩).** STAGE-SFT + STAGE-Dialog LoRA는 원래 STAGE-SFT와 같다(PFR 100 / EMR 60.5→61.0 / SCR 99.0 / VA 84.5→84.5). 즉 in-distribution 성능을 잃지 않고 SGD만 고쳐졌다. base + STAGE-Dialog는 STAGE-Eval VA 78.8, EMR 50.5로 STAGE-SFT(84.5)보다 낮지만 base(69.3)보다는 높다. 두 과제를 함께 보면 STAGE-SFT 초기화가 균형이 맞고, SGD 단독으로는 base 초기화가 낫다. 851개 전체 회귀(자유 디코딩, 아래 표)에서도 같다.
+
+| STAGE-Eval 851 | PFR | EMR | SCR | NR | VA |
+|---|---:|---:|---:|---:|---:|
+| base, thinking 끔 | 99.5 | 38.2 | 91.1 | 5.7 | 69.1 |
+| STAGE SFT | 99.6 | 63.3 | 97.6 | 1.4 | 84.9 |
+| **STAGE SFT + STAGE-Dialog LoRA** | 100.0 | 63.7 | 98.0 | 1.2 | 84.6 |
+| base + STAGE-Dialog LoRA | 100.0 | 49.2 | 93.2 | 4.6 | 76.6 |
+
+STAGE-SFT + STAGE-Dialog는 in-distribution에서 STAGE-SFT와 동일(EMR +0.4, VA −0.3, 오차 범위)하고 SGD에서는 7.3→34.9다. base + STAGE-Dialog는 SGD는 가장 높지만 STAGE-Eval VA 76.6으로 STAGE-SFT보다 8.3pt 낮다. 두 과제를 동시에 만족하는 모델은 STAGE-SFT + STAGE-Dialog다.
 
 **병행 경로 — source-grounded single-turn state extraction (완료; 양성).** `prepare_sgd.py --context latest-user --filter latest-user-grounded --select-eligible-first`는 예측을 보지 않고 target USER 발화에 non-empty gold가 모두 정규화 후 문자적으로 존재하는 turn만 유지한다. carry-over state·system-proposed value는 제외하므로, 이는 전체 DST가 아닌 source-grounded single-turn task다. SGD test의 적격 4,672/46,116개에서 서비스 균등·seen/unseen 50:50, seed 42로 2,000개를 고정했다.
 
