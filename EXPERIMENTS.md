@@ -779,6 +779,21 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - JGA가 base(thinking) 대비 +10.0pt, STAGE-SFT 대비 +31.0pt이고 환각 슬롯률은 base보다 낮다(22.8 vs 26.5). 학습에 SGD를 쓰지 않았고, unseen 서비스에서 40.8로 seen(36.4)보다 높아 스키마 일반화가 유지된다. 이 경로는 **원래 정의의 DST**(전체 이력, carry-over 포함)에서 얻은 결과라 아래 single-turn 부분집합 결과와는 과제 정의가 다르다.
 - explicit 파일럿과 STAGE-Eval 회귀 검사는 같은 GPU에 다른 학습이 올라와 vLLM 메모리 비율 0.9 요구에 걸려 첫 시도가 실패했고, 비율 0.45로 2,000턴 본실행(source-grounded dialogue-state extension, base thinking/non-thinking, STAGE-SFT × standard/explicit)과 함께 재실행 중이다(`logs/eval_full.log`). base 초기화 대조군(Qwen3-4B base + 같은 믹스 LoRA, `outputs/stage_dialog/lora_base_mix`)도 GPU0에서 학습 중.
 
+**본실행 결과 (2026-09-03 14:13, SGD test 2,000턴, seen/unseen 서비스 50:50, 전체 대화 이력 입력, 공식 SGD metric).** LoRA 학습 데이터에 SGD는 포함되지 않았다.
+
+| Qwen3-4B | standard JGA / 환각 | explicit JGA / 환각 |
+|---|---:|---:|
+| base, thinking 끔 (논문 기준 base) | 19.2 / 40.4 | 32.8 / 24.9 |
+| base, thinking 켬 | 36.4 / 23.5 | 37.5 / 22.5 |
+| STAGE SFT (논문 모델) | 7.3 / 55.0 | (진행 중) |
+| **STAGE SFT + STAGE-Dialog LoRA** | 34.9 / 24.0 | 36.2 / 16.7 |
+| **base + STAGE-Dialog LoRA** (초기화 대조) | **39.8 / 15.0** | **38.8 / 17.5** |
+
+- **양성 판정.** (1) 논문 기준 base(thinking 끔) 대비 STAGE-SFT+STAGE-Dialog는 standard +15.7pt, explicit +3.4pt. (2) STAGE-SFT 자체 대비 +27.6pt(7.3→34.9), 환각 55.0→24.0으로 coverage bias가 교정됐다. (3) 같은 데이터를 base에 학습한 대조군은 thinking base보다도 standard +3.4pt, explicit +1.3pt 높고 환각은 23.5→15.0으로 줄었다. 2,000턴에서 JGA의 표준오차는 약 1.1pt이므로 +3.4pt는 유의하고, STAGE-SFT 초기화와 thinking base의 차이(−1.5 / −1.3)는 오차 범위 안이다.
+- **초기화 효과.** STAGE-SFT 초기화는 base 초기화보다 standard −4.9pt, explicit −2.6pt 낮다. 단일 턴 부분집합에서의 codex 결론(base 초기화 우위)과 방향이 같다. 따라서 논문 주장은 "STAGE 데이터 생성 방법론을 대화로 확장하면 SLM의 상태 추적이 개선된다(데이터 효과)"로 잡고, "STAGE-SFT 체크포인트가 좋은 초기화다"는 주장은 하지 않는다.
+- 파일럿 100턴(base 28.6)은 2,000턴(36.4)보다 base를 과소평가했다. 100턴 파일럿 수치는 인용하지 않는다.
+- 진행 중: STAGE-SFT explicit 2,000턴, STAGE-Eval 200개 회귀 검사(STAGE-SFT / +STAGE-Dialog / base+STAGE-Dialog), 그리고 대화 데이터 비중을 높인 2차 믹스(STAGE-Dialog 8,000 + STAGE 2,000, `stage_dialog_mix_v2.jsonl`)의 STAGE-SFT 초기화 학습·평가(`lora_stage_sft_mix_v2`).
+
 **병행 경로 — source-grounded single-turn state extraction (완료; 양성).** `prepare_sgd.py --context latest-user --filter latest-user-grounded --select-eligible-first`는 예측을 보지 않고 target USER 발화에 non-empty gold가 모두 정규화 후 문자적으로 존재하는 turn만 유지한다. carry-over state·system-proposed value는 제외하므로, 이는 전체 DST가 아닌 source-grounded single-turn task다. SGD test의 적격 4,672/46,116개에서 서비스 균등·seen/unseen 50:50, seed 42로 2,000개를 고정했다.
 
 SGD 데이터·서비스명·문항을 읽지 않는 `generate_stategrounded_sft_data.py`로 invented service/slot/value 기반 합성 2,000개를 생성했다. 단일 USER 발화, STAGE report+schema prompt, all-required와 미언급 슬롯의 `"no output"`을 사용했으며, STAGE Qwen3-4B SFT에서 LoRA r16, 3 epoch, lr 2e-5, effective batch 16으로 continuation했다.
