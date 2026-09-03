@@ -742,6 +742,25 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 
 - 판정: STAGE 초기화가 모든 크기에서 base를 이기지 못했다(50 test −0.64pt, 200 −11.26pt, 800 −4.08pt VA). 따라서 data-efficient adaptation 주장은 성립하지 않으며 Appendix 음성 결과로 남긴다. 산출물: `outputs/cord_adaptation/`; 재현 데이터 생성: `benchmark/prepare_cord_adaptation.py`.
 
+## 실험 11 — STAGE-Dialog: SGD 상태 추적을 양성으로 (2026-09-03 시작, 진행 중)
+
+**목표.** 실험 7에서 STAGE-SFT가 SGD 대화 상태 추적에 진 원인(언급 안 된 슬롯을 채우는 coverage bias)을 **STAGE 방법론으로 만든 추가 데이터**로 고쳐 base를 넘긴다. 인프라: 이 계정에서 블랙웰 노드는 보이지 않아(노드 목록 권한 없음, 보이는 노드는 `h200-03-w-50a0` 하나) 이전 예약 pod의 H200 2장을 쓴다.
+
+**음성 원인 재확인.** 실험 7 파일럿에서 SFT 환각 슬롯률 54.0%(base 26.5%). STAGE 학습 스키마의 객체 95.5%가 all-required이고 oneOf/anyOf 1.4%라 "소스에 없는 필드는 비워둔다"를 데이터가 가르치지 않는다. 또 base의 SGD 점수는 thinking 유무에 따라 다르다: thinking 켬 standard 28.6 / explicit 30.2, **thinking 끔 19.1 / 26.5**(2026-09-03 재실행). 양성 판정은 둘 중 높은 쪽(explicit 30.2)을 기준으로 한다.
+
+**데이터 생성 (STAGE 원칙 그대로).**
+1. 소스: STAGE 보고서 20,713개 안의 Markdown 표에서 (헤더, 행) 쌍을 평평한 레코드로 추출 (`benchmark/stage_dialog/extract_records.py`). 영어 헤더·셀, 열 4~10개, 셀 길이 2~60자. 표 39,172개 중 5,898개 적합, 레코드 6,000개 샘플.
+2. 생성: Qwen3-4B-Instruct-2507(vLLM)이 레코드마다 USER/SYSTEM 교대 대화(8~14줄)를 쓴다. 열의 50~80%를 "반드시 말할 열"로 무작위 지정하고, 사용자는 그 값을 **철자 그대로** 세 턴 이상에 나눠 말하며, 나머지 열의 값은 어느 화자도 말하지 않는다 (`generate_dialogs.py`).
+3. 검증(필터): 지정 값 각각이 USER 턴에 verbatim 존재, 미지정 값은 대화 전체에 부재(토큰 경계 일치), 화자 교대, 첫 언급 턴이 2개 이상. 실패는 수정 없이 폐기. 결과 **6,000 → 3,525 대화 통과(58.8%)**, 탈락은 대부분 미지정 값 누출.
+4. 예제화: 대화마다 사용자 턴 절단점 최대 3개에서 상태(그 시점까지 언급된 열)를 gold로 하고, SGD 평가와 같은 두 형식(standard: 언급 슬롯만 / explicit: 전체 required + `"no output"`)으로 프롬프트를 만든다. 18,096개 생성 → 대화당 절단점 2개, 형식 균형으로 4,000개 사용.
+5. 믹스: 원본 STAGE train(HF `boradorish/text-to-json-benchmark`) 3,000개 + STAGE-Dialog 4,000개 = 7,000개 (`build_mix.py`, 6,000토큰 초과 STAGE 예제 1,420개 제외).
+
+**학습.** STAGE-Qwen3-4B-SFT에서 LoRA r16 α32 all-linear, lr 1e-4, 2 epoch, batch 1 × 누적 16, max_len 6144, gradient checkpointing (`train_toolfew_lora.py --gradient-checkpointing` 추가). 어댑터: `outputs/stage_dialog/lora_stage_sft_mix`. 학습 데이터에 SGD는 전혀 쓰지 않았다.
+
+**평가 계획.** (1) SGD 파일럿 100턴 standard/explicit → base(thinking 켬/끔), STAGE-SFT와 비교. (2) 양성이면 `sgd_full_{standard,explicit}.jsonl` 2,000턴 본실행. (3) STAGE-Eval 200개로 회귀 확인(STAGE-SFT 대비). (4) 가능하면 base + 같은 믹스 LoRA(초기화 대조). 판정: explicit JGA > 30.2이고 환각 슬롯률 < base이면 양성.
+
+**병행 경로 (pod 에이전트).** 같은 pod에서 codex가 "최근 사용자 발화만 입력·그 발화에 근거한 값만 gold"인 단일 턴 부분집합(`prepare_sgd.py --context latest-user --filter latest-user-grounded`)과 템플릿 합성 2k(`generate_stategrounded_sft_data.py`)로 LoRA를 학습 중이다. 그 부분집합에서 zero-shot은 base 67.2 / SFT 44.6. 두 경로 결과를 함께 기록한다.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)

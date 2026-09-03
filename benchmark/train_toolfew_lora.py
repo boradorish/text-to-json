@@ -52,6 +52,7 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--max-length", type=int, default=4096)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--gradient-checkpointing", action="store_true", help="Trade compute for memory on long sequences.")
     args = parser.parse_args()
     torch.manual_seed(args.seed)
     tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
@@ -62,6 +63,9 @@ def main() -> None:
     model = AutoModelForCausalLM.from_pretrained(args.model, trust_remote_code=True, torch_dtype=torch.bfloat16, attn_implementation="sdpa")
     model.config.use_cache = False
     model = get_peft_model(model, LoraConfig(task_type=TaskType.CAUSAL_LM, r=16, lora_alpha=32, lora_dropout=0.05, target_modules="all-linear"))
+    if args.gradient_checkpointing:
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        model.enable_input_require_grads()
     model.print_trainable_parameters()
     model.cuda().train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
