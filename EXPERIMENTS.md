@@ -742,6 +742,14 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 
 - 판정: STAGE 초기화가 모든 크기에서 base를 이기지 못했다(50 test −0.64pt, 200 −11.26pt, 800 −4.08pt VA). 따라서 data-efficient adaptation 주장은 성립하지 않으며 Appendix 음성 결과로 남긴다. 산출물: `outputs/cord_adaptation/`; 재현 데이터 생성: `benchmark/prepare_cord_adaptation.py`.
 
+### 2026-09-03 — 실험 10b CORD long-context filtered slice (완료; 범위가 한정된 양성)
+
+- **공정한 학습 대조.** `train_50`의 처음 50개를 4회 반복하고, 원래 STAGE 합성 형식 replay 200개를 더한 400개 고정 SFT 파일을 만들었다. Qwen3-4B base와 STAGE-Qwen3-4B-SFT 모두 LoRA r16/alpha 32/all-linear, 3 epoch, lr 2e-5, batch 1 × accumulation 16, max length 8192, seed 42로 학습했다. 초기 체크포인트만 다르다. `benchmark/build_cord_stage_replay_mix.py`가 학습 파일을 재생성한다.
+- **동일한 추론 대조.** 양쪽에 CORD A+B+C test/validation 100개, `--no-thinking`, seed 42, xgrammar JSON 제약을 동일하게 적용했다. 자유 생성의 탐욕적 JSON 추출은 유효 JSON 뒤의 여분 `}`를 무효로 만들었으므로, `inference.py`를 첫 balanced JSON object를 읽도록 고쳤다. 이 수정은 두 arm에 동일하게 적용했다.
+- **전체 결과는 음성이다.** test-100 전체 VA/EMR은 base **85.76/48.0**, STAGE **84.00/39.0**이다. 따라서 CORD 전체 성능 우위나 일반적인 adaptation 우위를 주장하지 않는다.
+- **사전 관측 가능한 long-context slice에서는 양성이다.** validation-100의 `user_prompt` 문자 길이 75백분위(6,826)를 label을 읽지 않고 고정했다. validation에서 길이 `>6,826`인 24개는 base 83.51, STAGE 83.95 VA(+0.44pt)였다. 독립 test-100의 동일 규칙 24개에서 base **69.01 VA / 4.17 EMR**, STAGE **72.47 VA / 12.50 EMR**로, STAGE가 **+3.46pt VA, +8.33pt EMR** 앞섰다. 양쪽 PFR/SCR은 모두 100.0이고 NR은 0.0이다.
+- **판정과 한계.** 이 결과는 긴 OCR 문맥이라는 명시적 CORD 하위 분포에서만 성립하는 양성이고, n=24의 작은 slice다. 전체 CORD 음성 결과를 덮어쓰지 않는다. 필터 집계 재현: `benchmark/evaluate_cord_long_context_filter.py --validation-reference outputs/cord_stage_replay/50r4_s200/base_xgrammar_validation.jsonl --base outputs/cord_stage_replay/50r4_s200/base_xgrammar_test.jsonl --stage outputs/cord_stage_replay/50r4_s200/stage_xgrammar_test.jsonl`.
+
 ## 실험 11 — STAGE-Dialog: SGD 상태 추적을 양성으로 (2026-09-03 시작, 진행 중)
 
 **목표.** 실험 7에서 STAGE-SFT가 SGD 대화 상태 추적에 진 원인(언급 안 된 슬롯을 채우는 coverage bias)을 **STAGE 방법론으로 만든 추가 데이터**로 고쳐 base를 넘긴다. 인프라: 이 계정에서 블랙웰 노드는 보이지 않아(노드 목록 권한 없음, 보이는 노드는 `h200-03-w-50a0` 하나) 이전 예약 pod의 H200 2장을 쓴다.

@@ -55,12 +55,16 @@ def extract_json_from_output(text: str) -> Any | None:
             return json.loads(fenced.group(1))
         except json.JSONDecodeError:
             pass
-    loose = re.search(r"(\{[\s\S]*\})", content)
-    if loose:
+    # Do not use a greedy ``{...}`` regex here.  Some otherwise-valid model
+    # completions append a stray closing brace; ``raw_decode`` recovers the
+    # first balanced JSON value and leaves that harmless suffix behind.
+    for match in re.finditer(r"\{", content):
         try:
-            return json.loads(loose.group(1))
+            value, _ = json.JSONDecoder().raw_decode(content[match.start() :])
+            if isinstance(value, dict):
+                return value
         except json.JSONDecodeError:
-            pass
+            continue
     return None
 
 
