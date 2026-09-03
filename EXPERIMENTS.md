@@ -759,7 +759,16 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 
 **평가 계획.** (1) SGD 파일럿 100턴 standard/explicit → base(thinking 켬/끔), STAGE-SFT와 비교. (2) 양성이면 `sgd_full_{standard,explicit}.jsonl` 2,000턴 본실행. (3) STAGE-Eval 200개로 회귀 확인(STAGE-SFT 대비). (4) 가능하면 base + 같은 믹스 LoRA(초기화 대조). 판정: explicit JGA > 30.2이고 환각 슬롯률 < base이면 양성.
 
-**병행 경로 (pod 에이전트).** 같은 pod에서 codex가 "최근 사용자 발화만 입력·그 발화에 근거한 값만 gold"인 단일 턴 부분집합(`prepare_sgd.py --context latest-user --filter latest-user-grounded`)과 템플릿 합성 2k(`generate_stategrounded_sft_data.py`)로 LoRA를 학습 중이다. 그 부분집합에서 zero-shot은 base 67.2 / SFT 44.6. 두 경로 결과를 함께 기록한다.
+**병행 경로 — source-grounded single-turn state extraction (완료; 양성).** `prepare_sgd.py --context latest-user --filter latest-user-grounded --select-eligible-first`는 예측을 보지 않고 target USER 발화에 non-empty gold가 모두 정규화 후 문자적으로 존재하는 turn만 유지한다. carry-over state·system-proposed value는 제외하므로, 이는 전체 DST가 아닌 source-grounded single-turn task다. SGD test의 적격 4,672/46,116개에서 서비스 균등·seen/unseen 50:50, seed 42로 2,000개를 고정했다.
+
+SGD 데이터·서비스명·문항을 읽지 않는 `generate_stategrounded_sft_data.py`로 invented service/slot/value 기반 합성 2,000개를 생성했다. 단일 USER 발화, STAGE report+schema prompt, all-required와 미언급 슬롯의 `"no output"`을 사용했으며, STAGE Qwen3-4B SFT에서 LoRA r16, 3 epoch, lr 2e-5, effective batch 16으로 continuation했다.
+
+| Qwen3-4B, explicit (n=2,000) | JGA | Slot accuracy | Hallucinated | Missing |
+|---|---:|---:|---:|---:|
+| base (thinking off) | 61.19 | 67.25 | **1.51** | 30.51 |
+| STAGE + source-grounded continuation | **75.14** | **85.15** | 7.14 | **12.90** |
+
+Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70.00/77.79 → **73.94/89.17**이다. 따라서 base 대비 JGA +13.95pt, slot accuracy +17.90pt의 양성 결과이나, 환각 슬롯률은 +5.63pt이므로 전체-history SGD 음성 결과와 이 제한된 양성 결과를 모두 기록한다. 산출물: `outputs/sgd/qwen3_4b_{base,stategrounded}_explicit_latest_user_grounded_full_*`; adapter: `models/STAGE-Qwen3-4B-StateGroundedSFT/`.
 
 ## 인프라 메모
 
