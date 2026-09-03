@@ -47,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-p", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
+    parser.add_argument("--no-thinking", action="store_true", help="enable_thinking=False in the chat template (Qwen3).")
     return parser.parse_args()
 
 
@@ -134,7 +135,10 @@ def main() -> None:
         resolve_model(args.model), gpu_memory_utilization=args.gpu_memory_utilization,
         max_model_len=args.max_model_len, guided_decoding_backend="xgrammar" if args.guided_json else None,
     )
-    prompts = build_chat_prompts(engine.tokenizer, SYSTEM_PROMPT, [row["user_prompt"] for row in compatible])
+    prompts = build_chat_prompts(
+        engine.tokenizer, SYSTEM_PROMPT, [row["user_prompt"] for row in compatible],
+        enable_thinking=False if args.no_thinking else None,
+    )
     compile_seconds = grammar_compile_times(compatible, engine.tokenizer) if args.guided_json else []
     # Warm-up never enters the reported per-example results.
     if args.warmup:

@@ -625,6 +625,41 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - 본문 Results 구성안(6페이지): (1) STAGE-Eval 주결과(기존), (2) 학습 vs 제약 디코딩: 정확도(실험 1)+비용(실험 6) 한 묶음, (3) 실세계 전이: CORD·ExtractBench × xgrammar(실험 5, 4A), (4) 에이전트 상태 추적(실험 7, 성립 시). BFCL과 few-shot/256-SFT는 Appendix "Scope: tool routing".
 - Limitations: coverage bias(도구 선택·비우기)와 데이터 측 교정 방향(oneOf, 가변 길이, 미언급 필드) 각 한 문장.
 
+## 다음 실행 (5차) — 실험 8 non-thinking base 재실행 / 실험 9 CORD 레이아웃 렌더링 / 실험 10 CORD 적응 곡선 (에이전트 runbook)
+
+> 2026-09-03 등록. 우선순위 **8 → 9 → (10은 9 결과 보고)**. 8은 정정이라 필수, 9는 CORD를 살리기 위한 입력 정렬 실험, 10은 9가 격차를 못 닫을 때의 대안.
+
+### 실험 8 — base Qwen3-4B를 thinking 없이 재실행 (필수 정정, GPU 약 2시간)
+
+- **문제**: STAGE-Eval 798개 base 자유 출력 전부에 `<think>` 태그가 있고 234개(29%)는 생각을 끝내지 못한 채 3,100토큰에서 잘렸다. 코드에 `enable_thinking=False`가 없었다. base의 파싱 실패 34.6%, 실험 6의 11초 지연, xgrammar가 base를 크게 살리는 현상(첫 토큰 `{` 강제로 thinking 억제)이 모두 이 설정에서 나온다.
+- **수정 (커밋됨)**: `src/utils/vllm_inference.build_chat_prompts(..., enable_thinking=)`, `benchmark/inference.py --no-thinking`, `benchmark/measure_inference_cost.py --no-thinking`. Qwen3 chat template의 `enable_thinking=False`를 전달한다. 다른 tokenizer에는 영향 없다.
+- **적용 범위**: **Qwen3-4B base만**. Qwen2.5·Llama에는 thinking이 없고, STAGE SFT는 학습 프롬프트에 빈 `<think></think>`가 없었으므로 SFT에는 플래그를 주지 않는다(프롬프트가 달라짐).
+- 재실행 목록 (모두 base, 나머지 설정 동일):
+  1. STAGE-Eval `benchmark/data/stage_eval_test.jsonl` 851개: 자유 / xgrammar → `outputs/nothink/qwen3_4b_base_nothink_{free,xgrammar}`. 채점 후 798개 공통 분모로 실험 1 표의 base 두 행 교체.
+  2. CORD 100: 자유 / xgrammar → `outputs/cord_v2_xgr/qwen3_4b_base_nothink_{free,xgrammar}`.
+  3. ExtractBench 200(32k): 자유 / xgrammar → `outputs/extractbench_xgr/qwen3_4b_base_nothink_{free,xgrammar}`.
+  4. 실험 6 비용: `measure_inference_cost.py --no-thinking`으로 base_free·base_xgrammar의 batch=1 cold/warm, batch=32.
+- **리포트**: 각 표에 "base (thinking off)" 행을 추가하고 기존 thinking 행은 Appendix에 남긴다(정직성). 실험 1의 SFT 대 base 격차가 얼마나 줄었는지 한 문장으로 기록. 논문 본문 Table의 base Qwen3-4B 행도 같은 설정으로 교체해야 하므로 STAGE-Eval 전체 851 결과를 기존 `benchmark/evaluate.py` 출력 형식 그대로 보존한다.
+- 완료 조건: 출력에 `<think>` 태그가 0개, 무출력이 thinking 미종료가 아닌 이유로만 발생.
+
+### 실험 9 — CORD를 살리기: 레이아웃 보존 렌더링 (GPU 약 1시간)
+
+- **진단 (2026-09-03, 리프 단위 전수 분석)**: Qwen3 SFT의 불일치 리프 414개 중 값이 다른 필드로 간 "shifted"가 177개(같은 품목 내 105, 다른 품목 72), 라벨을 값에 붙여 쓴 것 28개(`"TOTAL 46,000"`), 수식어 탈락 30개(`"JASMINE MT ( L )"` → `"JASMINE MT"`), 누락 67개. 필드별로는 price 53%, unitprice 40%, num 27%, menuqty_cnt 45%가 약하다. shifted 오류의 출처는 인접 줄이 아니라 2줄 이상 떨어진 곳이 126개.
+- **원인**: 현재 `prepare_cord.ocr_report()`는 CORD `valid_line`(필드 단위 그룹)마다 한 줄을 출력해 입력이 **토큰 하나씩 세로로 나열된 목록**이 된다. 예: `EGG TART / 13,000 / 1 / CHOCO CUS ARD PASTRY / 2 / 24,000`. 품목마다 수량·가격 순서가 뒤바뀌는데, STAGE SFT는 학습 보고서의 99.5%가 Markdown 표였기 때문에 이를 고정 열 순서의 표로 읽어 위치대로 배정한다(cnt=13,000, price=1). base는 영수증 상식으로 맞춘다. 즉 입력 직렬화가 학습 분포와 어긋난 것이 주원인이다.
+- **9-A 시각적 행 렌더링 (핵심)**: `prepare_cord.py --layout rows`. 단어 quad 좌표로 (1) y 중심이 가까운 단어를 한 행으로 묶고(허용치 = 0.5×단어 높이 중앙값, 하한 4px), (2) 행 안에서 x로 정렬, (3) 수평 간격이 단어 높이의 1.5배를 넘으면 ` | `로 셀을 나눈다. 프로토타입 결과: `1 EGG TART | 13,000`, `BASO KUAH | 1 43.636 | 43.636`. 라벨 줄이 촘촘한 영수증(cord_test_003)에서 행이 합쳐지는 경우가 있으니 허용치를 0.4~0.6 사이에서 조정하고, **검증 기준**: 100개 gold 값 각각이 렌더 텍스트에 부분 문자열로 존재하는 비율이 현재 렌더링(필드 단위) 이상이어야 한다. 렌더링 코드는 `benchmark/prepare_cord.py`에 옵션으로 추가하고 기존 렌더링은 유지한다.
+- **9-B 필드 설명**: 유도 스키마의 각 property에 CORD 공식 의미를 `description`으로 넣는다(`nm`: menu item name as printed, `cnt`: quantity, `unitprice`: unit price, `price`: line total, `num`: item code, `itemsubtotal`, `sub_total.subtotal_price`, `discount_price`, `tax_price`, `service_price`, `etc`, `total.total_price`, `cashprice`, `changeprice`, `creditcardprice`, `emoneyprice`, `menuqty_cnt`: number of items, `menutype_cnt`: number of item types). 값은 영수증에 **인쇄된 그대로**(통화 기호·`@`·`X` 포함) 쓰라는 문장을 스키마 최상위 description에 넣는다. 모든 조건에 동일 적용.
+- **9-C 1-shot**: CORD **train** split에서 예시 1개(품목 3개 이상, `@`·`X` 관례 포함)를 골라 렌더링·스키마·정답을 프롬프트 앞에 붙인다. test와 겹치지 않음을 stem으로 확인. 모든 조건에 동일 적용.
+- **조건**: Qwen3-4B, Qwen2.5-3B × {base, STAGE SFT} × {자유, xgrammar} × 변형 {A, A+B, A+B+C}. Qwen3 base는 실험 8의 `--no-thinking`으로. 산출물 `outputs/cord_v2_layout/{variant}/{model}_{base,sft}_{free,xgrammar}.jsonl` + `_eval.xlsx`. 채점은 `benchmark/evaluate.py` 그대로.
+- **판정**: 어느 변형에서든 SFT VA ≥ base+xgrammar VA(Qwen3 기준 81.5 근방)이면 CORD를 본문 실세계 전이의 두 번째 근거로 승격하고, "레이아웃 보존 직렬화 + STAGE"로 서술한다. 미달이면 Appendix에 위 진단(위치 기반 배정 습관)과 함께 남긴다. 어느 쪽이든 변형별 SFT·base 수치를 모두 기록해 렌더링 효과가 base에도 얼마나 가는지 보인다.
+
+### 실험 10 — CORD 적응 곡선 (9가 격차를 못 닫을 때, GPU 약 2시간)
+
+- **주장하려는 것**: STAGE SFT는 새 문서 유형에 **적응이 빠른 초기화**다. 워크숍 서사("좁은 하위 작업을 작은 모델이 맡는다")와 맞고, zero-shot 열세를 정직하게 인정하면서도 실용 가치를 보인다.
+- 데이터: CORD train 800에서 {50, 200, 800}개. 렌더링은 실험 9에서 고른 변형. 검증은 CORD validation 100, 최종 평가는 test 100.
+- 학습: `benchmark/train_toolfew_lora.py`와 같은 LoRA(rank 16, 3 epoch) 설정을 재사용해 초기화 {Qwen3-4B base, STAGE SFT} × 데이터 크기 3 = 6개 어댑터. 동일 seed.
+- 평가: 자유 디코딩 기준 VA·EMR·PFR, 보조로 xgrammar. 표는 초기화 × 데이터 크기.
+- 판정: 모든 크기에서 STAGE 초기화가 base 초기화보다 VA가 높고, 특히 50·200에서 격차가 크면 본문 한 단락("data-efficient adaptation"). 800에서 수렴하면 그 사실도 적는다. base 초기화가 앞서면 Appendix 음성.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)

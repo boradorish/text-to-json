@@ -100,7 +100,9 @@ def load_vllm_model(
     return VllmModel(llm=llm, tokenizer=tokenizer, lora_request=lora_request)
 
 
-def build_chat_prompts(tokenizer, system_prompt: str, user_texts: list[str]) -> list[str]:
+def build_chat_prompts(
+    tokenizer, system_prompt: str, user_texts: list[str], *, enable_thinking: bool | None = None
+) -> list[str]:
     messages_list = [
         [{"role": "system", "content": system_prompt}, {"role": "user", "content": text}]
         for text in user_texts
@@ -117,8 +119,13 @@ def build_chat_prompts(tokenizer, system_prompt: str, user_texts: list[str]) -> 
             f"{user_text}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
             for user_text in user_texts
         ]
+    # Qwen3 chat templates accept ``enable_thinking``; pass it only when the
+    # caller set it so other tokenizers are unaffected.
+    template_kwargs = {} if enable_thinking is None else {"enable_thinking": enable_thinking}
     return [
-        tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True, **template_kwargs
+        )
         for messages in messages_list
     ]
 

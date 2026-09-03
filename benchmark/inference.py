@@ -126,8 +126,11 @@ def run_batch_inference(
     top_p: float,
     seed: int,
     guided_json_backend: str | None = None,
+    enable_thinking: bool | None = None,
 ) -> list[dict]:
-    prompts = build_chat_prompts(engine.tokenizer, SYSTEM_PROMPT, [row["user_prompt"] for row in rows])
+    prompts = build_chat_prompts(
+        engine.tokenizer, SYSTEM_PROMPT, [row["user_prompt"] for row in rows], enable_thinking=enable_thinking
+    )
     if guided_json_backend:
         # Each STAGE-Eval example has its own schema. vLLM accepts a list of
         # per-request SamplingParams, allowing a batch to retain its individual
@@ -229,6 +232,11 @@ def parse_args() -> argparse.Namespace:
         help="Constrain each example with its json_schema using the specified vLLM backend.",
     )
     parser.add_argument("--limit", type=int, default=None, help="Run only the first N benchmark rows.")
+    parser.add_argument(
+        "--no-thinking",
+        action="store_true",
+        help="Pass enable_thinking=False to the chat template (Qwen3) so base models answer without a <think> block.",
+    )
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
@@ -307,6 +315,7 @@ def main() -> None:
                 args.top_p,
                 args.seed,
                 args.guided_json_backend,
+                enable_thinking=False if args.no_thinking else None,
             )
             for row, result in zip(batch_rows, results):
                 saved_records.append(
