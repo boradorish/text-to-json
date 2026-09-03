@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import os
 import re
 import sys
@@ -99,9 +98,14 @@ def load_hf_benchmark(repo_id: str, split: str) -> list[dict]:
 
 def save_records(records: list[dict], jsonl_path: Path, xlsx_path: Path) -> None:
     jsonl_path.parent.mkdir(parents=True, exist_ok=True)
-    with jsonl_path.open("w", encoding="utf-8") as f:
+    # Inference is resumable.  Publish a complete checkpoint atomically so a
+    # monitor or a restarted worker never mistakes a file being rewritten for
+    # a shorter, completed run.
+    jsonl_tmp = jsonl_path.with_suffix(jsonl_path.suffix + ".tmp")
+    with jsonl_tmp.open("w", encoding="utf-8") as f:
         for record in records:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    os.replace(jsonl_tmp, jsonl_path)
 
     display_records = []
     for record in records:
