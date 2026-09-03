@@ -819,7 +819,16 @@ STAGE-SFT + STAGE-Dialog는 in-distribution에서 STAGE-SFT와 동일(EMR +0.4, 
 - v2는 thinking base 대비 standard **+4.6pt**, explicit **+5.5pt**(표준오차 약 1.1pt), 환각 슬롯률은 23.5→15.3, 22.5→**9.0**. 논문 기준 base(thinking 끔) 대비 +21.8 / +10.2. STAGE-SFT 대비 +33.7 / +25.1. seen/unseen: standard 47.2/34.7, explicit 47.2/38.8.
 - v1→v2 개선(+6.1 / +6.8)은 대화 데이터 양(4k→8k)과 비중(57%→80%)에서 온다. 누락 슬롯률은 12.7 / 18.2로 v1보다 높아졌으므로(비우는 쪽으로 기울어짐), 본문에는 JGA와 환각·누락을 함께 표기한다.
 - **v2 회귀 검사 (STAGE-Eval 851, 자유 디코딩):** PFR 100.0 / EMR 63.3 / SCR 97.8 / NR 1.4 / VA 83.7. 원래 STAGE-SFT(99.6 / 63.3 / 97.6 / 1.4 / 84.9)와 EMR 동일, VA −1.2pt. STAGE 원본을 2,000개만 섞어도 in-distribution 성능이 유지된다. **따라서 v2가 논문의 최종 모델 후보다: STAGE-Eval 유지 + SGD 41.0/43.0.**
-- 진행 중: base 초기화 + v2 믹스 대조군(`lora_base_mix_v2`)의 SGD 2,000턴과 STAGE-Eval 851 (`logs/v2_followup.log`).
+- **초기화 대조 (v2 믹스, 완료).** 같은 v2 믹스·설정을 Qwen3-4B base에 학습한 `lora_base_mix_v2`:
+
+| v2 믹스 (8k 대화 + 2k STAGE), LoRA r16 2 epoch | SGD standard JGA / 환각 | SGD explicit JGA / 환각 | STAGE-Eval 851 EMR / VA |
+|---|---:|---:|---:|
+| **STAGE SFT 초기화** | 41.0 / 15.3 | **43.0 / 9.0** | **63.3 / 83.7** |
+| base 초기화 | **42.5 / 13.7** | 42.0 / 11.3 | 48.3 / 76.0 |
+
+SGD에서는 두 초기화가 표준오차(약 1.1pt) 안에서 같다(standard base +1.5, explicit STAGE +1.0). STAGE-Eval에서는 STAGE-SFT 초기화가 EMR +15.0, VA +7.7로 크게 앞선다. **결론: STAGE-Dialog 데이터가 SGD 개선의 원인이고, STAGE-SFT 초기화는 그 개선을 in-distribution 성능 손실 없이 얻게 한다.** 논문에는 두 초기화를 나란히 두고 "둘 다 잡는 모델은 STAGE-SFT + STAGE-Dialog"로 쓴다. 실험 11 완료.
+- **논문 반영.** 본문 Results에 "Agent state tracking" 소절: SGD 2,000턴 표(base thinking on/off, STAGE-SFT, +STAGE-Dialog v2, base+STAGE-Dialog v2) + STAGE-Eval 회귀 열. 데이터 생성 절차는 Method에 한 단락(STAGE 레시피의 대화 확장, 검증 필터 58.8% 통과), 상세는 Appendix. Limitations: 누락 슬롯률이 12.7 / 18.2로 base(8.8 / 7.9)보다 높다(비우는 쪽으로 기울어짐).
+- **HF 배포 준비.** 어댑터(base `boradorish/baseline-qwen3-4b-best`로 명시)와 데이터셋(레코드·생성 대화·상태 예제·믹스 v1/v2, 카드 포함)을 스테이징했다. pod의 HF 토큰은 다른 계정이라 `boradorish` 로그인 후 업로드 예정: `boradorish/stage-qwen3-4b-stage-dialog-lora`, `boradorish/stage-dialog`(private 권장).
 
 **병행 경로 — source-grounded single-turn state extraction (완료; 양성).** `prepare_sgd.py --context latest-user --filter latest-user-grounded --select-eligible-first`는 예측을 보지 않고 target USER 발화에 non-empty gold가 모두 정규화 후 문자적으로 존재하는 turn만 유지한다. carry-over state·system-proposed value는 제외하므로, 이는 전체 DST가 아닌 source-grounded single-turn task다. SGD test의 적격 4,672/46,116개에서 서비스 균등·seen/unseen 50:50, seed 42로 2,000개를 고정했다.
 
