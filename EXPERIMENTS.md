@@ -681,6 +681,30 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - **논문 영향.** 본문 Table의 Qwen3-4B base 행(EMR 31.37, VA 45.46, 파싱 실패 39.95%)은 thinking 설정의 수치다. 851 non-thinking 값(EMR 38.2, VA 69.1, 파싱 실패 0.5%)으로 교체해야 하고, "PFR 39.95→0.35"류의 문장은 삭제한다. DeepJSONEval의 base Qwen3-4B 행도 같은 설정이면 재실행 대상이다(레포 밖 결과라 확인 필요). 기존 thinking 행은 Appendix에 "thinking 모드 base"로 보존한다.
 - 남은 재실행(2/4~4/4): CORD 100, ExtractBench 200(32k), 실험 6 비용. 2026-09-03 05:30에 GPU0(CORD → 비용)·GPU1(ExtractBench) 체인으로 시작. 로그 `outputs/nothink/chain_gpu{0,1}.log`.
 
+### 2026-09-03 — 실험 8 (2/4, 3/4) CORD·ExtractBench base Qwen3-4B, thinking 끔 (완료)
+
+| CORD-v2 100 | PFR | EMR | SCR | NR | VA |
+|---|---:|---:|---:|---:|---:|
+| base, thinking 켬 (기존) | 75.0 | 34.0 | 75.0 | 25.0 | 65.8 |
+| base + xgrammar (기존) | 100.0 | 38.0 | 100.0 | 0.0 | 81.5 |
+| **base, thinking 끔** | 100.0 | 38.0 | 100.0 | 0.0 | 80.0 |
+| **base + xgrammar, thinking 끔** | 100.0 | 37.0 | 100.0 | 0.0 | 80.0 |
+| STAGE SFT (기존) | 100.0 | 22.0 | 97.0 | 1.1 | 71.7 |
+
+| ExtractBench 194 (xgrammar 공통) | PFR | SCR | VA | short VA / PFR (137) | medium VA / PFR (57) |
+|---|---:|---:|---:|---:|---:|
+| base, thinking 켬 (기존) | 40.2 | 39.2 | 22.2 | 25.3 / 45.3 | 14.8 / 28.1 |
+| base + xgrammar (기존) | 71.1 | 71.1 | 34.7 | 38.9 / 79.6 | 24.5 / 50.9 |
+| **base, thinking 끔** | 68.0 | 67.5 | 34.4 | 38.3 / 75.9 | 25.0 / 49.1 |
+| **base + xgrammar, thinking 끔** | 73.7 | 73.7 | 36.6 | 41.5 / 83.2 | 25.0 / 50.9 |
+| STAGE SFT (기존) | 79.4 | 78.4 | 32.5 | 33.6 / 82.5 | **29.8 / 71.9** |
+| STAGE SFT + xgrammar (기존) | 81.4 | 81.4 | 33.1 | 35.0 / 86.1 | 28.7 / 70.2 |
+
+- **CORD.** thinking을 끄면 base 자유 디코딩만으로 PFR 100, VA 80.0이다. SFT(71.7)는 xgrammar 유무와 무관하게 base에 8.3pt 뒤진다. CORD 음성 판정은 유지되며 원인은 실험 9 진단(위치 기반 배정)대로다. 실험 9의 base 대조군은 이 non-thinking 행을 쓴다.
+- **ExtractBench.** non-thinking base는 전체 VA에서 SFT와 동률 수준(34.4 vs 32.5)이고 short 문서에서는 앞선다(38.3 vs 33.6). SFT의 우위는 두 곳에 남는다: (1) 구조 안정성 PFR 79.4 vs 68.0, (2) **8k 초과 medium 문서** VA 29.8 vs 25.0, PFR 71.9 vs 49.1. 즉 "긴 관측에서의 신뢰성"으로 주장 범위를 좁혀야 한다. 기존 "SFT VA 우위" 문장은 medium 구간 한정으로 수정.
+- **종합 (실험 8까지 반영한 Qwen3-4B 요약).** in-distribution(STAGE-Eval)에서는 값 +15.4 VA, +25.1 EMR. OOD 실세계에서는 구조 신뢰성과 장문 구간에서 우위, 짧은 문서·토큰 스트림 입력에서는 base 이하. 본문은 이 범위를 그대로 적는다. Qwen2.5-3B에는 thinking이 없으므로 기존 행 유효(ExtractBench에서 SFT가 구조·값 모두 우위).
+- 산출물: `outputs/cord_v2_xgr/qwen3_4b_base_nothink_{free,xgrammar}.*`, `outputs/extractbench_xgr/qwen3_4b_base_nothink_{free,xgrammar}.*`. 비용 측정(4/4)은 GPU0 체인에서 진행 중(`outputs/nothink/chain_gpu0.log`).
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
