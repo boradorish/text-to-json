@@ -660,6 +660,27 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - 평가: 자유 디코딩 기준 VA·EMR·PFR, 보조로 xgrammar. 표는 초기화 × 데이터 크기.
 - 판정: 모든 크기에서 STAGE 초기화가 base 초기화보다 VA가 높고, 특히 50·200에서 격차가 크면 본문 한 단락("data-efficient adaptation"). 800에서 수렴하면 그 사실도 적는다. base 초기화가 앞서면 Appendix 음성.
 
+## 실행 기록 (5차) — 실험 8 non-thinking base
+
+### 2026-09-03 — 실험 8 (1/4) STAGE-Eval base Qwen3-4B, thinking 끔 (완료)
+
+- `--no-thinking`으로 STAGE-Eval 851개를 자유/xgrammar 재실행했다(각 14분, H200 1장). 출력 851개 모두 `<think>` 태그 0개. 산출물 `outputs/nothink/qwen3_4b_base_nothink_{free,xgrammar}.jsonl` + `_eval.xlsx`. 아래는 `benchmark/evaluate.py` 지표, PFR = 1 − no-output.
+
+| Qwen3-4B, STAGE-Eval | 집합 | PFR | EMR | SCR | NR | VA |
+|---|---|---:|---:|---:|---:|---:|
+| base, thinking 켬 (기존, 실험 1) | 798 | 65.4 | 33.0 | 60.0 | 36.9 | 48.8 |
+| base + xgrammar, thinking 켬 (기존) | 798 | 98.6 | 34.0 | 94.6 | 1.5 | 66.0 |
+| **base, thinking 끔** | 798 | 99.5 | 38.6 | 92.0 | 4.9 | 69.3 |
+| **base + xgrammar, thinking 끔** | 798 | 99.2 | 34.6 | 95.1 | 1.0 | 67.1 |
+| STAGE SFT, 자유 (기존) | 798 | 99.6 | 63.7 | 97.6 | 1.4 | 84.7 |
+| STAGE SFT + xgrammar (기존) | 798 | 99.4 | 59.3 | 95.4 | 0.8 | 82.6 |
+| base, thinking 끔 | 851 | 99.5 | 38.2 | 91.1 | 5.7 | 69.1 |
+| base + xgrammar, thinking 끔 | 851 | 93.1 | 32.4 | 89.2 | 7.1 | 62.9 |
+
+- **읽기.** (1) 기존 base 행의 파싱 실패 34.6%와 낮은 VA는 대부분 thinking 미종료 절단이었다. thinking을 끄면 base도 파싱 99.5%, SCR 92.0이다. (2) SFT의 이득은 값에 집중된다: VA 69.3→84.7(+15.4), EMR 38.6→63.7(+25.1), NR 4.9→1.4. 기존 표의 VA +35.9는 +15.4로 정정된다. (3) non-thinking base에 xgrammar를 얹으면 SCR +3.1, NR −3.9지만 VA는 −2.2, EMR −4.0으로 값은 오히려 나빠진다. "제약 디코딩은 구조만 고치고 값은 못 올린다"는 실험 1의 논지는 유지되며 더 단순해진다: 형식 준수는 thinking만 끄면 base로도 거의 달성되고, 값 정확도는 데이터 학습이 올린다. (4) 851 전체에서 xgrammar 조건의 PFR 93.1은 미지원 스키마 53개의 무출력 때문이므로 표는 798 기준으로 쓴다.
+- **논문 영향.** 본문 Table의 Qwen3-4B base 행(EMR 31.37, VA 45.46, 파싱 실패 39.95%)은 thinking 설정의 수치다. 851 non-thinking 값(EMR 38.2, VA 69.1, 파싱 실패 0.5%)으로 교체해야 하고, "PFR 39.95→0.35"류의 문장은 삭제한다. DeepJSONEval의 base Qwen3-4B 행도 같은 설정이면 재실행 대상이다(레포 밖 결과라 확인 필요). 기존 thinking 행은 Appendix에 "thinking 모드 base"로 보존한다.
+- 남은 재실행(2/4~4/4): CORD 100, ExtractBench 200(32k), 실험 6 비용. 2026-09-03 05:30에 GPU0(CORD → 비용)·GPU1(ExtractBench) 체인으로 시작. 로그 `outputs/nothink/chain_gpu{0,1}.log`.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
