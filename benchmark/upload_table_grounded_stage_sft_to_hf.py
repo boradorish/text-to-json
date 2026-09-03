@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-id", default="boradorish/STAGE-Table-Grounded-SFT")
-    parser.add_argument("--data", type=Path, default=ROOT / "data/sft/stage_table_grounded_1200.jsonl")
+    parser.add_argument("--data", type=Path, default=ROOT / "data/sft/stage_table_grounded_all.jsonl")
     parser.add_argument("--private", action=argparse.BooleanOptionalAction, default=True)
     args = parser.parse_args()
     token = os.environ.get("HF_TOKEN")

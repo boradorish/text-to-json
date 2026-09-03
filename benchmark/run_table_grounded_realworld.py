@@ -42,7 +42,7 @@ def infer(model: Path, benchmark: Path, output: Path, gpu: int, max_model_len: i
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=int, required=True)
-    parser.add_argument("--train-data", type=Path, default=ROOT / "data/sft/stage_table_grounded_1200.jsonl")
+    parser.add_argument("--train-data", type=Path, default=ROOT / "data/sft/stage_table_grounded_all.jsonl")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs/table_grounded_realworld")
     parser.add_argument("--docubench", type=Path, default=ROOT / "benchmark/data/realworld/docubench_nonreceipt.jsonl")
     parser.add_argument("--kleister", type=Path, default=ROOT / "benchmark/data/realworld/kleister_nda_dev-0.jsonl")
