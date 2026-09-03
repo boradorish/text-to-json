@@ -705,6 +705,23 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - **종합 (실험 8까지 반영한 Qwen3-4B 요약).** in-distribution(STAGE-Eval)에서는 값 +15.4 VA, +25.1 EMR. OOD 실세계에서는 구조 신뢰성과 장문 구간에서 우위, 짧은 문서·토큰 스트림 입력에서는 base 이하. 본문은 이 범위를 그대로 적는다. Qwen2.5-3B에는 thinking이 없으므로 기존 행 유효(ExtractBench에서 SFT가 구조·값 모두 우위).
 - 산출물: `outputs/cord_v2_xgr/qwen3_4b_base_nothink_{free,xgrammar}.*`, `outputs/extractbench_xgr/qwen3_4b_base_nothink_{free,xgrammar}.*`. 비용 측정(4/4)은 GPU0 체인에서 진행 중(`outputs/nothink/chain_gpu0.log`).
 
+### 2026-09-03 — 실험 8 (4/4) 실험 6 비용 재측정, base Qwen3-4B thinking 끔 (완료)
+
+- `measure_inference_cost.py --no-thinking`으로 base 자유/xgrammar를 batch=1(cold→warm, 같은 엔진)과 batch=32로 재측정했다. GPU0 단독 사용, 798개 공통 집합, 나머지 설정은 실험 6과 동일. `summary.csv`에 `base_nothink_free,throughput` 행이 두 번 기록됐는데(2.49 / 2.52 예제/s) 값이 같으므로 뒤 행을 쓴다.
+
+| Qwen3-4B | b=1 cold 중앙값 / p90 (s) | b=1 warm 중앙값 / p90 (s) | b=32 예제/s | b=32 토큰/s | 평균 생성 토큰 | 컴파일 ms/스키마 |
+|---|---:|---:|---:|---:|---:|---:|
+| base 자유, thinking 켬 (기존) | 10.98 / 14.01 | 10.99 / 14.00 | 1.23 | 2,657 | 2,149 | — |
+| base + xgrammar, thinking 켬 (기존) | 2.02 / 6.52 | 1.99 / 6.47 | 2.10 | 1,324 | 633 | 20.0 |
+| **base 자유, thinking 끔** | 1.82 / 6.06 | 1.82 / 6.05 | 2.52 | 1,479 | 588 | — |
+| **base + xgrammar, thinking 끔** | 2.00 / 6.33 | 1.98 / 6.31 | 2.15 | 1,336 | 622 | 19.2 |
+| STAGE SFT 자유 (기존) | 1.78 / 5.63 | 1.78 / 5.61 | 2.66 | 1,488 | 560 | — |
+| STAGE SFT + xgrammar (기존) | 1.92 / 5.86 | 1.89 / 5.82 | 2.34 | 1,387 | 593 | 19.8 |
+
+- **읽기.** thinking을 끄면 base 자유의 지연·처리량은 SFT와 사실상 같다(1.82 vs 1.78 s, 2.52 vs 2.66 예제/s). 즉 실험 6의 "SFT가 base보다 빠르다"는 thinking 아티팩트였고 표에서 제거한다. 남는 사실은 두 가지다: (1) xgrammar는 같은 모델에서 batch=1 지연 +0.2 s(약 +10%), batch=32 처리량 −15%, 스키마당 컴파일 19~20 ms의 비용이 있고, 미지원 스키마 6.2%가 있다. (2) SFT는 이 비용 없이 xgrammar 이상의 구조 준수(SCR 97.6 vs 95.1)와 더 높은 값 정확도(VA 84.7 vs 67.1)를 낸다. 논문 비용 단락은 "SFT는 추론 시 추가 비용이 0이고 커버리지 구멍이 없다"로 한정하고, 절대 지연 우위는 주장하지 않는다.
+- 산출물: `outputs/inference_cost/base_nothink_{free,xgrammar}_{cold,warm}_b1.jsonl`, `_throughput_b32.jsonl`, `summary.csv`.
+- **실험 8 완료.** 4개 재실행 모두 끝났다. 논문 수정 목록: (1) 본문 Table base Qwen3-4B 행을 851 non-thinking 값(EMR 38.2, VA 69.1, 파싱 실패 0.5%)으로 교체, (2) thinking 행에 기댄 문장("PFR 39.95→0.35", "VA 45.46→90.69", "SFT가 base보다 빠르다") 정정, (3) DeepJSONEval base 행 설정 확인, (4) thinking 행은 Appendix "thinking-mode baseline"으로 보존.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
