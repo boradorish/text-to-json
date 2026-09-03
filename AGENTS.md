@@ -9,10 +9,10 @@
 이 실험들의 구현·실행·논문 반영이 현재 이 레포의 목표입니다.
 
 실험 1~7(BFCL 2b~2f, 4A, CORD·ExtractBench xgrammar, Llama Instruct 정정, SGD 파일럿, 실험 6 비용)은 완료됐습니다(`## 현재 실행 상태`, `## 실행 기록*`).
-**지금 할 일은 실험 8 → 9 → (10)** 입니다. `EXPERIMENTS.md`의 `## 다음 실행 (5차)` runbook을 따르세요.
-- 실험 8 (필수 정정): base Qwen3-4B가 thinking 모드로 실행돼 있었습니다(798개 전부 `<think>`, 29% 미종료 절단). `--no-thinking`으로 base만 재실행합니다.
-  2026-09-03 05:08에 STAGE-Eval 851개 자유/xgrammar 두 run을 `outputs/nothink/`에서 시작해 두었습니다(로그 `outputs/nothink/*.log`). 끝나면 채점하고 CORD·ExtractBench·실험 6의 base도 같은 플래그로 재실행합니다.
-- 실험 9: CORD 입력을 단어 좌표 기반 시각적 행 표로 렌더링해 STAGE SFT의 위치 기반 배정 오류를 줄이는 실험. 실험 10은 9가 격차를 못 닫을 때만.
+**실험 8·9·10의 현재 상태는 `EXPERIMENTS.md`의 `## 실행 기록 (5차)`를 먼저 확인하세요.**
+- 실험 8: STAGE-Eval/CORD/ExtractBench의 non-thinking base 추론은 완료됐다. 현재 남은 것은 `outputs/inference_cost/`의 `base_nothink_{free,xgrammar}` 비용 재측정(batch=1 cold→warm 및 batch=32)뿐이다. 실행 중인 비용 프로세스가 있으면 중복 시작하지 않는다.
+- 실험 9: CORD layout A/A+B/A+B+C의 24조건은 완료됐다. 어느 SFT 조건도 Qwen3 base+xgrammar 기준을 넘지 못해, 판정에 따라 실험 10을 수행했다.
+- 실험 10: CORD 50/200/800 LoRA 6개와 free-decoding validation/test 12개는 완료됐다. 결과는 `outputs/cord_adaptation/`에 있고, xgrammar 평가는 보조라 아직 미실행이다. 요약을 문서에 반영하고 커밋·푸시하는 일이 남아 있다.
 - 실험 4B 장문맥 재학습은 진입 조건 미충족으로 실행 금지. 완료된 결과는 재실행하지 않습니다.
 포지셔닝: STAGE-SFT는 tool router가 아니라 에이전트의 지각/상태 추출 계층. BFCL은 Appendix scope 근거로만 사용. 논문 반영 시 부정적 판정(CORD, SGD, Qwen3 ExtractBench VA)도 누락하지 않습니다.
 

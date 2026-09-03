@@ -721,6 +721,26 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - **읽기.** thinking을 끄면 base 자유의 지연·처리량은 SFT와 사실상 같다(1.82 vs 1.78 s, 2.52 vs 2.66 예제/s). 즉 실험 6의 "SFT가 base보다 빠르다"는 thinking 아티팩트였고 표에서 제거한다. 남는 사실은 두 가지다: (1) xgrammar는 같은 모델에서 batch=1 지연 +0.2 s(약 +10%), batch=32 처리량 −15%, 스키마당 컴파일 19~20 ms의 비용이 있고, 미지원 스키마 6.2%가 있다. (2) SFT는 이 비용 없이 xgrammar 이상의 구조 준수(SCR 97.6 vs 95.1)와 더 높은 값 정확도(VA 84.7 vs 67.1)를 낸다. 논문 비용 단락은 "SFT는 추론 시 추가 비용이 0이고 커버리지 구멍이 없다"로 한정하고, 절대 지연 우위는 주장하지 않는다.
 - 산출물: `outputs/inference_cost/base_nothink_{free,xgrammar}_{cold,warm}_b1.jsonl`, `_throughput_b32.jsonl`, `summary.csv`.
 - **실험 8 완료.** 4개 재실행 모두 끝났다. 논문 수정 목록: (1) 본문 Table base Qwen3-4B 행을 851 non-thinking 값(EMR 38.2, VA 69.1, 파싱 실패 0.5%)으로 교체, (2) thinking 행에 기댄 문장("PFR 39.95→0.35", "VA 45.46→90.69", "SFT가 base보다 빠르다") 정정, (3) DeepJSONEval base 행 설정 확인, (4) thinking 행은 Appendix "thinking-mode baseline"으로 보존.
+### 2026-09-03 — 실험 9 CORD 레이아웃 렌더링 (완료; zero-shot 음성 결과)
+
+- `A=좌표 기반 행 렌더링`, `A+B=필드 설명`, `A+B+C=고정 train 1-shot`의 세 입력 변형을 만들고, Qwen3-4B/Qwen2.5-3B의 base/STAGE SFT × 자유/xgrammar를 각각 CORD test 100개에서 실행했다(24조건). Qwen3 base에는 `--no-thinking`을 적용했다.
+- Qwen3 VA(%)는 A에서 base free/xgrammar **82.23/81.81**, SFT free/xgrammar **70.29/67.59**; A+B에서 **80.35/80.27**, **71.67/69.45**; A+B+C에서 **75.29/75.83**, **72.84/72.69**였다. Qwen2.5도 A의 base free/xgrammar **60.55/61.04**가 SFT **59.28/59.29**보다 높았고, A+B+C는 one-shot이 자유 생성에 특히 불리했다(base 12.81, SFT 43.52).
+- 따라서 최고 SFT VA 72.84는 Qwen3 base+xgrammar 기준 약 81.5에 못 미쳤다. 행 렌더링은 base에는 유용했으나 STAGE의 CORD 위치 기반 배정 오류를 닫지 못했으므로, CORD zero-shot은 Appendix 음성 결과로 남기고 실험 10 적응 곡선으로 진행했다. 산출물: `outputs/cord_v2_layout/`.
+
+### 2026-09-03 — 실험 10 CORD 적응 곡선 (완료; STAGE 초기화 음성 결과)
+
+- 최고 zero-shot 입력(A+B+C)을 고정하고, CORD train을 seed 42로 섞어 50/200/800개 접두 집합으로 만들었다. Qwen3 base와 STAGE SFT 각각에서 LoRA rank 16, 3 epoch를 학습했다. 8k 입력에서 batch 4는 H200 메모리를 넘어서 batch 1 / gradient accumulation 16으로 바꿔 유효 배치 크기 16을 유지했다. validation/test는 각 100개이며 자유 디코딩으로 평가했다.
+
+| Init | Train n | validation VA / EMR / PFR | test VA / EMR / PFR |
+|---|---:|---:|---:|
+| base | 50 | 75.15 / 16.0 / 95.0 | 74.72 / 18.0 / 100.0 |
+| STAGE SFT | 50 | 74.32 / 13.0 / 100.0 | 74.08 / 18.0 / 100.0 |
+| base | 200 | 88.14 / 48.0 / 100.0 | 84.72 / 40.0 / 99.0 |
+| STAGE SFT | 200 | 74.67 / 31.0 / 91.0 | 73.46 / 26.0 / 93.0 |
+| base | 800 | 92.52 / 60.0 / 100.0 | 90.08 / 56.0 / 100.0 |
+| STAGE SFT | 800 | 89.79 / 59.0 / 98.0 | 86.00 / 50.0 / 98.0 |
+
+- 판정: STAGE 초기화가 모든 크기에서 base를 이기지 못했다(50 test −0.64pt, 200 −11.26pt, 800 −4.08pt VA). 따라서 data-efficient adaptation 주장은 성립하지 않으며 Appendix 음성 결과로 남긴다. 산출물: `outputs/cord_adaptation/`; 재현 데이터 생성: `benchmark/prepare_cord_adaptation.py`.
 
 ## 인프라 메모
 
