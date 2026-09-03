@@ -766,9 +766,12 @@ SGD 데이터·서비스명·문항을 읽지 않는 `generate_stategrounded_sft
 | Qwen3-4B, explicit (n=2,000) | JGA | Slot accuracy | Hallucinated | Missing |
 |---|---:|---:|---:|---:|
 | base (thinking off) | 61.19 | 67.25 | **1.51** | 30.51 |
-| STAGE + source-grounded continuation | **75.14** | **85.15** | 7.14 | **12.90** |
+| STAGE + source-grounded continuation | 75.14 | 85.15 | 7.14 | 12.90 |
+| **base + source-grounded continuation** | **84.04** | **92.20** | 3.68 | **5.42** |
 
 Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70.00/77.79 → **73.94/89.17**이다. 따라서 base 대비 JGA +13.95pt, slot accuracy +17.90pt의 양성 결과이나, 환각 슬롯률은 +5.63pt이므로 전체-history SGD 음성 결과와 이 제한된 양성 결과를 모두 기록한다. 산출물: `outputs/sgd/qwen3_4b_{base,stategrounded}_explicit_latest_user_grounded_full_*`; adapter: `models/STAGE-Qwen3-4B-StateGroundedSFT/`.
+
+**초기화 대조 (완료).** 같은 합성 2,000개, LoRA r16, 3 epoch, lr 2e-5, effective batch 16, seed 42를 **Qwen3-4B base**에서 동일하게 학습해 `Qwen3-4B-StateGroundedSFT`를 만들었다. 이는 STAGE-SFT가 없는 ``no output`` 데이터만의 효과를 분리하는 대조다. 결과는 JGA **84.04**, slot accuracy **92.20**으로 STAGE 초기화 continuation(75.14/85.15)을 각각 +8.90pt/+7.05pt 앞섰다; seen JGA/slot accuracy 84.52/92.80, unseen 83.57/91.59이다. 따라서 이 source-grounded subset의 양성은 **추가 state-extraction 데이터의 효과**이며, 기존 STAGE 초기화가 추가 이득을 준다고 주장할 수 없다. base continuation도 raw base보다 JGA +22.85pt, missing slot rate −25.09pt로 개선됐고, 환각은 +2.17pt 증가했다. 산출물: `outputs/sgd/qwen3_4b_basegrounded_explicit_latest_user_grounded_full_*`; adapter: `models/Qwen3-4B-StateGroundedSFT/`.
 
 ## 인프라 메모
 
