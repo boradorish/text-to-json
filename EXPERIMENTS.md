@@ -759,6 +759,18 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 
 **평가 계획.** (1) SGD 파일럿 100턴 standard/explicit → base(thinking 켬/끔), STAGE-SFT와 비교. (2) 양성이면 `sgd_full_{standard,explicit}.jsonl` 2,000턴 본실행. (3) STAGE-Eval 200개로 회귀 확인(STAGE-SFT 대비). (4) 가능하면 base + 같은 믹스 LoRA(초기화 대조). 판정: explicit JGA > 30.2이고 환각 슬롯률 < base이면 양성.
 
+**파일럿 결과 (2026-09-03 12:04, SGD 100턴, standard 형식, 전체 대화 이력 입력) — 양성.**
+
+| Qwen3-4B | JGA | 슬롯 정확도 | 환각 슬롯률 | 누락 슬롯률 | seen / unseen JGA |
+|---|---:|---:|---:|---:|---:|
+| base, thinking 켬 | 28.6 | 82.9 | 26.5 | 7.8 | 28.2 / 29.0 |
+| base, thinking 끔 | 19.1 | 84.5 | 38.5 | 5.4 | 20.2 / 18.1 |
+| STAGE SFT | 7.6 | 84.8 | 54.0 | 0.6 | 6.7 / 8.6 |
+| **STAGE SFT + STAGE-Dialog LoRA** | **38.6** | 81.5 | **22.8** | 9.4 | 36.4 / 40.8 |
+
+- JGA가 base(thinking) 대비 +10.0pt, STAGE-SFT 대비 +31.0pt이고 환각 슬롯률은 base보다 낮다(22.8 vs 26.5). 학습에 SGD를 쓰지 않았고, unseen 서비스에서 40.8로 seen(36.4)보다 높아 스키마 일반화가 유지된다. 이 경로는 **원래 정의의 DST**(전체 이력, carry-over 포함)에서 얻은 결과라 아래 single-turn 부분집합 결과와는 과제 정의가 다르다.
+- explicit 파일럿과 STAGE-Eval 회귀 검사는 같은 GPU에 다른 학습이 올라와 vLLM 메모리 비율 0.9 요구에 걸려 첫 시도가 실패했고, 비율 0.45로 2,000턴 본실행(STAGE-Dialog, base thinking/non-thinking, STAGE-SFT × standard/explicit)과 함께 재실행 중이다(`logs/eval_full.log`). base 초기화 대조군(Qwen3-4B base + 같은 믹스 LoRA, `outputs/stage_dialog/lora_base_mix`)도 GPU0에서 학습 중.
+
 **병행 경로 — source-grounded single-turn state extraction (완료; 양성).** `prepare_sgd.py --context latest-user --filter latest-user-grounded --select-eligible-first`는 예측을 보지 않고 target USER 발화에 non-empty gold가 모두 정규화 후 문자적으로 존재하는 turn만 유지한다. carry-over state·system-proposed value는 제외하므로, 이는 전체 DST가 아닌 source-grounded single-turn task다. SGD test의 적격 4,672/46,116개에서 서비스 균등·seen/unseen 50:50, seed 42로 2,000개를 고정했다.
 
 SGD 데이터·서비스명·문항을 읽지 않는 `generate_stategrounded_sft_data.py`로 invented service/slot/value 기반 합성 2,000개를 생성했다. 단일 USER 발화, STAGE report+schema prompt, all-required와 미언급 슬롯의 `"no output"`을 사용했으며, STAGE Qwen3-4B SFT에서 LoRA r16, 3 epoch, lr 2e-5, effective batch 16으로 continuation했다.
