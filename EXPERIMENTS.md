@@ -798,3 +798,10 @@ Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
 - 기존 코드: `benchmark/inference.py` (추론), `benchmark/evaluate.py` (채점), `src/utils/vllm_inference.py`
 - 체크포인트 위치는 실험 시작 전 확인 필요
+
+### 2026-09-03 — Table-grounded STAGE 재학습 데이터 준비 (학습·평가 전)
+
+- 기존 STAGE report의 서술 문단에는 설명용/가상 표가 섞여 있어, `## Sheet:` heading 바로 아래의 Markdown 표만 source로 파싱했다. Markdown·TSV·HTML은 이 표 셀을 그대로 변환한 표현이며, `gold_json`으로 source를 생성하지 않는다.
+- 긴 문서의 표 중심 추출을 겨냥해 원 report가 3,500자 이상인 항목만 후보로 삼았다. 그 뒤 target의 모든 primitive 값이 실제 Sheet 표 문자열에 literal로 존재하는 항목만 남겼다(coverage=1.0). 18,560개 중 표 부재 2,602개, table-grounded 값 불완전 566개, 짧은 report 231개를 제외한 후보에서 seed 42로 1,200개를 선택했다.
+- 각 source는 Markdown table / TSV / HTML table 3가지 실제 source 표현으로 만들었고, 전체 schema 3개와 결정론적 top-level field subset을 요청하는 Markdown/TSV 2개를 추가했다. subset은 같은 source에서 **요청한 필드만** JSON으로 내도록 학습시켜, schema에 보이는 모든 field를 채우려는 coverage bias를 줄이는 대조 과제다. 총 **4,512 examples / 1,200 independent sources**다.
+- 산출물: `data/sft/stage_table_grounded_1200.jsonl` (ignored), metadata `data/sft/stage_table_grounded_1200.metadata.json` (ignored), 재생성 `benchmark/build_table_grounded_stage_sft.py`. HF private dataset: `boradorish/STAGE-Table-Grounded-SFT` (`data/train.jsonl`, metadata, card); 업로드 재현: `benchmark/upload_table_grounded_stage_sft_to_hf.py`. 아직 모델 학습·DocuBench/Kleister 평가를 하지 않았으므로 성능 주장은 없다.
