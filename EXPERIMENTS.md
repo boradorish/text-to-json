@@ -805,6 +805,21 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 
 STAGE-SFT + STAGE-Dialog는 in-distribution에서 STAGE-SFT와 동일(EMR +0.4, VA −0.3, 오차 범위)하고 SGD에서는 7.3→34.9다. base + STAGE-Dialog는 SGD는 가장 높지만 STAGE-Eval VA 76.6으로 STAGE-SFT보다 8.3pt 낮다. 두 과제를 동시에 만족하는 모델은 STAGE-SFT + STAGE-Dialog다.
 
+**2차 믹스 결과 (2026-09-03 16:00, SGD 2,000턴) — 양성 확정.** 대화 데이터 비중을 올린 믹스(STAGE-Dialog 8,000 + STAGE 2,000, 대화당 절단점 3개, `stage_dialog_mix_v2.jsonl`)로 STAGE-SFT 위에 같은 설정(LoRA r16, 2 epoch, lr 1e-4)으로 학습한 `lora_stage_sft_mix_v2`.
+
+| Qwen3-4B, SGD 2,000턴 | standard JGA / 환각 | explicit JGA / 환각 |
+|---|---:|---:|
+| base, thinking 켬 (가장 강한 기준선) | 36.4 / 23.5 | 37.5 / 22.5 |
+| base, thinking 끔 (논문 기준 base) | 19.2 / 40.4 | 32.8 / 24.9 |
+| STAGE SFT | 7.3 / 55.0 | 17.9 / 34.9 |
+| STAGE SFT + STAGE-Dialog v1 (4k+3k) | 34.9 / 24.0 | 36.2 / 16.7 |
+| **STAGE SFT + STAGE-Dialog v2 (8k+2k)** | **41.0 / 15.3** | **43.0 / 9.0** |
+| base + STAGE-Dialog v1 | 39.8 / 15.0 | 38.8 / 17.5 |
+
+- v2는 thinking base 대비 standard **+4.6pt**, explicit **+5.5pt**(표준오차 약 1.1pt), 환각 슬롯률은 23.5→15.3, 22.5→**9.0**. 논문 기준 base(thinking 끔) 대비 +21.8 / +10.2. STAGE-SFT 대비 +33.7 / +25.1. seen/unseen: standard 47.2/34.7, explicit 47.2/38.8.
+- v1→v2 개선(+6.1 / +6.8)은 대화 데이터 양(4k→8k)과 비중(57%→80%)에서 온다. 누락 슬롯률은 12.7 / 18.2로 v1보다 높아졌으므로(비우는 쪽으로 기울어짐), 본문에는 JGA와 환각·누락을 함께 표기한다.
+- 진행 중: v2의 STAGE-Eval 851 회귀(`stage_eval851_stage_dialog_v2`), base 초기화 + v2 믹스 대조군(`lora_base_mix_v2`)의 SGD 2,000턴과 STAGE-Eval 851 (`logs/v2_followup.log`).
+
 **병행 경로 — source-grounded single-turn state extraction (완료; 양성).** `prepare_sgd.py --context latest-user --filter latest-user-grounded --select-eligible-first`는 예측을 보지 않고 target USER 발화에 non-empty gold가 모두 정규화 후 문자적으로 존재하는 turn만 유지한다. carry-over state·system-proposed value는 제외하므로, 이는 전체 DST가 아닌 source-grounded single-turn task다. SGD test의 적격 4,672/46,116개에서 서비스 균등·seen/unseen 50:50, seed 42로 2,000개를 고정했다.
 
 SGD 데이터·서비스명·문항을 읽지 않는 `generate_stategrounded_sft_data.py`로 invented service/slot/value 기반 합성 2,000개를 생성했다. 단일 USER 발화, STAGE report+schema prompt, all-required와 미언급 슬롯의 `"no output"`을 사용했으며, STAGE Qwen3-4B SFT에서 LoRA r16, 3 epoch, lr 2e-5, effective batch 16으로 continuation했다.
