@@ -750,7 +750,7 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - **사전 관측 가능한 long-context slice에서는 양성이다.** validation-100의 `user_prompt` 문자 길이 75백분위(6,826)를 label을 읽지 않고 고정했다. validation에서 길이 `>6,826`인 24개는 base 83.51, STAGE 83.95 VA(+0.44pt)였다. 독립 test-100의 동일 규칙 24개에서 base **69.01 VA / 4.17 EMR**, STAGE **72.47 VA / 12.50 EMR**로, STAGE가 **+3.46pt VA, +8.33pt EMR** 앞섰다. 양쪽 PFR/SCR은 모두 100.0이고 NR은 0.0이다.
 - **판정과 한계.** 이 결과는 긴 OCR 문맥이라는 명시적 CORD 하위 분포에서만 성립하는 양성이고, n=24의 작은 slice다. 전체 CORD 음성 결과를 덮어쓰지 않는다. 필터 집계 재현: `benchmark/evaluate_cord_long_context_filter.py --validation-reference outputs/cord_stage_replay/50r4_s200/base_xgrammar_validation.jsonl --base outputs/cord_stage_replay/50r4_s200/base_xgrammar_test.jsonl --stage outputs/cord_stage_replay/50r4_s200/stage_xgrammar_test.jsonl`.
 
-## 실험 11 — STAGE-Dialog: SGD 상태 추적을 양성으로 (2026-09-03 시작, 진행 중)
+## 실험 11 — STAGE 파이프라인의 source-grounded dialogue-state extension (2026-09-03 시작, 진행 중)
 
 **목표.** 실험 7에서 STAGE-SFT가 SGD 대화 상태 추적에 진 원인(언급 안 된 슬롯을 채우는 coverage bias)을 **STAGE 방법론으로 만든 추가 데이터**로 고쳐 base를 넘긴다. 인프라: 이 계정에서 블랙웰 노드는 보이지 않아(노드 목록 권한 없음, 보이는 노드는 `h200-03-w-50a0` 하나) 이전 예약 pod의 H200 2장을 쓴다.
 
@@ -761,7 +761,7 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 2. 생성: Qwen3-4B-Instruct-2507(vLLM)이 레코드마다 USER/SYSTEM 교대 대화(8~14줄)를 쓴다. 열의 50~80%를 "반드시 말할 열"로 무작위 지정하고, 사용자는 그 값을 **철자 그대로** 세 턴 이상에 나눠 말하며, 나머지 열의 값은 어느 화자도 말하지 않는다 (`generate_dialogs.py`).
 3. 검증(필터): 지정 값 각각이 USER 턴에 verbatim 존재, 미지정 값은 대화 전체에 부재(토큰 경계 일치), 화자 교대, 첫 언급 턴이 2개 이상. 실패는 수정 없이 폐기. 결과 **6,000 → 3,525 대화 통과(58.8%)**, 탈락은 대부분 미지정 값 누출.
 4. 예제화: 대화마다 사용자 턴 절단점 최대 3개에서 상태(그 시점까지 언급된 열)를 gold로 하고, SGD 평가와 같은 두 형식(standard: 언급 슬롯만 / explicit: 전체 required + `"no output"`)으로 프롬프트를 만든다. 18,096개 생성 → 대화당 절단점 2개, 형식 균형으로 4,000개 사용.
-5. 믹스: 원본 STAGE train(HF `boradorish/text-to-json-benchmark`) 3,000개 + STAGE-Dialog 4,000개 = 7,000개 (`build_mix.py`, 6,000토큰 초과 STAGE 예제 1,420개 제외).
+5. 믹스: 원본 STAGE train(HF `boradorish/text-to-json-benchmark`) 3,000개 + source-grounded dialogue-state 예제 4,000개 = 7,000개 (`build_mix.py`, 6,000토큰 초과 STAGE 예제 1,420개 제외).
 
 **학습.** STAGE-Qwen3-4B-SFT에서 LoRA r16 α32 all-linear, lr 1e-4, 2 epoch, batch 1 × 누적 16, max_len 6144, gradient checkpointing (`train_toolfew_lora.py --gradient-checkpointing` 추가). 어댑터: `outputs/stage_dialog/lora_stage_sft_mix`. 학습 데이터에 SGD는 전혀 쓰지 않았다.
 
@@ -774,10 +774,10 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 | base, thinking 켬 | 28.6 | 82.9 | 26.5 | 7.8 | 28.2 / 29.0 |
 | base, thinking 끔 | 19.1 | 84.5 | 38.5 | 5.4 | 20.2 / 18.1 |
 | STAGE SFT | 7.6 | 84.8 | 54.0 | 0.6 | 6.7 / 8.6 |
-| **STAGE SFT + STAGE-Dialog LoRA** | **38.6** | 81.5 | **22.8** | 9.4 | 36.4 / 40.8 |
+| **STAGE SFT + dialogue-state extension LoRA** | **38.6** | 81.5 | **22.8** | 9.4 | 36.4 / 40.8 |
 
 - JGA가 base(thinking) 대비 +10.0pt, STAGE-SFT 대비 +31.0pt이고 환각 슬롯률은 base보다 낮다(22.8 vs 26.5). 학습에 SGD를 쓰지 않았고, unseen 서비스에서 40.8로 seen(36.4)보다 높아 스키마 일반화가 유지된다. 이 경로는 **원래 정의의 DST**(전체 이력, carry-over 포함)에서 얻은 결과라 아래 single-turn 부분집합 결과와는 과제 정의가 다르다.
-- explicit 파일럿과 STAGE-Eval 회귀 검사는 같은 GPU에 다른 학습이 올라와 vLLM 메모리 비율 0.9 요구에 걸려 첫 시도가 실패했고, 비율 0.45로 2,000턴 본실행(STAGE-Dialog, base thinking/non-thinking, STAGE-SFT × standard/explicit)과 함께 재실행 중이다(`logs/eval_full.log`). base 초기화 대조군(Qwen3-4B base + 같은 믹스 LoRA, `outputs/stage_dialog/lora_base_mix`)도 GPU0에서 학습 중.
+- explicit 파일럿과 STAGE-Eval 회귀 검사는 같은 GPU에 다른 학습이 올라와 vLLM 메모리 비율 0.9 요구에 걸려 첫 시도가 실패했고, 비율 0.45로 2,000턴 본실행(source-grounded dialogue-state extension, base thinking/non-thinking, STAGE-SFT × standard/explicit)과 함께 재실행 중이다(`logs/eval_full.log`). base 초기화 대조군(Qwen3-4B base + 같은 믹스 LoRA, `outputs/stage_dialog/lora_base_mix`)도 GPU0에서 학습 중.
 
 **병행 경로 — source-grounded single-turn state extraction (완료; 양성).** `prepare_sgd.py --context latest-user --filter latest-user-grounded --select-eligible-first`는 예측을 보지 않고 target USER 발화에 non-empty gold가 모두 정규화 후 문자적으로 존재하는 turn만 유지한다. carry-over state·system-proposed value는 제외하므로, 이는 전체 DST가 아닌 source-grounded single-turn task다. SGD test의 적격 4,672/46,116개에서 서비스 균등·seen/unseen 50:50, seed 42로 2,000개를 고정했다.
 
@@ -805,3 +805,9 @@ Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70
 - 긴 문서의 표 중심 추출을 겨냥해 원 report가 3,500자 이상인 항목만 후보로 삼았다. 그 뒤 target의 모든 primitive 값이 실제 Sheet 표 문자열에 literal로 존재하는 항목만 남겼다(coverage=1.0). 18,560개 중 표 부재 10,525개, table-grounded 값 불완전 2,159개, 짧은 report 952개, 표가 너무 긴 7개를 제외하고 **적격 원천 4,913개 전부**를 사용했다(seed 42는 출력 셔플에만 사용).
 - 각 source는 Markdown table / TSV / HTML table 3가지 실제 source 표현으로 만들었고, 전체 schema 3개와 결정론적 top-level field subset을 요청하는 Markdown/TSV 2개를 추가했다. subset은 같은 source에서 **요청한 필드만** JSON으로 내도록 학습시켜, schema에 보이는 모든 field를 채우려는 coverage bias를 줄이는 대조 과제다. 총 **18,503 examples / 4,913 independent sources / 195MB JSONL**다.
 - 산출물: `data/sft/stage_table_grounded_all.jsonl` (ignored), metadata `data/sft/stage_table_grounded_all.metadata.json` (ignored), 재생성 `benchmark/build_table_grounded_stage_sft.py`. HF private dataset: `boradorish/STAGE-Table-Grounded-SFT` (`data/train.jsonl`, metadata, card); 업로드 재현: `benchmark/upload_table_grounded_stage_sft_to_hf.py`. 아직 모델 학습·DocuBench/Kleister 평가를 하지 않았으므로 성능 주장은 없다.
+
+### 2026-09-03 — Source-grounded dialogue-state data packaging
+
+- 기존 생성·검증 결과(6,000 spreadsheet-row records → 3,525 통과 대화 → 18,096 state examples)를 shared chat SFT 형식으로 패키징했다. standard(언급 슬롯만)와 explicit(전 슬롯 + `no output`)이 각각 9,048개다.
+- 이 데이터는 SGD에서 생성·필터·학습 샘플을 전혀 사용하지 않는다. 대화 생성 뒤 지정 값이 USER 발화에 verbatim으로 존재하고, 미지정 record 값은 대화 전체에 부재하며, 화자 교대가 성립할 때만 보존한 원래 검증 결과를 사용한다.
+- 산출물: `data/sft/source_grounded_dialogue_state_18096.jsonl` (ignored), 재현 패키징 `benchmark/prepare_dialogue_state_sft.py`, 업로드 `benchmark/upload_dialogue_state_sft_to_hf.py`, HF private dataset `boradorish/STAGE-Dialogue-State-SFT`.
