@@ -785,7 +785,7 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 |---|---:|---:|
 | base, thinking 끔 (논문 기준 base) | 19.2 / 40.4 | 32.8 / 24.9 |
 | base, thinking 켬 | 36.4 / 23.5 | 37.5 / 22.5 |
-| STAGE SFT (논문 모델) | 7.3 / 55.0 | (진행 중) |
+| STAGE SFT (논문 모델) | 7.3 / 55.0 | 17.9 / 34.9 |
 | **STAGE SFT + STAGE-Dialog LoRA** | 34.9 / 24.0 | 36.2 / 16.7 |
 | **base + STAGE-Dialog LoRA** (초기화 대조) | **39.8 / 15.0** | **38.8 / 17.5** |
 
@@ -793,6 +793,8 @@ H200 한 장, vLLM 0.10.2, xgrammar 0.1.23, temperature 0.6, max_new_tokens 3100
 - **초기화 효과.** STAGE-SFT 초기화는 base 초기화보다 standard −4.9pt, explicit −2.6pt 낮다. 단일 턴 부분집합에서의 codex 결론(base 초기화 우위)과 방향이 같다. 따라서 논문 주장은 "STAGE 데이터 생성 방법론을 대화로 확장하면 SLM의 상태 추적이 개선된다(데이터 효과)"로 잡고, "STAGE-SFT 체크포인트가 좋은 초기화다"는 주장은 하지 않는다.
 - 파일럿 100턴(base 28.6)은 2,000턴(36.4)보다 base를 과소평가했다. 100턴 파일럿 수치는 인용하지 않는다.
 - 진행 중: STAGE-SFT explicit 2,000턴, STAGE-Eval 200개 회귀 검사(STAGE-SFT / +STAGE-Dialog / base+STAGE-Dialog), 그리고 대화 데이터 비중을 높인 2차 믹스(STAGE-Dialog 8,000 + STAGE 2,000, `stage_dialog_mix_v2.jsonl`)의 STAGE-SFT 초기화 학습·평가(`lora_stage_sft_mix_v2`).
+
+**회귀 검사 (STAGE-Eval 첫 200개, 자유 디코딩).** STAGE-SFT + STAGE-Dialog LoRA는 원래 STAGE-SFT와 같다(PFR 100 / EMR 60.5→61.0 / SCR 99.0 / VA 84.5→84.5). 즉 in-distribution 성능을 잃지 않고 SGD만 고쳐졌다. base + STAGE-Dialog는 STAGE-Eval VA 78.8, EMR 50.5로 STAGE-SFT(84.5)보다 낮지만 base(69.3)보다는 높다. 두 과제를 함께 보면 STAGE-SFT 초기화가 균형이 맞고, SGD 단독으로는 base 초기화가 낫다. 851개 전체 회귀 수치는 `outputs/stage_dialog/stage_eval851_*`로 실행 중.
 
 **병행 경로 — source-grounded single-turn state extraction (완료; 양성).** `prepare_sgd.py --context latest-user --filter latest-user-grounded --select-eligible-first`는 예측을 보지 않고 target USER 발화에 non-empty gold가 모두 정규화 후 문자적으로 존재하는 turn만 유지한다. carry-over state·system-proposed value는 제외하므로, 이는 전체 DST가 아닌 source-grounded single-turn task다. SGD test의 적격 4,672/46,116개에서 서비스 균등·seen/unseen 50:50, seed 42로 2,000개를 고정했다.
 
