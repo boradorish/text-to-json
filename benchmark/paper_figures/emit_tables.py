@@ -244,3 +244,39 @@ tab_main = r"""
 \end{table}
 """
 write("tab_main_constrained.tex", tab_main)
+
+# ---------------------------------------------------------------- Table (appendix): RealKIE-FCC invoices
+rk = D["realkie_fcc_74"]
+rk_rows = [
+    ("Qwen3-4B", "free", "qwen3_4b_base_nothink"),
+    ("Qwen3-4B", "xgrammar", "qwen3_4b_base_nothink_xgrammar"),
+    ("Qwen3-4B + \\method", "free", "qwen3_4b_stage_sft"),
+    ("Qwen3-4B + \\method", "xgrammar", "qwen3_4b_stage_sft_xgrammar"),
+    ("Qwen3-4B + \\method{} + \\method-Dialog", "free", "qwen3_4b_stage_dialog_v2"),
+]
+lines = []
+for model, dec, key in rk_rows:
+    m = rk[key]
+    lines.append(f"{model} & {dec} & {f1(m['header_va'])} & {f1(m['item_field_va'])} & {f1(m['count_ok'])} & {f1(m['SCR'])} \\\\")
+tab_rk = r"""
+\begin{table}[h]
+\CLAUDEcolor
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Model} & \textbf{Decoding} & \shortstack{Header\\field acc.$\uparrow$} & \shortstack{Line-item\\field acc.$\uparrow$} & \shortstack{Item count\\correct$\uparrow$} & SCR$\uparrow$ \\
+\midrule
+""" + "\n".join(lines[:2]) + r"""
+\midrule
+""" + "\n".join(lines[2:4]) + r"""
+\midrule
+""" + lines[4] + r"""
+\bottomrule
+\end{tabular}
+\caption{\CLAUDE{\textbf{On multi-page invoices, \method{} training raises header-field and line-item accuracy over the untrained model.} RealKIE-FCC-Verified, the 74 of 75 invoices whose OCR text fits a 40,960-token context (median 4.8k tokens, 16 above 8k); one shared schema with six header fields and a \texttt{LineItems} array (up to 25 items). Header and line-item field accuracy compare values after number and whitespace normalisation, with predicted line items matched to gold items by field overlap; item count is the share of documents whose predicted list has the gold length; SCR is JSON Schema validity of the whole output. Qwen3-4B runs with thinking disabled. Exact match is zero for every row and omitted.}}
+\label{tab:app_realkie}
+\end{table}
+"""
+write("tab_realkie.tex", tab_rk)

@@ -848,16 +848,19 @@ Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70
 
 **후보 조사.** gold JSON이 있고 원문이 길고 복잡한 데이터셋을 찾았다. 채택: **RealKIE-FCC-Verified**(HF `amazon-agi`, FCC 정치광고 송장 75건, OCR 텍스트·공용 스키마·검증된 gold, LineItems 중첩 배열, 프롬프트 p50 4.8k / p90 12.8k / 최대 85k 토큰)와 **Kleister Charity dev-0**(GitHub `applicaai/kleister-charity`, 영국 자선단체 연차보고서 440건, OCR 텍스트 tsv 제공, 최대 8개 필드, 프롬프트 p50 8.0k / p90 29.9k / 최대 92k 토큰, 8k 초과 214건). 보류: CUAD(계약서 510건, 41개 조항 span, exact-span 채점이 가혹), ExtractBench 32k 초과 44건(YaRN 필요), SEC 10-K+XBRL(gold 구성 필요). Docugami CSL은 청크 라벨이라 제외. 변환 스크립트 `benchmark/prepare_realkie.py`, `benchmark/prepare_kleister_charity.py`. 40,960 문맥에 맞는 RealKIE 74건, Charity 421건을 평가했다. codex가 준비한 DocuBench 비영수증 44건·Kleister-NDA dev 83건에도 같은 모델을 돌렸다.
 
-**주의(채점).** RealKIE 스키마는 비표준 `"type": "float"`을 써서 jsonschema 검증과 xgrammar 컴파일이 모두 실패했다(`prepare_realkie.py`에서 number/integer로 정정 후 xgrammar 조건 재실행). 또 리프 단위 VA는 품목 배열(문서당 최대 125개 리프)에 지배되고 순서에 민감하므로, **헤더 6개 필드의 정규화 정확도**와 **품목을 필드 일치율로 정렬한 뒤의 품목 필드 정확도**를 따로 계산했다(`/tmp/realkie_score.py` → 레포 반영 예정). Kleister 계열은 gold가 canonical 형식(공백→밑줄, ISO 날짜, 소수 2자리)이라 밑줄·대소문자·구두점·통화 기호를 정규화한 뒤 비교했다.
+**주의(채점).** RealKIE 스키마는 비표준 `"type": "float"`을 써서 jsonschema 검증과 xgrammar 컴파일이 모두 실패했다(`prepare_realkie.py`에서 number/integer로 정정 후 xgrammar 조건 재실행). 또 리프 단위 VA는 품목 배열(문서당 최대 125개 리프)에 지배되고 순서에 민감하므로, **헤더 6개 필드의 정규화 정확도**와 **품목을 필드 일치율로 정렬한 뒤의 품목 필드 정확도**를 따로 계산했다(`benchmark/score_realkie.py`). Kleister 계열은 gold가 canonical 형식(공백→밑줄, ISO 날짜, 소수 2자리)이라 밑줄·대소문자·구두점·통화 기호를 정규화한 뒤 비교했다.
 
 | 세트 (n) | 지표 | base Qwen3-4B (thinking 끔) | STAGE SFT | STAGE SFT + STAGE-Dialog v2 | 판정 |
 |---|---|---:|---:|---:|---|
-| RealKIE-FCC (74) | 헤더 필드 VA (정규화) | 49.8 | **63.3** | 56.5 | 양성 |
+| RealKIE-FCC (74) | 헤더 필드 VA (정규화) | 49.8 (xgrammar 50.9) | **63.3** (xgrammar 62.2) | 56.5 | 양성 |
+| RealKIE-FCC (74) | SCR (스키마 정정 후, xgrammar) | 78.4 | **95.9** | — | 양성 |
 | RealKIE-FCC (74) | 품목 필드 VA (정렬 후) | 12.7 | **19.1** | 24.4 | 양성 (모두 낮음) |
 | RealKIE-FCC (74) | 품목 개수 일치율 | 40.5 | 29.7 | 20.3 | 음성 |
 | DocuBench 비영수증 (44) | VA | 43.0 | **45.6** | 44.7 | 약한 양성 (n 작음) |
-| Kleister Charity (421) | VA (정규화) | **67.3** | 58.2 | (실행 중) | 음성 |
+| Kleister Charity (421) | VA (정규화) | **67.3** | 58.2 | 57.0 | 음성 |
 | Kleister-NDA (83) | F1 (codex 정규화 채점기) | **75.8** | 49.0 | 70.4 | 음성 |
+
+**논문 반영.** 양성인 RealKIE(+DocuBench 한 문장)를 부록 F로 추가했다(표 `tables/tab_realkie.tex`, 데이터 `paper_data.json` `realkie_fcc_74`). Kleister 계열은 canonical gold 형식이 STAGE의 verbatim 복사와 맞지 않는다는 scope 문장으로만 언급했다.
 
 **음성 원인 분석.**
 - *Kleister Charity*: 필드별로 base 대비 SFT가 크게 지는 곳은 수입·지출(52→32, 50→29)과 주소 줄(50→37)이다. 보고서 재무표가 £000 단위로 적혀 있어 gold는 32,168,000.00인데 STAGE는 표의 숫자 26,260을 그대로 베낀다. 주소는 gold가 한 줄(47_SECOND_AVENUE)인데 STAGE는 "Stuart House 47 Second Avenue"처럼 주변 텍스트를 더 붙인다. 즉 **verbatim 복사 습관이 단위 환산과 canonical 정규화를 막는다**(CORD의 단위·라벨 오류, BFCL oracle-fill의 단위 오류와 같은 계열).
