@@ -937,7 +937,25 @@ ExtractBench 237건을 131k YaRN으로 재실행하니 32k 이하 구간의 PFR�
 
 평면 6필드, 96%가 2k 토큰 이하. 헤더 VA: base 81.9 (xgrammar 81.9), STAGE SFT 79.3 (xgrammar 79.3), STAGE-Dialog 78.7. 부재 필드 채움률: base 77.4, SFT 99.5, Dialog 47.0. PFR·SCR은 전 조건 ≈100. 길이 구간(≤2k 1,842건 / 2–4k 73건)에서 모두 base가 2~3포인트 앞선다. → 짧고 단순한 서식은 base가 이미 잘 하고 STAGE는 빈 필드를 채우는 습관만 더한다. STAGE 모델 자체 문제(coverage bias), 재평가 없음. 부록 미반영.
 
-### 새 데이터셋 (변환 완료, 추론 큐 `rw_queue.sh` 실행 중, 출력 `outputs/realworld_vrdu_cuad/`)
+### 결과 — CUAD test 102건 계약서, 41개 조항 배열 필드 (강한 음성, 2026-09-04)
+
+| 조건 | PFR | SCR | span 정밀도 | span 재현율 | span F1 | presence 정확도 | 빈 필드 채움률 (↓) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| base (thinking 끔) | 83.3 | 82.4 | **46.7** | 23.9 | 31.6 | 79.5 | **11.7** |
+| base + xgrammar | 94.1 | 93.1 | 46.2 | **27.5** | **34.4** | **81.2** | 13.5 |
+| STAGE SFT | 97.1 | 92.2 | 17.2 | 17.7 | 17.5 | 58.7 | 45.2 |
+| STAGE SFT + xgrammar | 96.1 | 92.2 | 17.2 | 17.7 | 17.5 | 58.7 | 45.2 |
+| + STAGE-Dialog v2 | **100** | **98.0** | 28.5 | 19.2 | 22.9 | 78.5 | 13.9 |
+
+span 매칭: 정규화 토큰 Jaccard ≥ 0.5 또는 길이비 ≥ 0.5의 포함 관계. 길이 구간(재현율, base → SFT): ≤4k(9) 61.7 → 53.3, 4–8k(38) 40.8 → 32.7, 8–16k(29) 29.9 → 18.6, 16–32k(18) 14.4 → 11.8, 32–64k(7) 4.8 → 3.1. **모든 구간에서 음성**이고 두 모델 모두 길수록 급락(base도 16k 이상에서는 재현율 15% 미만).
+
+**원인 분석 (STAGE 모델 자체 문제, 재평가 없음).**
+- *조각 출력*: gold 조항은 중앙값 31단어(평균 40)인데 STAGE 출력 span은 중앙값 3단어(평균 7; base 6/19)다. 포함 관계만 보는 관대한 기준에서는 재현율이 base 28.6 vs STAGE 28.9로 같다 → STAGE는 맞는 위치를 찾고도 **짧은 값 형태로 잘라 낸다**(STAGE-Eval의 필드 값이 대부분 짧은 문자열이라 생긴 길이 prior). 채점 기준의 문제가 아니라 출력 형태의 문제.
+- *빈 필드 채움*: 41개 필드 중 70%가 빈 배열인데 STAGE는 그중 45%를 채운다(`notice_period_to_terminate_renewal` 61/86, `renewal_term` 52/76, `most_favored_nation` 44/99 …; base 11.7%). 채운 값은 "Date", "The Contract is valid for 5 years, beginning from and ended on" 같은 인접 문장 조각 → coverage bias. STAGE-Dialog는 채움을 13.9%로 base 수준까지 내리고 F1을 22.9로 올리지만 조각 출력 때문에 base(31.6)에는 못 미친다.
+- xgrammar는 base의 파싱(83 → 94)과 재현율(23.9 → 27.5)을 올린다. STAGE에는 영향 없음.
+- 결론: 조항 단위 span 추출은 STAGE의 강점(짧은 값의 verbatim 복사)과 어긋나는 과제. 부록 미반영, scope 문장 후보.
+
+### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
 - **VRDU registration-form** (FARA; 1,915건, 평면 6필드, p50 1.4k 토큰). 짧고 단순 → 대조군.
