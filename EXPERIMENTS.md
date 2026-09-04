@@ -887,6 +887,34 @@ Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70
 
 STAGE-Eval의 xgrammar 조건은 2–4k 구간에서 PFR/SCR이 떨어진다(base 99.3→96.9, SFT 99.3→97.7): 긴 스키마일수록 xgrammar가 컴파일/디코딩에서 실패한다.
 
+### 정정 — ExtractBench의 "파싱 성공률" 우위는 옛 JSON 추출기의 산물 (2026-09-04)
+
+ExtractBench 237건을 131k YaRN으로 재실행하니 32k 이하 구간의 PFR이 base·SFT 모두 100%였다. 원인을 추적하니 실험 4A·5·8 당시의 `inference.py`는 첫 `{`부터 마지막 `}`까지를 탐욕적으로 잘라 JSON으로 읽었고, 모델이 JSON 뒤에 덧붙인 설명·여분 괄호가 전부 "no output"으로 집계됐다. CORD 실험 때 "첫 balanced object" 추출기로 고쳤지만 ExtractBench 출력은 재파싱하지 않았다. 원출력(`raw_output`)을 현재 추출기로 다시 파싱한 사본을 `outputs/extractbench_reparsed/`에 만들고 194 공통 분모를 다시 채점했다(`paper_data.json`의 `extractbench_194`를 교체, 옛 값은 `extractbench_194_greedy_parser`로 보존).
+
+| Qwen3-4B, 194 | PFR (옛 → 재파싱) | SCR | VA 전체 | VA short (137) | VA medium (57) |
+|---|---:|---:|---:|---:|---:|
+| base (thinking 끔) | 68.0 → **99.5** | 67.5 → 77.3 | 34.4 → 39.2 | — → 41.5 | 25.0 → 33.5 |
+| base + xgrammar | 73.7 → 99.5 | 73.7 → 79.9 | 36.6 → 40.4 | 43.3 | 33.4 |
+| STAGE SFT | 79.4 → **100.0** | 78.4 → 85.6 | 32.5 → 35.1 | 35.7 | 33.6 |
+| STAGE SFT + xgrammar | 81.4 → 100.0 | 81.4 → 86.6 | 33.1 → 35.6 | 36.7 | 32.8 |
+| Qwen2.5-3B base | 28.4 → 68.6 | 19.6 → 45.9 | 9.6 → 17.8 | 22.7 | 6.0 |
+| Qwen2.5-3B STAGE SFT | 78.9 → 100.0 | 76.3 → 76.3 | 21.6 → 24.5 | 25.5 | 21.9 |
+
+**바뀐 결론.** Qwen3-4B에서 STAGE의 ExtractBench 우위는 파싱이 아니라 **스키마 준수(SCR 77.3 → 85.6, medium 68.4 → 82.5)**이고, 값 정확도는 base가 4.1 높다(short에서 −5.8, medium 동률). Qwen2.5-3B는 구조·값 모두 STAGE 우위(PFR 68.6 → 100, VA 17.8 → 24.5). 부록 E의 문장·그림(`fig_eb_a`를 파싱 성공 → 스키마 준수로 교체)·`tab_extractbench`를 모두 교체했다. STAGE-Eval 851은 재파싱해도 PFR 99.5 → 99.9, VA 동일이라 영향 없음. **교훈: 추출기를 바꾸면 이전 출력을 전부 재파싱해야 한다.** 다른 실험(CORD·RealKIE·Kleister·SGD)은 수정 뒤에 실행됐으므로 영향 없음.
+
+### ExtractBench 237건 @131k YaRN (실험 4A 재실행, `outputs/extractbench_long/`, `--enforce-eager`)
+
+| 구간 (n) | base PFR / SCR / VA | STAGE SFT PFR / SCR / VA |
+|---|---:|---:|
+| ≤4k (13) | 100 / 61.5 / 46.4 | 100 / 69.2 / 41.8 |
+| 4–8k (66) | 98.5 / 77.3 / 39.5 | 100 / 83.3 / 41.8 |
+| 8–16k (78) | 100 / 80.8 / 42.1 | 100 / 85.9 / 32.9 |
+| 16–32k (48) | 100 / 75.0 / 29.3 | 100 / 91.7 / 31.0 |
+| **32–64k (26)** | **34.6 / 19.2 / 7.8** | **88.5 / 73.1 / 33.2** |
+| >64k (6) | 0 / 0 / 0 | 16.7 / 16.7 / 5.2 |
+
+32k(네이티브 문맥) 초과 구간에서 base는 파싱 가능한 JSON을 거의 못 내고 STAGE는 88.5%를 낸다 → 부록 F 길이 그림의 (b) 패널을 194 파싱 성공(산물)에서 이 237건 결과로 교체. 8–16k에서는 base VA가 9.2 높다(옛 결론과 반대 방향)는 점도 기록.
+
 ### 새 데이터셋 (변환 완료, 추론 큐 `rw_queue.sh` 실행 중, 출력 `outputs/realworld_vrdu_cuad/`)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).

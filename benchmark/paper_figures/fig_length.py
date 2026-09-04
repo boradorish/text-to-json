@@ -3,8 +3,8 @@
 Two independent panels at final print size (2.70 x 1.95 in) for a 5.5 in column,
 composed with subcaption.
   (a) RealKIE-FCC (74 invoices): header-field value accuracy per prompt-length bucket
-  (b) ExtractBench (194 digital documents): parse success per prompt-length bucket
-Inputs: benchmark/paper_figures/data/length_buckets/{realkie_header,extractbench}.json,
+  (b) ExtractBench (237 digital documents, 131k YaRN context): parse success per prompt-length bucket
+Inputs: benchmark/paper_figures/data/length_buckets/{realkie_header,extractbench_long}.json,
 built on the pod with benchmark/score_realkie.py and benchmark/length_bucket_analysis.py.
 """
 from __future__ import annotations
@@ -74,22 +74,22 @@ def panel_a():
 
 
 def panel_b():
-    d = json.loads((DATA / "extractbench.json").read_text())
-    buckets = ["<=2k", "2-4k", "4-8k", "8-16k", ">16k"]
+    d = json.loads((DATA / "extractbench_long.json").read_text())
+    buckets = ["<=4k", "4-8k", "8-16k", "16-32k", "32-64k", ">64k"]
     ns = [d["runs"]["base"][b]["n"] for b in buckets]
-    assert sum(ns) == 194, ns
+    assert sum(ns) == 237, ns
     fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
     x = list(range(len(buckets)))
     for label, key, color, marker, face in ARMS_B:
         y = [100 * d["runs"][key][b]["PFR"] for b in buckets]
         ax.plot(x, y, color=color, linewidth=1.0, zorder=2)
         ax.scatter(x, y, marker=marker, s=22, facecolors=face, edgecolors=color, linewidths=0.9, zorder=3, label=label)
-    ax.set_xticks(x); ax.set_xticklabels([f"{b.replace('<=2k', '$\\leq$2k')}\n(n={n})" for b, n in zip(buckets, ns)])
+    ax.set_xticks(x); ax.set_xticklabels([f"{b.replace('<=4k', '$\\leq$4k')}\n(n={n})" for b, n in zip(buckets, ns)], fontsize=5.6)
     ax.set_xlabel("Prompt length (tokens)")
     ax.set_ylabel("Parse success (%)")
-    ax.set_ylim(40, 100); ax.set_yticks([40, 60, 80, 100])
-    ax.axvspan(2.5, 4.5, color="#EEEEEE", zorder=0, linewidth=0)
-    ax.text(3.5, 97, "beyond 8k training window", ha="center", va="top", fontsize=5.6, color=GREY)
+    ax.set_ylim(0, 104); ax.set_yticks([0, 20, 40, 60, 80, 100])
+    ax.axvspan(3.5, 5.5, color="#EEEEEE", zorder=0, linewidth=0)
+    ax.text(3.6, 45, "beyond native\n32k context", ha="left", va="top", fontsize=5.6, color=GREY)
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0)
     ax.legend(loc="lower left", frameon=False, handletextpad=0.3, borderaxespad=0.2)
     finish(fig, OUT / "fig_len_b.pdf")
@@ -102,7 +102,7 @@ def main():
     print("self-check (a) RealKIE header VA by bucket", na)
     for k, v in a.items():
         print(f"  {k:26}", " ".join(f"{x:5.1f}" for x in v))
-    print("self-check (b) ExtractBench parse success by bucket", nb)
+    print("self-check (b) ExtractBench 237 @131k parse success by bucket", nb)
     for k, v in b.items():
         print(f"  {k:26}", " ".join(f"{x:5.1f}" for x in v))
     for name in ("fig_len_a.pdf", "fig_len_b.pdf"):

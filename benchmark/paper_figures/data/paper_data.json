@@ -1025,6 +1025,321 @@
  },
  "extractbench_194": {
   "qwen3_base_think_free": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen3_4b_base_free_compatible194.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 75.77319587628865,
+    "SCR": 55.670103092783506,
+    "VA": 27.006386181987942,
+    "NR": 44.15393078917224
+   },
+   "short": {
+    "n": 137,
+    "PFR": 72.26277372262774,
+    "SCR": 56.2043795620438,
+    "VA": 28.245975251806712,
+    "NR": 43.63768301532419
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 84.21052631578948,
+    "SCR": 54.3859649122807,
+    "VA": 24.027022979090205,
+    "NR": 45.39473684210526
+   }
+  },
+  "qwen3_base_think_xgrammar": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen3_4b_base_xgrammar.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 98.45360824742268,
+    "SCR": 78.8659793814433,
+    "VA": 38.267085762773625,
+    "NR": 21.06958762886598
+   },
+   "short": {
+    "n": 137,
+    "PFR": 97.81021897810218,
+    "SCR": 82.48175182481752,
+    "VA": 40.674160126575515,
+    "NR": 17.51824817518248
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 100.0,
+    "SCR": 70.17543859649123,
+    "VA": 32.4816614146884,
+    "NR": 29.605263157894736
+   }
+  },
+  "qwen3_base_nothink_free": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen3_4b_base_nothink_free.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 99.48453608247422,
+    "SCR": 77.31958762886597,
+    "VA": 39.159693341006935,
+    "NR": 21.87960235640648
+   },
+   "short": {
+    "n": 137,
+    "PFR": 99.27007299270073,
+    "SCR": 81.02189781021897,
+    "VA": 41.53501697493221,
+    "NR": 17.935349322210637
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 100.0,
+    "SCR": 68.42105263157895,
+    "VA": 33.45058215069536,
+    "NR": 31.359649122807017
+   }
+  },
+  "qwen3_base_nothink_xgrammar": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen3_4b_base_nothink_xgrammar.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 99.48453608247422,
+    "SCR": 79.89690721649484,
+    "VA": 40.39986487162621,
+    "NR": 20.038659793814432
+   },
+   "short": {
+    "n": 137,
+    "PFR": 99.27007299270073,
+    "SCR": 83.94160583941606,
+    "VA": 43.30101218717806,
+    "NR": 16.05839416058394
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 100.0,
+    "SCR": 70.17543859649123,
+    "VA": 33.42693185003674,
+    "NR": 29.605263157894736
+   }
+  },
+  "qwen3_sft_free": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen3_4b_sft_free_compatible194.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 100.0,
+    "SCR": 85.56701030927834,
+    "VA": 35.064945360060705,
+    "NR": 13.444738251439281
+   },
+   "short": {
+    "n": 137,
+    "PFR": 100.0,
+    "SCR": 86.86131386861314,
+    "VA": 35.66418963970806,
+    "NR": 12.095933263816473
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 100.0,
+    "SCR": 82.45614035087719,
+    "VA": 33.62465647739952,
+    "NR": 16.686602870813395
+   }
+  },
+  "qwen3_sft_xgrammar": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen3_4b_sft_xgrammar.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 100.0,
+    "SCR": 86.5979381443299,
+    "VA": 35.581571191286024,
+    "NR": 12.822164948453608
+   },
+   "short": {
+    "n": 137,
+    "PFR": 100.0,
+    "SCR": 88.32116788321167,
+    "VA": 36.73174974520239,
+    "NR": 10.94890510948905
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 100.0,
+    "SCR": 82.45614035087719,
+    "VA": 32.81710694766251,
+    "NR": 17.32456140350877
+   }
+  },
+  "qwen25_base_free": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen2_5_3b_base_free_compatible194.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 68.55670103092784,
+    "SCR": 45.876288659793815,
+    "VA": 17.77116565743894,
+    "NR": 49.451870242082464
+   },
+   "short": {
+    "n": 137,
+    "PFR": 83.21167883211679,
+    "SCR": 58.394160583941606,
+    "VA": 22.651923078250775,
+    "NR": 36.74983836665093
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 33.333333333333336,
+    "SCR": 15.789473684210526,
+    "VA": 6.040222382856095,
+    "NR": 79.98131527601439
+   }
+  },
+  "qwen25_base_xgrammar": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen2_5_3b_base_xgrammar.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 98.45360824742268,
+    "SCR": 75.25773195876289,
+    "VA": 25.855324923479433,
+    "NR": 23.646907216494846
+   },
+   "short": {
+    "n": 137,
+    "PFR": 97.81021897810218,
+    "SCR": 78.83211678832117,
+    "VA": 27.462638885556647,
+    "NR": 19.708029197080293
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 100.0,
+    "SCR": 66.66666666666667,
+    "VA": 21.99213171638154,
+    "NR": 33.1140350877193
+   }
+  },
+  "qwen25_sft_free": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen2_5_3b_sft_free_compatible194.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 100.0,
+    "SCR": 76.28865979381443,
+    "VA": 24.477980200517518,
+    "NR": 22.516143650164274
+   },
+   "short": {
+    "n": 137,
+    "PFR": 100.0,
+    "SCR": 80.2919708029197,
+    "VA": 25.538077311545706,
+    "NR": 18.45672575599583
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 100.0,
+    "SCR": 66.66666666666667,
+    "VA": 21.93002749506383,
+    "NR": 32.27299016772701
+   }
+  },
+  "qwen25_sft_xgrammar": {
+   "file": "extractbench_reparsed/extractbench_xgr__qwen2_5_3b_sft_xgrammar.jsonl",
+   "all194": {
+    "n": 194,
+    "PFR": 100.0,
+    "SCR": 79.38144329896907,
+    "VA": 24.99238804812596,
+    "NR": 20.544918998527248
+   },
+   "short": {
+    "n": 137,
+    "PFR": 100.0,
+    "SCR": 83.94160583941606,
+    "VA": 25.934723858855865,
+    "NR": 16.05839416058394
+   },
+   "medium": {
+    "n": 57,
+    "PFR": 100.0,
+    "SCR": 68.42105263157895,
+    "VA": 22.72747566093305,
+    "NR": 31.328320802005013
+   }
+  },
+  "_note": "Re-scored 2026-09-04 after re-parsing raw_output with the current extract_json_from_output (first balanced JSON object). The earlier block (extractbench_194_greedy_parser) used the greedy first-{ to last-} extractor, which turned trailing text into parse failures; PFR differences between base and STAGE there were parser artifacts."
+ },
+ "_provenance": {
+  "built": "2026-09-04",
+  "source": "pod /root/work/sunghee/text-to-json/outputs (raw jsonl re-scored with benchmark/evaluate.py; SGD official metric via evaluate_sgd.py)",
+  "git": "origin/master 50b5d5e",
+  "extractbench_reparse": "pod outputs/extractbench_reparsed/*.jsonl built by re-extracting JSON from raw_output; splits = ExtractBench source_split short(137)/medium(57)"
+ },
+ "realkie_fcc_74": {
+  "qwen3_4b_base_nothink": {
+   "n": 74,
+   "header_va": 49.77477477477478,
+   "item_field_va": 12.741172187841283,
+   "item_recall": 9.828904259191845,
+   "count_ok": 40.54054054054054,
+   "PFR": 98.64864864864865,
+   "SCR": 0.0,
+   "NR": 55.855855855855864
+  },
+  "qwen3_4b_base_nothink_xgrammar": {
+   "n": 74,
+   "header_va": 50.9009009009009,
+   "item_field_va": 15.151073898798689,
+   "item_recall": 9.24645067346196,
+   "count_ok": 41.891891891891895,
+   "PFR": 98.64864864864865,
+   "SCR": 78.37837837837837,
+   "NR": 21.62162162162162
+  },
+  "qwen3_4b_stage_dialog_v2": {
+   "n": 74,
+   "header_va": 56.531531531531535,
+   "item_field_va": 24.397524572260647,
+   "item_recall": 6.807426283218056,
+   "count_ok": 20.27027027027027,
+   "PFR": 98.64864864864865,
+   "SCR": 0.0,
+   "NR": 45.608108108108134
+  },
+  "qwen3_4b_stage_sft": {
+   "n": 74,
+   "header_va": 63.288288288288285,
+   "item_field_va": 19.06079359301056,
+   "item_recall": 8.88241718238078,
+   "count_ok": 29.72972972972973,
+   "PFR": 100.0,
+   "SCR": 0.0,
+   "NR": 44.03153153153158
+  },
+  "qwen3_4b_stage_sft_xgrammar": {
+   "n": 74,
+   "header_va": 62.16216216216216,
+   "item_field_va": 19.06807426283218,
+   "item_recall": 7.8995267564615945,
+   "count_ok": 25.675675675675674,
+   "PFR": 100.0,
+   "SCR": 95.94594594594594,
+   "NR": 4.054054054054054
+  }
+ },
+ "docubench_44": {
+  "base_nothink": {
+   "VA": 43.0,
+   "PFR": 97.7
+  },
+  "stage_sft": {
+   "VA": 45.6,
+   "PFR": 100.0
+  },
+  "stage_dialog_v2": {
+   "VA": 44.7,
+   "PFR": 97.7
+  }
+ },
+ "extractbench_194_greedy_parser": {
+  "qwen3_base_think_free": {
    "file": "extractbench_xgr/qwen3_4b_base_free_compatible194.jsonl",
    "all194": {
     "n": 194,
@@ -1263,77 +1578,6 @@
     "VA": 17.783649008501666,
     "NR": 31.57894736842105
    }
-  }
- },
- "_provenance": {
-  "built": "2026-09-04",
-  "source": "pod /root/work/sunghee/text-to-json/outputs (raw jsonl re-scored with benchmark/evaluate.py; SGD official metric via evaluate_sgd.py)",
-  "git": "origin/master 50b5d5e"
- },
- "realkie_fcc_74": {
-  "qwen3_4b_base_nothink": {
-   "n": 74,
-   "header_va": 49.77477477477478,
-   "item_field_va": 12.741172187841283,
-   "item_recall": 9.828904259191845,
-   "count_ok": 40.54054054054054,
-   "PFR": 98.64864864864865,
-   "SCR": 0.0,
-   "NR": 55.855855855855864
-  },
-  "qwen3_4b_base_nothink_xgrammar": {
-   "n": 74,
-   "header_va": 50.9009009009009,
-   "item_field_va": 15.151073898798689,
-   "item_recall": 9.24645067346196,
-   "count_ok": 41.891891891891895,
-   "PFR": 98.64864864864865,
-   "SCR": 78.37837837837837,
-   "NR": 21.62162162162162
-  },
-  "qwen3_4b_stage_dialog_v2": {
-   "n": 74,
-   "header_va": 56.531531531531535,
-   "item_field_va": 24.397524572260647,
-   "item_recall": 6.807426283218056,
-   "count_ok": 20.27027027027027,
-   "PFR": 98.64864864864865,
-   "SCR": 0.0,
-   "NR": 45.608108108108134
-  },
-  "qwen3_4b_stage_sft": {
-   "n": 74,
-   "header_va": 63.288288288288285,
-   "item_field_va": 19.06079359301056,
-   "item_recall": 8.88241718238078,
-   "count_ok": 29.72972972972973,
-   "PFR": 100.0,
-   "SCR": 0.0,
-   "NR": 44.03153153153158
-  },
-  "qwen3_4b_stage_sft_xgrammar": {
-   "n": 74,
-   "header_va": 62.16216216216216,
-   "item_field_va": 19.06807426283218,
-   "item_recall": 7.8995267564615945,
-   "count_ok": 25.675675675675674,
-   "PFR": 100.0,
-   "SCR": 95.94594594594594,
-   "NR": 4.054054054054054
-  }
- },
- "docubench_44": {
-  "base_nothink": {
-   "VA": 43.0,
-   "PFR": 97.7
-  },
-  "stage_sft": {
-   "VA": 45.6,
-   "PFR": 100.0
-  },
-  "stage_dialog_v2": {
-   "VA": 44.7,
-   "PFR": 97.7
   }
  }
 }

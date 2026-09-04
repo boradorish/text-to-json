@@ -156,13 +156,13 @@ def fig_dje():
 def fig_eb():
     eb = DATA["extractbench_194"]
     pairs = [("Qwen3-4B", "qwen3_base_nothink_free", "qwen3_sft_free"), ("Qwen2.5-3B", "qwen25_base_free", "qwen25_sft_free")]
-    # (a) parse success, all 194 and medium
+    # (a) schema compliance, all 194 and medium (parse success is ~100% for every Qwen3 condition after re-parsing)
     fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
     rows, base, stage = [], [], []
     for name, bk, sk in pairs:
         for split, key in (("all", "all194"), ("medium", "medium")):
-            rows.append(f"{name} {split}"); base.append(eb[bk][key]["PFR"]); stage.append(eb[sk][key]["PFR"])
-    dumbbell(ax, rows, base, stage, xlim=(0, 100), xlabel="Parse success (%)")
+            rows.append(f"{name} {split}"); base.append(eb[bk][key]["SCR"]); stage.append(eb[sk][key]["SCR"])
+    dumbbell(ax, rows, base, stage, xlim=(0, 100), xlabel="Schema compliance (%)")
     for i, s in enumerate(stage):
         ax.annotate(f"{s:.1f}", (max(base[i], s), len(rows) - 1 - i), xytext=(4, 0), textcoords="offset points", fontsize=5.4, va="center", ha="left")
     check_texts(fig, ax); finish(fig, OUT / "fig_eb_a.pdf")
