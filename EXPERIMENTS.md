@@ -969,6 +969,12 @@ span 매칭: 정규화 토큰 Jaccard ≥ 0.5 또는 길이비 ≥ 0.5의 포함
 
 **해석.** gold를 원문 그대로 두면 STAGE의 재현율은 base와 같고(75.3 vs 75.0) 날짜·관할 필드는 오히려 높다. 남는 차이는 정밀도(빈 필드 채움 96.6%: 없는 관할·당사자를 인접 문자열로 채움)뿐이다. 같은 문서군의 Kleister-NDA(canonical gold)에서 F1 75.8 vs 49.0으로 벌어졌던 격차는 **대부분 ISO 날짜·canonical 표기 변환 능력의 차이**였고, 모델의 span 위치 파악 능력 차이가 아니다. STAGE-Dialog는 채움을 72.4%로 낮춰 F1 66.7까지 회복하지만 base(70.5)에 못 미친다(party 재현율 하락). 모델 한계(coverage bias), 재평가 없음. → 부록 scope 문장 후보: "canonical 형식이 필요한 세트에서의 음성은 정규화 능력의 문제이며, 원문 span gold에서는 재현율이 base와 같다."
 
+### 정정 — 배열 필드 스키마의 설명문을 STAGE가 값으로 베낌 (프롬프트 형식 문제, v2로 재평가 중)
+
+RealKIE Charities v1(108건)에서 STAGE SFT 출력의 29.1%(54/108 문서), CUAD v1에서 25.7%(22/102 문서)가 스키마 설명문 조각이었다(`"charity_name": ["Charity Name", "every distinct span labeled 'Charity Name'", "verbatim"]`, CUAD의 `"Date"`). base는 0.3~2.0%, NDA는 0.4%. v1 설명문이 `"<라벨>: every distinct span labeled '<라벨>', verbatim"`, `"<카테고리>: <설명>"`처럼 따옴표로 감싼 라벨을 포함했고 STAGE는 스키마 설명 안의 따옴표 문자열을 값 후보로 취급한다(학습 데이터의 description에는 그런 형식이 없음). **판정: 모델 한계가 아니라 벤치마크 형식 문제** → 설명문을 평서문(`"Text of the charity name as it appears in the document"`, CUAD는 원래 상세 설명만)으로 바꾼 v2 파일(`*_v2.jsonl`)로 Charities·S-1·Resource Contracts·CUAD를 재평가한다(`rw_queue4.sh`, 출력 `outputs/realworld_v2/`). NDA는 echo가 없어 v1 결과 유지. **위 CUAD v1 표는 이 산물을 포함하므로 v2 결과로 교체 예정**(조각 출력의 일부는 echo, 일부는 진짜 짧은 값 prior — v2에서 분리).
+
+Charities v1 참고값(echo 포함, base vs SFT): span 재현율 66.5 vs 49.2, 정밀도 51.0 vs 25.3, 빈 필드 채움 58.0 vs 91.1.
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
