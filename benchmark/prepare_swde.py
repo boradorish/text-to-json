@@ -13,16 +13,20 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROMPT_PREFIX = "Extract the requested attributes from the web page text according to the JSON Schema. Copy values exactly as they appear in the page.\n\n"
+PROMPT_PREFIX = {"based-swde": "Extract the requested attributes from the web page text according to the JSON Schema. Copy values exactly as they appear in the page.\n\n",
+                 "based-fda": "Extract the requested fields from this excerpt of an FDA 510(k) decision summary according to the JSON Schema. Copy values exactly as they appear in the text.\n\n"}
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default="hazyresearch/based-swde")
     ap.add_argument("--cache-dir", default=None)
-    ap.add_argument("--output", type=Path, default=ROOT / "benchmark" / "data" / "realworld" / "swde_validation.jsonl")
+    ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--tokenizer", default=None)
     a = ap.parse_args()
+    tag = a.repo.split("/")[-1].replace("based-", "")
+    if a.output is None:
+        a.output = ROOT / "benchmark" / "data" / "realworld" / f"{tag}_validation.jsonl"
     from huggingface_hub import snapshot_download
     import pyarrow.parquet as pq
     p = snapshot_download(a.repo, repo_type="dataset", cache_dir=a.cache_dir)
@@ -46,11 +50,11 @@ def main() -> None:
     with a.output.open("w", encoding="utf-8") as fh:
         for i, (doc_id, d) in enumerate(docs.items()):
             schema = {"type": "object", "additionalProperties": False,
-                      "properties": {k: {"type": "string", "description": f"The page's '{k}' value, as printed"} for k in d["kv"]},
+                      "properties": {k: {"type": "string", "description": f"The {k} as printed"} for k in d["kv"]},
                       "required": list(d["kv"])}
             text = d["text"].lstrip("﻿")
-            prompt = f"{PROMPT_PREFIX}=== Report ===\n{text}\n\n=== JSON Schema ===\n{json.dumps(schema, ensure_ascii=False, indent=2)}"
-            rec = {"stem": f"swde_{i:03d}", "dataset": "swde_validation", "source_id": f"{d['doc_id']}:{doc_id}", "user_prompt": prompt,
+            prompt = f"{PROMPT_PREFIX.get(a.repo.split('/')[-1], PROMPT_PREFIX['based-swde'])}=== Report ===\n{text}\n\n=== JSON Schema ===\n{json.dumps(schema, ensure_ascii=False, indent=2)}"
+            rec = {"stem": f"{tag}_{i:04d}", "dataset": f"{tag}_validation", "source_id": f"{d['doc_id']}:{doc_id}", "user_prompt": prompt,
                    "gold_json": json.dumps(dict(d["kv"]), ensure_ascii=False), "json_schema": json.dumps(schema, ensure_ascii=False)}
             if tok is not None:
                 n = len(tok(prompt)["input_ids"]); rec["prompt_tokens"] = n; lengths.append(n)
