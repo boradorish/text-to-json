@@ -1057,6 +1057,18 @@ JATS XML을 독자가 보는 순서(제목·저자줄·소속·저널·키워드
 
 **해석.** 두 모델 모두 잘 하는 과제(base 참고문헌 레코드 재현율 81%). STAGE는 짧은 스칼라·키워드에서 +1~+4이지만 저자 필드가 −15인데, 원인은 **소속(affiliation) 문자열을 통째로 복사하지 않고 "연구실 / 학과 / 대학" 조각으로 쪼개는 것**(저자 소속 일치 base 56.2 vs SFT 4.4; 성·이름 일치는 93.8/96.7 vs 87.9/93.3). CUAD·Charities의 긴 passage 약점과 같은 "짧은 값 prior". 참고문헌은 46건 중 85%까지만 내는 조기 종료가 두 모델 공통(개수 비율 84.9 vs 85.7). 모델 한계, 재평가 없음, 부록 미반영.
 
+### 결과 — BASED FDA 510(k) 발췌 1,102건 (2k 토큰 창, 발췌당 1~2필드; 정규화 동률, 엄격 기준 음성, 2026-09-04)
+
+| 조건 | PFR | VA (정규화) | VA (엄격) |
+|---|---:|---:|---:|
+| base (thinking 끔) | 100 | 86.5 | **85.2** |
+| base + xgrammar | 100 | 86.4 | 85.0 |
+| STAGE SFT | 99.9 | **87.9** | 53.4 |
+| STAGE SFT + xgrammar | 100 | 88.0 | 53.2 |
+| + STAGE-Dialog v2 | 99.9 | 87.6 | 61.9 |
+
+정규화(대소문자·구두점 무시)로는 STAGE +1.4이지만 엄격 일치는 −31.8. STAGE 출력 1,102개 중 381개가 **쉼표·끝 마침표를 떼어낸 형태**("Automated, latex enhanced …" → "Automated latex enhanced …", 문장 끝 "." 제거)라 정확히 verbatim이 아니다(SWDE의 엄격 −4.5도 같은 원인). 학습 데이터 값 형식(문장부호 없는 짧은 값)의 흔적으로, 표기 형식이 채점에 들어가는 벤치마크에서는 감점 요인. 문서가 짧고 필드가 1~2개라 STAGE의 강점이 드러나지 않는 세트. 부록 미반영.
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
