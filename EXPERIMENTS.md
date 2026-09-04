@@ -975,6 +975,20 @@ RealKIE Charities v1(108건)에서 STAGE SFT 출력의 29.1%(54/108 문서), CUA
 
 Charities v1 참고값(echo 포함, base vs SFT): span 재현율 66.5 vs 49.2, 정밀도 51.0 vs 25.3, 빈 필드 채움 58.0 vs 91.1.
 
+### 결과 — RealKIE Charities 원본 108건 v2 (28클래스 배열, 원문 span gold; 혼합: STAGE-Dialog가 base 자유 디코딩을 넘고 base+xgrammar와 동률, 2026-09-04)
+
+| 조건 | PFR | span 정밀도 | span 재현율 | span F1 | presence 정확도 | 빈 필드 채움률 (↓) |
+|---|---:|---:|---:|---:|---:|---:|
+| base (thinking 끔) | 90.7 | 46.5 | 60.9 | 52.8 | 72.3 | 54.7 |
+| base + xgrammar | 100 | 47.6 | **67.4** | **55.8** | **76.4** | 59.6 |
+| STAGE SFT | 99.1 | 34.2 | 62.2 | 44.1 | 64.0 | 90.1 |
+| STAGE SFT + xgrammar | 100 | 34.4 | 64.1 | 44.8 | 64.7 | 90.5 |
+| + STAGE-Dialog v2 | 97.2 | **49.1** | 62.6 | 55.0 | 75.3 | **50.1** |
+
+설명문 echo는 v2에서 STAGE 2.0%(8/108 문서)로 감소(v1 29.1%). 길이 구간 재현율(base / SFT / Dialog): ≤4k(21) 65.7 / 70.1 / 66.4, 4–8k(45) 71.6 / 71.9 / 68.5, 8–16k(27) 58.5 / 63.8 / 63.9, 16–32k(14) 47.6 / 44.8 / 52.7 → 길이에 따른 뒤집힘 없음(전 구간 재현율 동률~우위).
+
+**해석.** (1) 원문 span gold에서 STAGE SFT의 재현율은 base 이상(62.2 vs 60.9)이고, 짧은 verbatim 값 필드는 뚜렷이 좋다: charity_name 77 → 83, year_ended 68 → 81, charity_registered_number 88 → 93. 반면 긴 서술 필드 objectives_and_activities는 62 → 42(정밀도 49 → 7)로 CUAD와 같은 "긴 passage 약점". (2) 정밀도 손실은 빈 필드 채움(90%)에서 오고, STAGE-Dialog가 이를 50.1%(base 54.7보다 낮음)로 내리면서 **F1 55.0으로 base 자유 디코딩(52.8)을 넘고 base+xgrammar(55.8)와 동률**이 된다. (3) 부록 반영 여부: 양성이라기엔 base+xgrammar와 동률이라 "coverage bias를 STAGE-Dialog가 교정하면 실세계 span 추출에서 base와 대등"이라는 scope 문장 + 표 후보(부록 G STAGE-Dialog 절에 한 문단).
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
