@@ -280,3 +280,42 @@ tab_rk = r"""
 \end{table}
 """
 write("tab_realkie.tex", tab_rk)
+
+# ---------------------------------------------------------------- Table (appendix): raw RealKIE span extraction (charities, NDA)
+sp = D["realkie_spans"]
+sp_rows = [
+    ("Qwen3-4B", "free", "base"),
+    ("Qwen3-4B", "xgrammar", "base_xgr"),
+    ("Qwen3-4B + \\method", "free", "sft"),
+    ("Qwen3-4B + \\method", "xgrammar", "sft_xgr"),
+    ("Qwen3-4B + \\method{} + \\method-Dialog", "free", "dialog"),
+]
+lines = []
+for model, dec, key in sp_rows:
+    c, n = sp["charities_v2"][key], sp["nda"][key]
+    assert c["n"] == 108 and n["n"] == 98, (c["n"], n["n"])
+    lines.append(f"{model} & {dec} & {f1(c['span_recall'])} & {f1(c['span_precision'])} & {f1(c['span_F1'])} & {f1(c['halluc_fill'])} & {f1(n['span_recall'])} & {f1(n['span_precision'])} & {f1(n['span_F1'])} & {f1(n['halluc_fill'])} \\\\")
+tab_sp = r"""
+\begin{table}[h]
+\CLAUDEcolor
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{llcccccccc}
+\toprule
+& & \multicolumn{4}{c}{\textbf{Charity reports} (108 docs, 28 fields)} & \multicolumn{4}{c}{\textbf{NDAs} (98 docs, 3 fields)} \\
+\cmidrule(lr){3-6}\cmidrule(lr){7-10}
+\textbf{Model} & \textbf{Decoding} & Recall$\uparrow$ & Prec.$\uparrow$ & F1$\uparrow$ & Fill$\downarrow$ & Recall$\uparrow$ & Prec.$\uparrow$ & F1$\uparrow$ & Fill$\downarrow$ \\
+\midrule
+""" + "\n".join(lines[:2]) + r"""
+\midrule
+""" + "\n".join(lines[2:4]) + r"""
+\midrule
+""" + lines[4] + r"""
+\bottomrule
+\end{tabular}
+\caption{\CLAUDE{\textbf{On real-world span extraction with verbatim gold, \method{} training keeps recall and the \method-Dialog continuation restores precision.} RealKIE charity annual reports (28 fields, median 6.7k tokens, up to 34k) and non-disclosure agreements (3 fields, median 3.6k tokens), test splits, every field an array of the document's verbatim spans (empty when absent). A predicted span matches a gold span of the same field when their normalized token sets have Jaccard $\geq 0.5$; recall and precision are micro-averaged over spans; Fill is the share of empty gold fields given a value. Qwen3-4B runs with thinking disabled.}}
+\label{tab:app_realkie_spans}
+\end{table}
+"""
+write("tab_realkie_spans.tex", tab_sp)

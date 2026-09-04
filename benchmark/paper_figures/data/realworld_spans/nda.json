@@ -1,0 +1,452 @@
+{
+  "base": {
+    "all": {
+      "n": 98,
+      "PFR": 1.0,
+      "SCR": 1.0,
+      "span_precision": 0.6651162790697674,
+      "span_recall": 0.75,
+      "span_F1": 0.7050123253903039,
+      "presence_acc": 0.9149659863945578,
+      "halluc_fill": 0.6206896551724138,
+      "gold_spans": 376,
+      "pred_spans": 430
+    },
+    "buckets": {
+      "0-4k": {
+        "n": 63,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.6380597014925373,
+        "span_recall": 0.7245762711864406,
+        "span_F1": 0.6785714285714286,
+        "presence_acc": 0.8941798941798942,
+        "halluc_fill": 0.56,
+        "gold_spans": 236,
+        "pred_spans": 268
+      },
+      "4-8k": {
+        "n": 31,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.7266187050359713,
+        "span_recall": 0.8114754098360656,
+        "span_F1": 0.7667062837863743,
+        "presence_acc": 0.956989247311828,
+        "halluc_fill": 1.0,
+        "gold_spans": 122,
+        "pred_spans": 139
+      },
+      "8-16k": {
+        "n": 4,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.6086956521739131,
+        "span_recall": 0.6666666666666666,
+        "span_F1": 0.6363636363636365,
+        "presence_acc": 0.9166666666666666,
+        "halluc_fill": 1.0,
+        "gold_spans": 18,
+        "pred_spans": 23
+      }
+    },
+    "fields": {
+      "effective_date": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.6857142857142857,
+        "span_recall": 0.8235294117647058,
+        "span_F1": 0.7483296213808464,
+        "presence_acc": 0.826530612244898,
+        "halluc_fill": 0.7,
+        "gold_spans": 85,
+        "pred_spans": 105
+      },
+      "jurisdiction": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.39603960396039606,
+        "span_recall": 0.43820224719101125,
+        "span_F1": 0.4160554740632084,
+        "presence_acc": 0.9387755102040817,
+        "halluc_fill": 0.4444444444444444,
+        "gold_spans": 89,
+        "pred_spans": 101
+      },
+      "party": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.7767857142857143,
+        "span_recall": 0.8564356435643564,
+        "span_F1": 0.8146684709066305,
+        "presence_acc": 0.9795918367346939,
+        "halluc_fill": 0.0,
+        "gold_spans": 202,
+        "pred_spans": 224
+      }
+    }
+  },
+  "base_xgr": {
+    "all": {
+      "n": 98,
+      "PFR": 1.0,
+      "SCR": 1.0,
+      "span_precision": 0.6674418604651163,
+      "span_recall": 0.7526595744680851,
+      "span_F1": 0.7074938371616972,
+      "presence_acc": 0.9149659863945578,
+      "halluc_fill": 0.6206896551724138,
+      "gold_spans": 376,
+      "pred_spans": 430
+    },
+    "buckets": {
+      "0-4k": {
+        "n": 63,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.6417910447761194,
+        "span_recall": 0.7288135593220338,
+        "span_F1": 0.6825396825396826,
+        "presence_acc": 0.8941798941798942,
+        "halluc_fill": 0.56,
+        "gold_spans": 236,
+        "pred_spans": 268
+      },
+      "4-8k": {
+        "n": 31,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.7266187050359713,
+        "span_recall": 0.8114754098360656,
+        "span_F1": 0.7667062837863743,
+        "presence_acc": 0.956989247311828,
+        "halluc_fill": 1.0,
+        "gold_spans": 122,
+        "pred_spans": 139
+      },
+      "8-16k": {
+        "n": 4,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.6086956521739131,
+        "span_recall": 0.6666666666666666,
+        "span_F1": 0.6363636363636365,
+        "presence_acc": 0.9166666666666666,
+        "halluc_fill": 1.0,
+        "gold_spans": 18,
+        "pred_spans": 23
+      }
+    },
+    "fields": {
+      "effective_date": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.6857142857142857,
+        "span_recall": 0.8235294117647058,
+        "span_F1": 0.7483296213808464,
+        "presence_acc": 0.826530612244898,
+        "halluc_fill": 0.7,
+        "gold_spans": 85,
+        "pred_spans": 105
+      },
+      "jurisdiction": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.40594059405940597,
+        "span_recall": 0.449438202247191,
+        "span_F1": 0.4265834308752764,
+        "presence_acc": 0.9387755102040817,
+        "halluc_fill": 0.4444444444444444,
+        "gold_spans": 89,
+        "pred_spans": 101
+      },
+      "party": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.7767857142857143,
+        "span_recall": 0.8564356435643564,
+        "span_F1": 0.8146684709066305,
+        "presence_acc": 0.9795918367346939,
+        "halluc_fill": 0.0,
+        "gold_spans": 202,
+        "pred_spans": 224
+      }
+    }
+  },
+  "sft": {
+    "all": {
+      "n": 98,
+      "PFR": 0.9897959183673469,
+      "SCR": 0.9897959183673469,
+      "span_precision": 0.5272727272727272,
+      "span_recall": 0.7526595744680851,
+      "span_F1": 0.6201216517435489,
+      "presence_acc": 0.8979591836734694,
+      "halluc_fill": 0.9655172413793104,
+      "gold_spans": 376,
+      "pred_spans": 550
+    },
+    "buckets": {
+      "0-4k": {
+        "n": 63,
+        "PFR": 0.9841269841269841,
+        "SCR": 0.9841269841269841,
+        "span_precision": 0.5180722891566265,
+        "span_recall": 0.7288135593220338,
+        "span_F1": 0.6056338028169013,
+        "presence_acc": 0.8624338624338624,
+        "halluc_fill": 0.96,
+        "gold_spans": 236,
+        "pred_spans": 332
+      },
+      "4-8k": {
+        "n": 31,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.5260416666666666,
+        "span_recall": 0.7950819672131147,
+        "span_F1": 0.6331674529826149,
+        "presence_acc": 0.967741935483871,
+        "halluc_fill": 1.0,
+        "gold_spans": 122,
+        "pred_spans": 192
+      },
+      "8-16k": {
+        "n": 4,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.6538461538461539,
+        "span_recall": 0.7777777777777778,
+        "span_F1": 0.7104477611940297,
+        "presence_acc": 0.9166666666666666,
+        "halluc_fill": 1.0,
+        "gold_spans": 18,
+        "pred_spans": 26
+      }
+    },
+    "fields": {
+      "effective_date": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.5658914728682171,
+        "span_recall": 0.8352941176470589,
+        "span_F1": 0.6746940900807081,
+        "presence_acc": 0.8061224489795918,
+        "halluc_fill": 0.95,
+        "gold_spans": 85,
+        "pred_spans": 129
+      },
+      "jurisdiction": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.38524590163934425,
+        "span_recall": 0.5056179775280899,
+        "span_F1": 0.43729970019642306,
+        "presence_acc": 0.8979591836734694,
+        "halluc_fill": 1.0,
+        "gold_spans": 89,
+        "pred_spans": 122
+      },
+      "party": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.568561872909699,
+        "span_recall": 0.8267326732673267,
+        "span_F1": 0.6737626523323009,
+        "presence_acc": 0.9897959183673469,
+        "halluc_fill": 0.0,
+        "gold_spans": 202,
+        "pred_spans": 299
+      }
+    }
+  },
+  "sft_xgr": {
+    "all": {
+      "n": 98,
+      "PFR": 0.9897959183673469,
+      "SCR": 0.9897959183673469,
+      "span_precision": 0.5282331511839709,
+      "span_recall": 0.7526595744680851,
+      "span_F1": 0.6207853801147473,
+      "presence_acc": 0.8979591836734694,
+      "halluc_fill": 0.9655172413793104,
+      "gold_spans": 376,
+      "pred_spans": 549
+    },
+    "buckets": {
+      "0-4k": {
+        "n": 63,
+        "PFR": 0.9841269841269841,
+        "SCR": 0.9841269841269841,
+        "span_precision": 0.5180722891566265,
+        "span_recall": 0.7288135593220338,
+        "span_F1": 0.6056338028169013,
+        "presence_acc": 0.8624338624338624,
+        "halluc_fill": 0.96,
+        "gold_spans": 236,
+        "pred_spans": 332
+      },
+      "4-8k": {
+        "n": 31,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.5287958115183246,
+        "span_recall": 0.7950819672131147,
+        "span_F1": 0.6351583519725112,
+        "presence_acc": 0.967741935483871,
+        "halluc_fill": 1.0,
+        "gold_spans": 122,
+        "pred_spans": 191
+      },
+      "8-16k": {
+        "n": 4,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.6538461538461539,
+        "span_recall": 0.7777777777777778,
+        "span_F1": 0.7104477611940297,
+        "presence_acc": 0.9166666666666666,
+        "halluc_fill": 1.0,
+        "gold_spans": 18,
+        "pred_spans": 26
+      }
+    },
+    "fields": {
+      "effective_date": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.5658914728682171,
+        "span_recall": 0.8352941176470589,
+        "span_F1": 0.6746940900807081,
+        "presence_acc": 0.8061224489795918,
+        "halluc_fill": 0.95,
+        "gold_spans": 85,
+        "pred_spans": 129
+      },
+      "jurisdiction": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.38524590163934425,
+        "span_recall": 0.5056179775280899,
+        "span_F1": 0.43729970019642306,
+        "presence_acc": 0.8979591836734694,
+        "halluc_fill": 1.0,
+        "gold_spans": 89,
+        "pred_spans": 122
+      },
+      "party": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.5704697986577181,
+        "span_recall": 0.8267326732673267,
+        "span_F1": 0.6751004684564715,
+        "presence_acc": 0.9897959183673469,
+        "halluc_fill": 0.0,
+        "gold_spans": 202,
+        "pred_spans": 298
+      }
+    }
+  },
+  "dialog": {
+    "all": {
+      "n": 98,
+      "PFR": 0.9897959183673469,
+      "SCR": 0.9897959183673469,
+      "span_precision": 0.5995850622406639,
+      "span_recall": 0.7526595744680851,
+      "span_F1": 0.6674582772269146,
+      "presence_acc": 0.9183673469387755,
+      "halluc_fill": 0.7241379310344828,
+      "gold_spans": 376,
+      "pred_spans": 482
+    },
+    "buckets": {
+      "0-4k": {
+        "n": 63,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.5463258785942492,
+        "span_recall": 0.7288135593220338,
+        "span_F1": 0.624511635807712,
+        "presence_acc": 0.91005291005291,
+        "halluc_fill": 0.68,
+        "gold_spans": 236,
+        "pred_spans": 313
+      },
+      "4-8k": {
+        "n": 31,
+        "PFR": 0.967741935483871,
+        "SCR": 0.967741935483871,
+        "span_precision": 0.7172413793103448,
+        "span_recall": 0.8114754098360656,
+        "span_F1": 0.7614539806974079,
+        "presence_acc": 0.9354838709677419,
+        "halluc_fill": 1.0,
+        "gold_spans": 122,
+        "pred_spans": 145
+      },
+      "8-16k": {
+        "n": 4,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "span_precision": 0.5833333333333334,
+        "span_recall": 0.6666666666666666,
+        "span_F1": 0.6222222222222222,
+        "presence_acc": 0.9166666666666666,
+        "halluc_fill": 1.0,
+        "gold_spans": 18,
+        "pred_spans": 24
+      }
+    },
+    "fields": {
+      "effective_date": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.7307692307692307,
+        "span_recall": 0.8705882352941177,
+        "span_F1": 0.7945747386267307,
+        "presence_acc": 0.8469387755102041,
+        "halluc_fill": 0.7,
+        "gold_spans": 85,
+        "pred_spans": 104
+      },
+      "jurisdiction": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.39849624060150374,
+        "span_recall": 0.5617977528089888,
+        "span_F1": 0.46626198645201017,
+        "presence_acc": 0.9183673469387755,
+        "halluc_fill": 0.7777777777777778,
+        "gold_spans": 89,
+        "pred_spans": 133
+      },
+      "party": {
+        "n": 0,
+        "PFR": 0.0,
+        "SCR": 0.0,
+        "span_precision": 0.6530612244897959,
+        "span_recall": 0.7871287128712872,
+        "span_F1": 0.7138547877937564,
+        "presence_acc": 0.9897959183673469,
+        "halluc_fill": 0.0,
+        "gold_spans": 202,
+        "pred_spans": 245
+      }
+    }
+  }
+}

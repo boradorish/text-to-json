@@ -1579,5 +1579,132 @@
     "NR": 31.57894736842105
    }
   }
+ },
+ "realkie_spans": {
+  "charities_v2": {
+   "base": {
+    "n": 108,
+    "PFR": 90.74074074074075,
+    "SCR": 90.74074074074075,
+    "span_precision": 46.51944311089775,
+    "span_recall": 60.925874896665746,
+    "span_F1": 52.75684085252747,
+    "presence_acc": 72.32142857142857,
+    "halluc_fill": 54.67009425878321,
+    "gold_spans": 3629,
+    "pred_spans": 4166
+   },
+   "base_xgr": {
+    "n": 108,
+    "PFR": 100.0,
+    "SCR": 100.0,
+    "span_precision": 47.5968992248062,
+    "span_recall": 67.37393221273078,
+    "span_F1": 55.78441456519349,
+    "presence_acc": 76.38888888888889,
+    "halluc_fill": 59.6401028277635,
+    "gold_spans": 3629,
+    "pred_spans": 4515
+   },
+   "sft": {
+    "n": 108,
+    "PFR": 99.07407407407408,
+    "SCR": 99.07407407407408,
+    "span_precision": 34.17656169334022,
+    "span_recall": 62.22099751997796,
+    "span_F1": 44.119369364051295,
+    "presence_acc": 64.02116402116403,
+    "halluc_fill": 90.14567266495287,
+    "gold_spans": 3629,
+    "pred_spans": 5811
+   },
+   "sft_xgr": {
+    "n": 108,
+    "PFR": 100.0,
+    "SCR": 100.0,
+    "span_precision": 34.3823234014061,
+    "span_recall": 64.12234775420225,
+    "span_F1": 44.76285788030642,
+    "presence_acc": 64.68253968253968,
+    "halluc_fill": 90.48843187660668,
+    "gold_spans": 3629,
+    "pred_spans": 5974
+   },
+   "dialog": {
+    "n": 108,
+    "PFR": 97.22222222222221,
+    "SCR": 97.22222222222221,
+    "span_precision": 49.0622655663916,
+    "span_recall": 62.606778726922016,
+    "span_F1": 55.01310454647608,
+    "presence_acc": 75.26455026455027,
+    "halluc_fill": 50.128534704370175,
+    "gold_spans": 3629,
+    "pred_spans": 3999
+   }
+  },
+  "nda": {
+   "base": {
+    "n": 98,
+    "PFR": 100.0,
+    "SCR": 100.0,
+    "span_precision": 66.51162790697674,
+    "span_recall": 75.0,
+    "span_F1": 70.50123253903038,
+    "presence_acc": 91.49659863945578,
+    "halluc_fill": 62.06896551724138,
+    "gold_spans": 376,
+    "pred_spans": 430
+   },
+   "base_xgr": {
+    "n": 98,
+    "PFR": 100.0,
+    "SCR": 100.0,
+    "span_precision": 66.74418604651163,
+    "span_recall": 75.2659574468085,
+    "span_F1": 70.74938371616972,
+    "presence_acc": 91.49659863945578,
+    "halluc_fill": 62.06896551724138,
+    "gold_spans": 376,
+    "pred_spans": 430
+   },
+   "sft": {
+    "n": 98,
+    "PFR": 98.9795918367347,
+    "SCR": 98.9795918367347,
+    "span_precision": 52.72727272727272,
+    "span_recall": 75.2659574468085,
+    "span_F1": 62.01216517435489,
+    "presence_acc": 89.79591836734694,
+    "halluc_fill": 96.55172413793103,
+    "gold_spans": 376,
+    "pred_spans": 550
+   },
+   "sft_xgr": {
+    "n": 98,
+    "PFR": 98.9795918367347,
+    "SCR": 98.9795918367347,
+    "span_precision": 52.82331511839708,
+    "span_recall": 75.2659574468085,
+    "span_F1": 62.07853801147473,
+    "presence_acc": 89.79591836734694,
+    "halluc_fill": 96.55172413793103,
+    "gold_spans": 376,
+    "pred_spans": 549
+   },
+   "dialog": {
+    "n": 98,
+    "PFR": 98.9795918367347,
+    "SCR": 98.9795918367347,
+    "span_precision": 59.95850622406639,
+    "span_recall": 75.2659574468085,
+    "span_F1": 66.74582772269146,
+    "presence_acc": 91.83673469387756,
+    "halluc_fill": 72.41379310344827,
+    "gold_spans": 376,
+    "pred_spans": 482
+   }
+  },
+  "_note": "Raw RealKIE releases (Indico bucket CSVs), test split, verbatim character-span gold turned into array-of-string fields per class; scored with benchmark/score_cuad.py (normalized Jaccard>=0.5 span match). charities_v2 uses plain field descriptions (v1 descriptions were echoed by the STAGE model); nda uses v1 (no echo). Built 2026-09-04 on the pod from outputs/realworld_v2/score_cha.json and outputs/realworld_realkie_raw/score_nda.json."
  }
 }
