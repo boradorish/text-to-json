@@ -1084,6 +1084,20 @@ JATS XML을 독자가 보는 순서(제목·저자줄·소속·저널·키워드
 
 **해석.** SGD와 같은 그림의 절반만 재현된다. STAGE SFT의 coverage bias 붕괴(standard 7.6, 환각 71%)와 STAGE-Dialog의 회복(62.6, +55)은 그대로지만, MultiWOZ는 5개 도메인 슬롯이 단순해 thinking 끈 base가 이미 60~64, thinking base가 75~78이라 **STAGE-Dialog는 standard 형식에서 thinking 끈 base를 2.2 넘고 explicit에서는 9.4 못 미치며, thinking base에는 두 형식 모두 미달**(SGD에서는 thinking base도 넘었음). 즉 STAGE-Dialog의 "교정"은 SGD 밖 대화에서도 성립하지만 "base 초과"는 SGD 특유(미지 서비스 절반, 복잡한 슬롯)의 결과. 부록 G에 범위 한정 문장으로 반영(양성 주장 과장 방지).
 
+### 결과 — SciREX 살리언트 엔터티 132편 (논문 전문, datasets/methods/metrics/tasks 배열; 약한 음성, 2026-09-05)
+
+전문가가 표시한 살리언트 엔터티 클러스터(편당 5.5개, 731개)를 gold로, 모든 언급 형태를 대체 정답으로 인정. `benchmark/prepare_scirex.py`, `score_scirex.py`. 프롬프트 p50 6.4k / 최대 17k 토큰.
+
+| 조건 | PFR | 엔터티 재현율 | 정밀도 (살리언트 기준) | 정밀도 (논문 내 언급 기준) | F1 (관대) |
+|---|---:|---:|---:|---:|---:|
+| base (thinking 끔) | 100 | **81.3** | 25.7 | **81.9** | **81.6** |
+| base + xgrammar | 100 | 81.1 | 25.7 | 82.0 | 81.6 |
+| STAGE SFT | 97.7 | 75.2 | 25.5 | 76.5 | 75.8 |
+| STAGE SFT + xgrammar | 98.5 | 75.5 | 25.2 | 75.9 | 75.7 |
+| + STAGE-Dialog v2 | 100 | 67.2 | **29.8** | 81.4 | 73.6 |
+
+유형별 재현율(base → SFT): datasets 88.8 → 82.6, methods 77.4 → 69.6, metrics 72.3 → 69.8, tasks 82.1 → 74.5. 길이 구간 재현율(base / SFT): ≤8k(105) 80.0 / 74.9, 8–12k(23) 86.0 / 77.0 → 전 구간 음성, 길이 무관. 두 모델 모두 편당 19개를 내서 살리언트 정밀도는 26%로 같다(살리언트 판단은 둘 다 못 함). STAGE의 −6은 언급이 아닌 문자열(논문에 없는 이름)을 더 낸 것(논문 내 언급 기준 정밀도 81.9 → 76.5). STAGE-Dialog는 출력을 줄여 살리언트 정밀도는 올리지만 재현율이 더 떨어진다. 모델 한계, 부록 미반영.
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
