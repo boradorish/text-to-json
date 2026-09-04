@@ -48,7 +48,15 @@ def meanstd_row(label_regex: str, block: str) -> list[float]:
 
 def table_block(label: str) -> str:
     i = TEX.index(f"\\label{{{label}}}"); j = TEX.rfind("\\begin{tabular}", 0, i)
-    return TEX[j:i]
+    block = TEX[j:i]
+    # join rows that were wrapped after a column separator ("Qwen3-4B &" NEWLINE "\\meanstd...")
+    out = []
+    for line in block.splitlines():
+        if out and out[-1].rstrip().endswith("&") and not out[-1].lstrip().startswith("%"):
+            out[-1] = out[-1].rstrip() + " " + line.strip()
+        else:
+            out.append(line)
+    return "\n".join(out)
 
 
 T1 = table_block("tab:results")            # cols: dje format, detailed, strict | PFR EMR SCR NR VA
