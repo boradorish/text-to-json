@@ -207,3 +207,40 @@ Effective batch size / max length & 16 / 6,144 tokens \\
 \end{table}
 """
 write("tab_dialog_setting.tex", tab_train)
+
+# ---------------------------------------------------------------- Table (main text): accuracy + cost in one compact table
+main_rows = [
+    ("Qwen3-4B", "free", "base_nothink_free", "base_nothink_free"),
+    ("Qwen3-4B", "xgrammar", "base_nothink_xgrammar", "base_nothink_xgrammar"),
+    ("Qwen3-4B + \\method", "free", "stage_sft_free", "sft_free"),
+    ("Qwen3-4B + \\method", "xgrammar", "stage_sft_xgrammar", "sft_xgrammar"),
+]
+lines = []
+for model, dec, sekey, ckey in main_rows:
+    m = se[sekey]["compat798"]
+    cells = [f1(100 - m["PFR"]), f1(m["EMR"]), f1(m["SCR"]), f1(m["VA"]), c(ckey, "warm", 1, "latency_median_seconds"), c(ckey, "throughput", 32, "examples_per_second")]
+    if sekey == "stage_sft_free":
+        cells = [f"\\textbf{{{x}}}" for x in cells]
+    lines.append(f"{model} & {dec} & " + " & ".join(cells) + " \\\\")
+tab_main = r"""
+\begin{table}[t]
+\CLAUDEcolor
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{llcccc|cc}
+\toprule
+ & & \multicolumn{4}{c|}{\bench{} (798 xgrammar-compatible schemas)} & \multicolumn{2}{c}{Cost (1 H200)} \\
+\cmidrule(lr){3-6} \cmidrule(lr){7-8}
+\textbf{Model} & \textbf{Decoding} & PFR$\downarrow$ & EMR$\uparrow$ & SCR$\uparrow$ & VA$\uparrow$ & \shortstack{Latency (s)\\batch 1} & \shortstack{Throughput\\ex/s, batch 32} \\
+\midrule
+""" + "\n".join(lines[:2]) + r"""
+\midrule
+""" + "\n".join(lines[2:]) + r"""
+\bottomrule
+\end{tabular}
+\caption{\CLAUDE{\textbf{Grammar-constrained decoding fixes structure but not values; \method{} training fixes both at no inference-time cost.} \bench{} restricted to the 798 of 851 schemas that vLLM's xgrammar backend compiles, thinking disabled for the untrained model; latency is the warm-cache median. Full metrics, cold-cache latency, and grammar compile time are in Appendix~\ref{app:constrained}.}}
+\label{tab:main_constrained}
+\end{table}
+"""
+write("tab_main_constrained.tex", tab_main)
