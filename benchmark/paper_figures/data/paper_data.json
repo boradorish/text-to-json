@@ -1706,5 +1706,92 @@
    }
   },
   "_note": "Raw RealKIE releases (Indico bucket CSVs), test split, verbatim character-span gold turned into array-of-string fields per class; scored with benchmark/score_cuad.py (normalized Jaccard>=0.5 span match). charities_v2 uses plain field descriptions (v1 descriptions were echoed by the STAGE model); nda uses v1 (no echo). Built 2026-09-04 on the pod from outputs/realworld_v2/score_cha.json and outputs/realworld_realkie_raw/score_nda.json."
+ },
+ "multiwoz22_1631": {
+  "explicit_base_nothink": {
+   "joint_goal_accuracy": 64.3,
+   "hallucinated_slot_rate": 16.1,
+   "missing_slot_rate": 5.4,
+   "parse_failure": 0.0,
+   "samples": 1631
+  },
+  "explicit_base_think": {
+   "joint_goal_accuracy": 74.6,
+   "hallucinated_slot_rate": 10.6,
+   "missing_slot_rate": 2.1,
+   "parse_failure": 0.2,
+   "samples": 1631
+  },
+  "explicit_base_nothink_xgr": {
+   "joint_goal_accuracy": 64.5,
+   "hallucinated_slot_rate": 16.0,
+   "missing_slot_rate": 5.4,
+   "parse_failure": 0.0,
+   "samples": 1631
+  },
+  "explicit_stage_sft": {
+   "joint_goal_accuracy": 28.6,
+   "hallucinated_slot_rate": 32.2,
+   "missing_slot_rate": 20.8,
+   "parse_failure": 0.0,
+   "samples": 1631
+  },
+  "explicit_stage_sft_xgr": {
+   "joint_goal_accuracy": 28.5,
+   "hallucinated_slot_rate": 32.2,
+   "missing_slot_rate": 20.9,
+   "parse_failure": 0.0,
+   "samples": 1631
+  },
+  "explicit_stage_dialog_v2": {
+   "joint_goal_accuracy": 54.9,
+   "hallucinated_slot_rate": 21.5,
+   "missing_slot_rate": 9.6,
+   "parse_failure": 0.0,
+   "samples": 1631
+  },
+  "standard_base_nothink": {
+   "joint_goal_accuracy": 60.4,
+   "hallucinated_slot_rate": 18.2,
+   "missing_slot_rate": 5.5,
+   "parse_failure": 0.0,
+   "samples": 1631
+  },
+  "standard_base_think": {
+   "joint_goal_accuracy": 78.1,
+   "hallucinated_slot_rate": 8.7,
+   "missing_slot_rate": 2.5,
+   "parse_failure": 0.3,
+   "samples": 1631
+  },
+  "standard_base_nothink_xgr": {
+   "joint_goal_accuracy": 55.3,
+   "hallucinated_slot_rate": 22.8,
+   "missing_slot_rate": 10.7,
+   "parse_failure": 0.0,
+   "samples": 1631
+  },
+  "standard_stage_sft": {
+   "joint_goal_accuracy": 7.6,
+   "hallucinated_slot_rate": 71.4,
+   "missing_slot_rate": 1.6,
+   "parse_failure": 0.1,
+   "samples": 1631
+  },
+  "standard_stage_sft_xgr": {
+   "joint_goal_accuracy": 7.3,
+   "hallucinated_slot_rate": 71.1,
+   "missing_slot_rate": 3.6,
+   "parse_failure": 0.1,
+   "samples": 1631
+  },
+  "standard_stage_dialog_v2": {
+   "joint_goal_accuracy": 62.6,
+   "hallucinated_slot_rate": 18.0,
+   "missing_slot_rate": 8.7,
+   "parse_failure": 0.0,
+   "samples": 1631
+  },
+  "_note": "MultiWOZ 2.2 test, SGD protocol (latest-user-grounded filter, full history), all 1,631 eligible turns; official SGD metric via evaluate_sgd.py; outputs/multiwoz22/summary.txt (2026-09-05). Percent units."
  }
 }

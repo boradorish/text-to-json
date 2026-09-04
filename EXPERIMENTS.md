@@ -1069,6 +1069,21 @@ JATS XML을 독자가 보는 순서(제목·저자줄·소속·저널·키워드
 
 정규화(대소문자·구두점 무시)로는 STAGE +1.4이지만 엄격 일치는 −31.8. STAGE 출력 1,102개 중 381개가 **쉼표·끝 마침표를 떼어낸 형태**("Automated, latex enhanced …" → "Automated latex enhanced …", 문장 끝 "." 제거)라 정확히 verbatim이 아니다(SWDE의 엄격 −4.5도 같은 원인). 학습 데이터 값 형식(문장부호 없는 짧은 값)의 흔적으로, 표기 형식이 채점에 들어가는 벤치마크에서는 감점 요인. 문서가 짧고 필드가 1~2개라 STAGE의 강점이 드러나지 않는 세트. 부록 미반영.
 
+### 결과 — MultiWOZ 2.2 대화 상태 추적 1,631턴 (SGD 프로토콜 그대로; STAGE-Dialog가 SFT 붕괴를 회복해 thinking 끈 base와 동률, thinking base에는 미달, 2026-09-05)
+
+실제 사람-사람(Wizard-of-Oz) 대화. MultiWOZ 2.2는 SGD 형식으로 배포되므로 `prepare_sgd.py --sgd-root /mnt/nvme/cache/interns/multiwoz22`로 SGD와 같은 설정(최신 사용자 발화 grounded 필터, 전체 이력 문맥, explicit/standard 두 형식)을 적용했다. 적격 턴이 1,631개라 전부 사용(train 472 / restaurant 421 / attraction 400 / hotel 266 / taxi 72). 채점은 공식 SGD metric(`evaluate_sgd.py`). 출력 `outputs/multiwoz22/`, 요약 `summary.txt`.
+
+| 조건 | explicit JGA / 환각 슬롯 | standard JGA / 환각 슬롯 |
+|---|---:|---:|
+| base Qwen3-4B (thinking) | **74.6** / 10.6 | **78.1** / 8.7 |
+| base (thinking 끔) | 64.3 / 16.1 | 60.4 / 18.2 |
+| base (thinking 끔) + xgrammar | 64.5 / 16.0 | 55.3 / 22.8 |
+| STAGE SFT | 28.6 / 32.2 | 7.6 / 71.4 |
+| STAGE SFT + xgrammar | 28.5 / 32.2 | 7.3 / 71.1 |
+| STAGE SFT + STAGE-Dialog v2 | 54.9 / 21.5 | 62.6 / 18.0 |
+
+**해석.** SGD와 같은 그림의 절반만 재현된다. STAGE SFT의 coverage bias 붕괴(standard 7.6, 환각 71%)와 STAGE-Dialog의 회복(62.6, +55)은 그대로지만, MultiWOZ는 5개 도메인 슬롯이 단순해 thinking 끈 base가 이미 60~64, thinking base가 75~78이라 **STAGE-Dialog는 standard 형식에서 thinking 끈 base를 2.2 넘고 explicit에서는 9.4 못 미치며, thinking base에는 두 형식 모두 미달**(SGD에서는 thinking base도 넘었음). 즉 STAGE-Dialog의 "교정"은 SGD 밖 대화에서도 성립하지만 "base 초과"는 SGD 특유(미지 서비스 절반, 복잡한 슬롯)의 결과. 부록 G에 범위 한정 문장으로 반영(양성 주장 과장 방지).
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
