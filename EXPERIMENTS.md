@@ -933,6 +933,10 @@ ExtractBench 237건을 131k YaRN으로 재실행하니 32k 이하 구간의 PFR�
 - *헤더*: `tv_address` 35 → 24(주소를 여러 줄로 이어 붙이거나 다른 주소를 고름), `advertiser` 76 → 68. 나머지 7개 필드는 ±3 이내.
 - 채점 주의: VRDU gold 품목은 문서의 모든 행을 담지 않는 경우가 있어(예: 0001번 gold 2행) 품목 정밀도는 과소 추정된다. 재현율만 해석에 사용.
 
+### 결과 — VRDU registration-form 1,915건 (약한 음성, 2026-09-04)
+
+평면 6필드, 96%가 2k 토큰 이하. 헤더 VA: base 81.9 (xgrammar 81.9), STAGE SFT 79.3 (xgrammar 79.3), STAGE-Dialog 78.7. 부재 필드 채움률: base 77.4, SFT 99.5, Dialog 47.0. PFR·SCR은 전 조건 ≈100. 길이 구간(≤2k 1,842건 / 2–4k 73건)에서 모두 base가 2~3포인트 앞선다. → 짧고 단순한 서식은 base가 이미 잘 하고 STAGE는 빈 필드를 채우는 습관만 더한다. STAGE 모델 자체 문제(coverage bias), 재평가 없음. 부록 미반영.
+
 ### 새 데이터셋 (변환 완료, 추론 큐 `rw_queue.sh` 실행 중, 출력 `outputs/realworld_vrdu_cuad/`)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
