@@ -230,7 +230,7 @@ tab_main = r"""
 \setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{llcccc|cc}
 \toprule
- & & \multicolumn{4}{c|}{\bench{} (798 xgrammar-compatible schemas)} & \multicolumn{2}{c}{Cost (1 H200)} \\
+ & & \multicolumn{4}{c|}{\bench{} (798 schemas)} & \multicolumn{2}{c}{Cost (1 H200)} \\
 \cmidrule(lr){3-6} \cmidrule(lr){7-8}
 \textbf{Model} & \textbf{Decoding} & PFR$\downarrow$ & EMR$\uparrow$ & SCR$\uparrow$ & VA$\uparrow$ & \shortstack{Latency (s)\\batch 1} & \shortstack{Throughput\\ex/s, batch 32} \\
 \midrule
