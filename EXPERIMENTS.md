@@ -1025,6 +1025,20 @@ Charities v1 참고값(echo 포함, base vs SFT): span 재현율 66.5 vs 49.2, �
 
 길이 구간 재현율(base / SFT): 4–8k(2) 52.4 / 28.6, 8–16k(4) 43.4 / 44.7, 16–32k(9) 16.8 / 21.7, 32–64k(19) 3.4 / 3.4, >64k(6) 0 / 0. **해석.** 계약서 85쪽 평균의 장문 + 긴 조항 span(reporting requirements 등)이라 base도 재현율 7.5%로 과제 자체가 4B 모델 능력 밖. STAGE는 파싱(50 → 87.5)과 32k 초과에서의 구조 유지(ExtractBench 131k와 같은 방향)는 낫지만 빈 필드 채움 63%로 정밀도가 무너진다. STAGE-Dialog는 재현율 13.8·presence 78.9로 가장 높지만 F1은 base 수준(10.8 vs 11.4). 결론: 판정 불가(양쪽 모두 바닥), 부록 미반영. 필요하면 Limitations의 "50k 토큰 이상 문서" 문장 근거.
 
+### 결과 — SWDE validation 1,111페이지 (페이지당 1속성, 짧음; 동률, STAGE-Dialog 소폭 양성, 2026-09-04)
+
+**데이터 정정.** `hazyresearch/based-swde`의 `doc_id`·`file_name`은 사이트 간에 중복되어(id0484가 영화 페이지이자 대학 페이지) 1차 변환에서 서로 다른 페이지의 키가 한 문서로 합쳐졌다(전 조건 VA ≈ 21). 페이지 텍스트 해시로 다시 묶으니 1,111행이 모두 별개 페이지(각 1개 속성)였다 → 파싱 문제로 분류, 수정 후 재평가(`outputs/realworld_swde_bad_grouping/`에 1차 보존).
+
+| 조건 | PFR | VA (엄격) | VA (정규화) ≤1k (475) / 1–2k (636) |
+|---|---:|---:|---:|
+| base (thinking 끔) | 99.8 | 84.2 | 78.9 / 88.8 |
+| base + xgrammar | 100 | 84.3 | 78.9 / 89.0 |
+| STAGE SFT | 100 | 79.7 | 79.4 / 89.8 |
+| STAGE SFT + xgrammar | 100 | 79.7 | 79.4 / 89.8 |
+| + STAGE-Dialog v2 | 100 | **86.2** | **80.4 / 91.7** |
+
+정규화(대소문자·구두점 무시) 기준으로는 STAGE ≥ base(+0.5~1.0), 엄격 기준으로는 STAGE가 4.5 낮다(표기 형식 차이: 구두점·대소문자). STAGE-Dialog는 양 기준 모두 최고(엄격 +2.0). 문서가 짧고(p50 1.2k) 필드가 하나라 STAGE의 강점이 드러나지 않는 세트. 길이 구간 뒤집힘 없음. 부록 미반영(동률).
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
