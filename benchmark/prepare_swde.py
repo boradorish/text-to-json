@@ -29,9 +29,13 @@ def main() -> None:
     rows = []
     for f in sorted(glob.glob(p + "/**/*.parquet", recursive=True)):
         rows += pq.read_table(f).to_pylist()
+    # doc_id / file_name are NOT unique across sites in based-swde (e.g. id0484 is both a movie page and a
+    # university page), so documents are grouped by their page text.
+    import hashlib
     docs: dict[str, dict] = collections.OrderedDict()
     for r in rows:
-        d = docs.setdefault(r["doc_id"], {"text": r["text"], "file_name": r["file_name"], "kv": collections.OrderedDict()})
+        h = hashlib.sha1(r["text"].encode("utf-8")).hexdigest()[:12]
+        d = docs.setdefault(h, {"text": r["text"], "file_name": r["file_name"], "doc_id": r["doc_id"], "kv": collections.OrderedDict()})
         d["kv"][r["key"]] = r["value"]
     tok = None
     if a.tokenizer:
@@ -46,7 +50,7 @@ def main() -> None:
                       "required": list(d["kv"])}
             text = d["text"].lstrip("﻿")
             prompt = f"{PROMPT_PREFIX}=== Report ===\n{text}\n\n=== JSON Schema ===\n{json.dumps(schema, ensure_ascii=False, indent=2)}"
-            rec = {"stem": f"swde_{i:03d}", "dataset": "swde_validation", "source_id": doc_id, "user_prompt": prompt,
+            rec = {"stem": f"swde_{i:03d}", "dataset": "swde_validation", "source_id": f"{d['doc_id']}:{doc_id}", "user_prompt": prompt,
                    "gold_json": json.dumps(dict(d["kv"]), ensure_ascii=False), "json_schema": json.dumps(schema, ensure_ascii=False)}
             if tok is not None:
                 n = len(tok(prompt)["input_ids"]); rec["prompt_tokens"] = n; lengths.append(n)
