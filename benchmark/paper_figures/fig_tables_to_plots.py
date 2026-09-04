@@ -38,7 +38,8 @@ RC = {"font.family": "serif", "font.serif": ["Times New Roman", "Times", "STIXGe
 def meanstd_row(label_regex: str, block: str) -> list[float]:
     """Return the numeric \\meanstd / \\bestmeanstd values of the first row whose label matches."""
     for row in re.split(r"\\\\", block):
-        lines = [l.strip() for l in row.splitlines() if l.strip() and not re.match(r"\\(mid|cmid|top|bottom)rule", l.strip())]
+        lines = [l.strip() for l in row.splitlines()
+                 if re.sub(r"^(%%\s*)+", "", l.strip()) and not re.match(r"(%%\s*)*\\(mid|cmid|top|bottom)rule", l.strip())]
         if lines and re.search(label_regex, re.sub(r"^(%%\s*)+", "", lines[0])):  # rows commented out in the manuscript keep their numbers
             vals = re.findall(r"\\(?:best|second)?meanstd\{([0-9.]+)\}", row)
             if vals:
