@@ -1013,6 +1013,18 @@ Charities v1 참고값(echo 포함, base vs SFT): span 재현율 66.5 vs 49.2, �
 
 설명문 echo가 25.7% → 7.1%로 줄었는데도 수치가 v1과 같다(STAGE F1 17.5 → 17.3, Dialog 22.9 → 23.0) → **CUAD 음성은 프롬프트 형식이 아니라 모델 한계**(조항을 3단어 조각으로 자르는 짧은 값 prior + 빈 필드 채움)로 확정. STAGE-Dialog는 채움을 base 수준(11.8)으로 내리고 presence 정확도 80.0을 회복하지만 재현율은 18.6으로 그대로다(조각 출력은 Dialog가 못 고침). 부록 미반영, Limitations의 "긴 passage 추출" scope 문장 근거.
 
+### 결과 — RealKIE Resource Contracts 40건 v2 (23클래스, p50 45k / 최대 86k 토큰, YaRN 131k; 두 모델 모두 실패, 2026-09-04)
+
+| 조건 | PFR | SCR | span 정밀도 | span 재현율 | span F1 | presence 정확도 | 빈 필드 채움률 (↓) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| base (thinking 끔) | 50.0 | 45.0 | **24.2** | 7.5 | 11.4 | 42.3 | **30.6** |
+| base + xgrammar | 52.5 | 47.5 | 23.2 | 7.9 | **11.8** | 43.5 | 33.9 |
+| STAGE SFT | 87.5 | 37.5 | 7.1 | 8.1 | 7.6 | 34.7 | 62.9 |
+| STAGE SFT + xgrammar | 87.5 | 45.0 | 7.2 | 9.2 | 8.1 | 38.8 | 65.1 |
+| + STAGE-Dialog v2 | **92.5** | **62.5** | 8.8 | **13.8** | 10.8 | **78.9** | 67.2 |
+
+길이 구간 재현율(base / SFT): 4–8k(2) 52.4 / 28.6, 8–16k(4) 43.4 / 44.7, 16–32k(9) 16.8 / 21.7, 32–64k(19) 3.4 / 3.4, >64k(6) 0 / 0. **해석.** 계약서 85쪽 평균의 장문 + 긴 조항 span(reporting requirements 등)이라 base도 재현율 7.5%로 과제 자체가 4B 모델 능력 밖. STAGE는 파싱(50 → 87.5)과 32k 초과에서의 구조 유지(ExtractBench 131k와 같은 방향)는 낫지만 빈 필드 채움 63%로 정밀도가 무너진다. STAGE-Dialog는 재현율 13.8·presence 78.9로 가장 높지만 F1은 base 수준(10.8 vs 11.4). 결론: 판정 불가(양쪽 모두 바닥), 부록 미반영. 필요하면 Limitations의 "50k 토큰 이상 문서" 문장 근거.
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
