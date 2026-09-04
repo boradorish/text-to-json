@@ -45,3 +45,27 @@ for f in sorted(glob.glob(f"{R}/*.jsonl")):
     rows=load(f)
     if not any(r.get("pred_json") for r in rows): print(f"{os.path.basename(f):36} (no outputs)"); continue
     h,lf,lr,c=score(rows); print(f"{os.path.basename(f):36} {h:10.1f} {lf:14.1f} {lr:12.1f} {c:9.1f}")
+
+# Optional prompt-length breakdown: score_realkie.py <outputs_dir> <benchmark.jsonl with prompt_tokens> [edges]
+if len(_s.argv)>2:
+    bench={json.loads(l)["stem"]:json.loads(l) for l in open(_s.argv[2]) if l.strip()}
+    if any("prompt_tokens" not in b for b in bench.values()):
+        from transformers import AutoTokenizer; tok=AutoTokenizer.from_pretrained(os.environ.get("TOKENIZER","/root/work/sunghee/models/Qwen3-4B"))
+        for b in bench.values():
+            if "prompt_tokens" not in b: b["prompt_tokens"]=len(tok(b["user_prompt"])["input_ids"])
+    edges=[int(x) for x in (_s.argv[3] if len(_s.argv)>3 else "4096,8192,16384").split(",")]
+    def bucket(n):
+        lo=0
+        for e in edges:
+            if n<=e: return f"{lo//1024}-{e//1024}k"
+            lo=e
+        return f">{lo//1024}k"
+    print("\n-- header VA / item-field VA by prompt-token bucket --")
+    files=[f for f in sorted(glob.glob(f"{R}/*.jsonl")) if any(r.get("pred_json") for r in load(f))]
+    print(f"{'bucket':10}{'n':>5}"+"".join(f"{os.path.basename(f)[:22]:>24}" for f in files))
+    for bk in sorted({bucket(b["prompt_tokens"]) for b in bench.values()}, key=lambda k:(k.startswith(">"),int(k.lstrip(">").split("-")[0].rstrip("k")))):
+        cells=[]; n=0
+        for f in files:
+            rows=[r for r in load(f) if r["stem"] in bench and bucket(bench[r["stem"]]["prompt_tokens"])==bk]; n=len(rows)
+            h,lf,lr,c=score(rows) if rows else (0,0,0,0); cells.append(f"{h:>11.1f}/{lf:<12.1f}")
+        print(f"{bk:10}{n:>5}"+"".join(f"{c:>24}" for c in cells))

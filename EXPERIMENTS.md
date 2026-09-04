@@ -868,6 +868,32 @@ Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70
 - *RealKIE 품목 개수*: 품목이 25개 이상인 긴 송장에서 STAGE는 배열을 일찍 끊는다(개수 일치 29.7 vs 40.5). 논문 오류 분석의 "반복 레코드 커버리지" 한계와 같다.
 - 공통: STAGE의 강점은 **문서에 명시된 값을 스키마 구조로 옮기는 일**(RealKIE 헤더 +13.5, ExtractBench 구조·장문)이고, 약점은 **표기 규칙을 바꾸거나(단위·날짜·canonical) 없는 값을 비워두는 일**이다.
 
+## 실험 13 — 길이 분포별 양성/음성 분석 + 실세계 벤치마크 확장 (2026-09-05, 진행 중)
+
+**목적.** (a) 같은 데이터셋 안에서 프롬프트 길이(토큰) 구간별로 STAGE의 우위가 뒤집히는지 확인하고, (b) gold가 있고 실세계 원문인 데이터셋을 계속 찾아 STAGE가 잘하는 순서(원문 값을 스키마로 옮기는 과제, 길고 중첩 구조가 있는 문서)로 평가한다. 스크립트: `benchmark/length_bucket_analysis.py`(규칙 VA와 정규화 VA를 프롬프트 토큰 구간별로 집계, 결과 `outputs/length_buckets/*.json`), `benchmark/score_realkie.py`(두 번째 인자로 벤치마크 파일을 주면 구간별 헤더/품목 VA), `benchmark/score_vrdu.py`, `benchmark/score_cuad.py`(구간 breakdown 내장).
+
+### 길이 구간 분석 결과 (base Qwen3-4B thinking 끔 vs STAGE SFT)
+
+| 데이터셋 | 구간 (n) | base | STAGE SFT | 해석 |
+|---|---|---:|---:|---|
+| STAGE-Eval 851 (VA) | ≤1k (161) / 1–2k (555) / 2–4k (135) | 71.9 / 67.8 / 70.7 | 89.6 / 82.8 / 87.7 | 모든 구간에서 +15~18, 길이 무관 |
+| ExtractBench 194 (PFR) | 4–8k (61) / 8–16k (77) / >16k (43) | 69.7 / 74.4 / 53.5 | 75.4 / 87.0 / 72.1 | **길수록 격차 확대**(>16k에서 +18.6) |
+| ExtractBench 194 (VA) | 4–8k / 8–16k / >16k | 37.7 / 37.9 / 22.9 | 36.9 / 30.9 / 26.4 | 8–16k는 음성, >16k는 양성; 짧은 구간(≤4k, n=13)은 base 우위 |
+| RealKIE-FCC 74 (헤더 VA) | ≤4k (33) / 4–8k (26) / 8–16k (11) / >16k (4) | 66.2 / 46.2 / 24.2 / 8.3 | 65.7 / 52.6 / 74.2 / 83.3 | **4k 이하는 동률, 그 이상에서 base 붕괴·STAGE 유지** → RealKIE 양성은 전부 장문 구간에서 나온다 |
+| RealKIE-FCC 74 (품목 필드 VA) | 같은 구간 | 33.8 / 18.1 / 5.8 / 6.7 | 32.0 / 21.9 / 21.1 / 11.4 | 같은 방향 |
+| Kleister Charity 421 (정규화 VA) | ≤2k (14) / 2–4k (64) / 4–8k (148) / 8–16k (94) / 16–32k (90) / >32k (11) | 66.2 / 64.8 / 67.4 / 65.6 / 71.2 / 67.2 | 63.0 / 59.0 / 57.5 / 56.2 / 60.9 / 57.0 | 모든 구간에서 −3~−10, 길이 무관 → 음성은 표기 규칙(단위·canonical) 문제이지 길이 문제가 아님 |
+
+STAGE-Eval의 xgrammar 조건은 2–4k 구간에서 PFR/SCR이 떨어진다(base 99.3→96.9, SFT 99.3→97.7): 긴 스키마일수록 xgrammar가 컴파일/디코딩에서 실패한다.
+
+### 새 데이터셋 (변환 완료, 추론 큐 `rw_queue.sh` 실행 중, 출력 `outputs/realworld_vrdu_cuad/`)
+
+- **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
+- **VRDU registration-form** (FARA; 1,915건, 평면 6필드, p50 1.4k 토큰). 짧고 단순 → 대조군.
+- **CUAD test** (102건 계약서, 41개 조항 카테고리 → 배열 필드, 2,643 gold span, 70%가 빈 필드; p50 8.6k / p90 26k / 최대 68k 토큰, YaRN 131k 사용). `prepare_cuad.py`, `score_cuad.py`(정규화 Jaccard ≥ 0.5 span 매칭, presence 정확도, 빈 필드 hallucinated fill 비율).
+- **SWDE validation** (141 웹페이지, 1,111 verbatim 속성값, p50 ≈1.2k 토큰). 짧아서 낮은 우선순위, 큐 뒤에 실행.
+- **RealKIE S-1 pages** (Zenodo 13327077 `s1_pages.zip` 3.9GB 내려받는 중, `/mnt/nvme/cache/interns/realkie_raw/`). 긴 SEC 등록신고서 → 최우선 장문 후보.
+- 보류: **DocILE**(6.7k 송장, KILE/LIR gold) — 데이터 내려받기에 docile.rossum.ai 토큰(등록) 필요, 저자 계정으로 받아야 함. **ExtractBench 237 @131k YaRN**(실험 4A 재실행, `outputs/extractbench_long/`) 실행 중.
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
