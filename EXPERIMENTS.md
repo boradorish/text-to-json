@@ -915,6 +915,24 @@ ExtractBench 237건을 131k YaRN으로 재실행하니 32k 이하 구간의 PFR�
 
 32k(네이티브 문맥) 초과 구간에서 base는 파싱 가능한 JSON을 거의 못 내고 STAGE는 88.5%를 낸다 → 부록 F 길이 그림의 (b) 패널을 194 파싱 성공(산물)에서 이 237건 결과로 교체. 8–16k에서는 base VA가 9.2 높다(옛 결론과 반대 방향)는 점도 기록.
 
+### 결과 — VRDU ad-buy-form 641건 (음성, 2026-09-04)
+
+| 조건 | PFR | SCR | 헤더 VA | 부재 필드 채움률 (↓) | 품목 필드 재현율 | 품목 정밀도 |
+|---|---:|---:|---:|---:|---:|---:|
+| base (thinking 끔) | 100 | 94.7 | **64.1** | 58.7 | **50.5** | 92.3 |
+| base + xgrammar | 100 | 95.2 | 64.6 | 55.6 | 51.4 | 92.3 |
+| STAGE SFT | 100 | 97.2 | 62.2 | 86.2 | 40.9 | 87.9 |
+| STAGE SFT + xgrammar | 100 | **98.8** | 62.6 | 86.5 | 41.1 | 88.1 |
+| + STAGE-Dialog v2 | 100 | 95.2 | 61.5 | **15.7** | 34.1 | 83.0 |
+
+길이 구간(헤더 VA, base → SFT): ≤2k(168) 60.1 → 56.0, 2–4k(248) 66.3 → 60.8, 4–8k(197) 65.4 → 67.3, 8–16k(26) 57.5 → 73.4. RealKIE와 같은 방향(4k 이상에서만 STAGE 우위)이지만 문서의 65%가 4k 이하라 전체는 음성. 품목 재현율은 모든 구간에서 base 우위.
+
+**원인 분석 (STAGE 모델 자체 문제로 판단, 재평가 없음).**
+- *부재 필드 채움*: gold에 없는 `agency`를 STAGE는 358건 중 343건 채운다(base 186). 채운 값은 원문에 있는 다른 문자열(상품명 "MIKE BLOOMBERG 2020 INC", 영업소 "Katz Washington")이다 → Kleister-NDA·SGD와 같은 coverage bias. STAGE-Dialog는 채움을 15.7%로 줄이지만 헤더·품목 재현율도 같이 떨어진다.
+- *품목 재현율*: gold 9,163개 중 정렬되지 않은 품목이 base 2,378 vs SFT 2,890 vs Dialog 3,321. 필드별 재현율이 전 필드에서 고르게 낮다(channel 61 → 48, 시작일 56 → 47, 금액 44 → 38) → 반복 레코드를 일찍 끊는 "repeated-record coverage" 한계(RealKIE 품목 개수 일치율 저하와 동일). 출력 절단(끝이 `}`가 아닌 출력)은 base 33 vs SFT 10으로 원인이 아님. gold 중복 품목은 6.5%뿐이라 채점 산물도 아님.
+- *헤더*: `tv_address` 35 → 24(주소를 여러 줄로 이어 붙이거나 다른 주소를 고름), `advertiser` 76 → 68. 나머지 7개 필드는 ±3 이내.
+- 채점 주의: VRDU gold 품목은 문서의 모든 행을 담지 않는 경우가 있어(예: 0001번 gold 2행) 품목 정밀도는 과소 추정된다. 재현율만 해석에 사용.
+
 ### 새 데이터셋 (변환 완료, 추론 큐 `rw_queue.sh` 실행 중, 출력 `outputs/realworld_vrdu_cuad/`)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
