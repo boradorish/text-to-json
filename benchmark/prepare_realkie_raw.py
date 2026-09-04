@@ -46,8 +46,9 @@ def main() -> None:
     ap.add_argument("--tokenizer", default=None)
     ap.add_argument("--max-docs", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--optional-fields", action="store_true", help="v3: no field is required (tests whether required-ness drives label echo)")
     a = ap.parse_args()
-    out = a.output or ROOT / "benchmark" / "data" / "realworld" / f"realkie_{a.subset}_{a.split}_v2.jsonl"
+    out = a.output or ROOT / "benchmark" / "data" / "realworld" / f"realkie_{a.subset}_{a.split}_{'v3' if a.optional_fields else 'v2'}.jsonl"
     rows = list(csv.DictReader((a.src / f"{a.subset}_{a.split}.csv").open(encoding="utf-8")))
     classes: list[str] = []
     for r in rows:
@@ -62,7 +63,7 @@ def main() -> None:
         from transformers import AutoTokenizer
         tok = AutoTokenizer.from_pretrained(a.tokenizer)
     props = {key_of(c): {"type": "array", "description": describe(c), "items": {"type": "string"}} for c in classes}
-    schema = {"type": "object", "additionalProperties": False, "properties": props, "required": list(props)}
+    schema = {"type": "object", "additionalProperties": False, "properties": props, "required": [] if a.optional_fields else list(props)}
     out.parent.mkdir(parents=True, exist_ok=True)
     lengths, n_spans, bad = [], 0, 0
     with out.open("w", encoding="utf-8") as fh:

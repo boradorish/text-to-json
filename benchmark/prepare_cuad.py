@@ -29,10 +29,13 @@ def key_of(cat: str) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", type=Path, required=True, help="CUAD test.json or CUADv1.json")
-    ap.add_argument("--output", type=Path, default=ROOT / "benchmark" / "data" / "realworld" / "cuad_test_v2.jsonl")
+    ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--tokenizer", default=None)
     ap.add_argument("--max-docs", type=int, default=None)
+    ap.add_argument("--optional-fields", action="store_true", help="v3: no field is required")
     a = ap.parse_args()
+    if a.output is None:
+        a.output = ROOT / "benchmark" / "data" / "realworld" / ("cuad_test_v3.jsonl" if a.optional_fields else "cuad_test_v2.jsonl")
     data = json.load(a.src.open(encoding="utf-8"))["data"]
     if a.max_docs:
         data = data[: a.max_docs]
@@ -58,7 +61,7 @@ def main() -> None:
                     if t and t not in spans:
                         spans.append(t)
                 gold[k] = spans; n_spans += len(spans)
-            schema = {"type": "object", "additionalProperties": False, "properties": props, "required": list(props)}
+            schema = {"type": "object", "additionalProperties": False, "properties": props, "required": [] if a.optional_fields else list(props)}
             text = p["context"]
             prompt = f"{PROMPT_PREFIX}=== Report ===\n{text}\n\n=== JSON Schema ===\n{json.dumps(schema, ensure_ascii=False, indent=2)}"
             rec = {"stem": f"cuad_{i:03d}", "dataset": "cuad_test", "source_id": c["title"], "user_prompt": prompt,
