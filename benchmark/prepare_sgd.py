@@ -120,6 +120,11 @@ def balanced_ids(examples: list[dict], count: int, seed: int) -> list[str]:
     targets = {True: count // 2, False: count - count // 2}
     if not grouped[False]:  # corpora without unseen services (e.g. MultiWOZ 2.2): balance across services only
         targets = {True: count, False: 0}
+    for seen in targets:  # never ask for more than the corpus has
+        avail = sum(len(v) for v in grouped[seen].values())
+        if targets[seen] > avail:
+            print(f"only {avail} {'seen' if seen else 'unseen'} examples available (wanted {targets[seen]}); taking all")
+            targets[seen] = avail
     selected = []
     for seen, target in targets.items():
         queues = []
