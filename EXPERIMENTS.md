@@ -955,6 +955,20 @@ span 매칭: 정규화 토큰 Jaccard ≥ 0.5 또는 길이비 ≥ 0.5의 포함
 - xgrammar는 base의 파싱(83 → 94)과 재현율(23.9 → 27.5)을 올린다. STAGE에는 영향 없음.
 - 결론: 조항 단위 span 추출은 STAGE의 강점(짧은 값의 verbatim 복사)과 어긋나는 과제. 부록 미반영, scope 문장 후보.
 
+### 결과 — RealKIE NDA 원본 98건, 원문 span gold (F1 음성 / 재현율 동률, 2026-09-04)
+
+| 조건 | PFR | span 정밀도 | span 재현율 | span F1 | 빈 필드 채움률 (↓) |
+|---|---:|---:|---:|---:|---:|
+| base (thinking 끔) | 100 | **66.5** | 75.0 | **70.5** | **62.1** |
+| base + xgrammar | 100 | 66.7 | **75.3** | 70.7 | 62.1 |
+| STAGE SFT | 99.0 | 52.7 | 75.3 | 62.0 | 96.6 |
+| STAGE SFT + xgrammar | 99.0 | 52.8 | 75.3 | 62.1 | 96.6 |
+| + STAGE-Dialog v2 | 99.0 | 60.0 | 75.3 | 66.7 | 72.4 |
+
+필드별 재현율(base → SFT → Dialog): effective_date 82.4 → 83.5 → 87.1, jurisdiction 43.8 → 50.6 → 56.2, party 85.6 → 82.7 → 78.7. 길이 구간 재현율(base / SFT): ≤4k(63) 72.5 / 72.9, 4–8k(31) 81.1 / 79.5, 8–16k(4) 66.7 / 77.8.
+
+**해석.** gold를 원문 그대로 두면 STAGE의 재현율은 base와 같고(75.3 vs 75.0) 날짜·관할 필드는 오히려 높다. 남는 차이는 정밀도(빈 필드 채움 96.6%: 없는 관할·당사자를 인접 문자열로 채움)뿐이다. 같은 문서군의 Kleister-NDA(canonical gold)에서 F1 75.8 vs 49.0으로 벌어졌던 격차는 **대부분 ISO 날짜·canonical 표기 변환 능력의 차이**였고, 모델의 span 위치 파악 능력 차이가 아니다. STAGE-Dialog는 채움을 72.4%로 낮춰 F1 66.7까지 회복하지만 base(70.5)에 못 미친다(party 재현율 하락). 모델 한계(coverage bias), 재평가 없음. → 부록 scope 문장 후보: "canonical 형식이 필요한 세트에서의 음성은 정규화 능력의 문제이며, 원문 span gold에서는 재현율이 base와 같다."
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
