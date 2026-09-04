@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="/mnt/ddn/prod-runs/interns/sunghee/text-to-json"
-LOG_DIR="$ROOT/outputs/table_grounded_realworld"
+LOG_DIR="$ROOT/outputs/table_grounded_realworld_all"
 LOCK="$LOG_DIR/launch.lock"
 mkdir -p "$LOG_DIR"
 

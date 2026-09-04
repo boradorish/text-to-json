@@ -43,11 +43,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=int, required=True)
     parser.add_argument("--train-data", type=Path, default=ROOT / "data/sft/stage_table_grounded_all.jsonl")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs/table_grounded_realworld")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "outputs/table_grounded_realworld_all")
     parser.add_argument("--docubench", type=Path, default=ROOT / "benchmark/data/realworld/docubench_nonreceipt.jsonl")
     parser.add_argument("--kleister", type=Path, default=ROOT / "benchmark/data/realworld/kleister_nda_dev-0.jsonl")
     parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--max-length", type=int, default=8192)
+    parser.add_argument("--train-max-length", type=int, default=8192)
+    parser.add_argument("--inference-max-model-len", type=int, default=16384)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.45)
     args = parser.parse_args()
     required = [BASE, args.train_data, args.docubench, args.kleister, DOCUBENCH_ROOT]
@@ -60,13 +61,13 @@ def main() -> None:
             sys.executable, "benchmark/train_toolfew_lora.py", "--model", str(BASE),
             "--train-data", str(args.train_data), "--output", str(adapter),
             "--epochs", str(args.epochs), "--batch-size", "1", "--grad-accum", "16",
-            "--learning-rate", "2e-5", "--max-length", str(args.max_length), "--seed", "42",
+            "--learning-rate", "2e-5", "--max-length", str(args.train_max_length), "--seed", "42",
             "--gradient-checkpointing",
         ], args.gpu)
     benchmarks = [("docubench", args.docubench, line_count(args.docubench)), ("kleister", args.kleister, line_count(args.kleister))]
     for dataset, benchmark, expected in benchmarks:
         for arm, model in (("base", BASE), ("stage_table_grounded", adapter)):
-            result = infer(model, benchmark, args.output_dir / f"{dataset}_{arm}", args.gpu, args.max_length, args.gpu_memory_utilization, expected)
+            result = infer(model, benchmark, args.output_dir / f"{dataset}_{arm}", args.gpu, args.inference_max_model_len, args.gpu_memory_utilization, expected)
             if dataset == "docubench":
                 run([sys.executable, "benchmark/evaluate_docubench.py", "--input", str(result), "--docubench-root", str(DOCUBENCH_ROOT)], args.gpu)
             else:
