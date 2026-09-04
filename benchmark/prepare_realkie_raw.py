@@ -22,9 +22,15 @@ ROOT = Path(__file__).resolve().parents[1]
 csv.field_size_limit(10**9)
 DOC_KIND = {"charities": "charity annual report", "nda": "non-disclosure agreement", "resource_contracts": "natural-resource contract",
             "s1_pages": "page of an SEC Form S-1 registration statement", "fcc_invoices": "FCC political-advertising invoice"}
-PROMPT = ("Extract the labeled fields from this {kind} according to the JSON Schema. For every field, copy the exact text of "
-          "each span in the document that matches the field name (one array element per distinct span); use an empty array when "
-          "the document has no such span. Return exactly one JSON object.\n\n")
+PROMPT = ("Extract the fields from this {kind} according to the JSON Schema. Each field is a list of the passages in the document "
+          "that state that field, copied as they appear; use an empty list when the document has none. Return exactly one JSON object.\n\n")
+# v1 descriptions quoted the label ("every distinct span labeled 'Charity Name', verbatim") and the STAGE model copied that
+# phrase into 29% of its charities spans; v2 uses a plain phrase without quotes.
+
+
+def describe(label: str) -> str:
+    plain = re.sub(r"[()]", "", label).strip().lower()
+    return f"Text of the {plain} as it appears in the document"
 
 
 def key_of(label: str) -> str:
@@ -41,7 +47,7 @@ def main() -> None:
     ap.add_argument("--max-docs", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
     a = ap.parse_args()
-    out = a.output or ROOT / "benchmark" / "data" / "realworld" / f"realkie_{a.subset}_{a.split}.jsonl"
+    out = a.output or ROOT / "benchmark" / "data" / "realworld" / f"realkie_{a.subset}_{a.split}_v2.jsonl"
     rows = list(csv.DictReader((a.src / f"{a.subset}_{a.split}.csv").open(encoding="utf-8")))
     classes: list[str] = []
     for r in rows:
@@ -55,7 +61,7 @@ def main() -> None:
     if a.tokenizer:
         from transformers import AutoTokenizer
         tok = AutoTokenizer.from_pretrained(a.tokenizer)
-    props = {key_of(c): {"type": "array", "description": f"{c}: every distinct span labeled '{c}', verbatim", "items": {"type": "string"}} for c in classes}
+    props = {key_of(c): {"type": "array", "description": describe(c), "items": {"type": "string"}} for c in classes}
     schema = {"type": "object", "additionalProperties": False, "properties": props, "required": list(props)}
     out.parent.mkdir(parents=True, exist_ok=True)
     lengths, n_spans, bad = [], 0, 0

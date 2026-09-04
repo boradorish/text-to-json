@@ -14,10 +14,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROMPT_PREFIX = (
-    "Extract the clauses of this contract according to the JSON Schema. For every field, copy the exact text "
-    "of every clause in the contract that matches the field description (one array element per clause); "
-    "use an empty array when the contract has no such clause. Return exactly one JSON object.\n\n"
+    "Extract the clauses of this contract according to the JSON Schema. Each field is a list of the clauses in the contract "
+    "that match the field, copied as they appear; use an empty list when the contract has no such clause. "
+    "Return exactly one JSON object.\n\n"
 )
+# v2 (2026-09-04): descriptions no longer start with the quoted category name ("Document Name: ..."), which the STAGE
+# model copied into 26% of its spans in v1.
 
 
 def key_of(cat: str) -> str:
@@ -27,7 +29,7 @@ def key_of(cat: str) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", type=Path, required=True, help="CUAD test.json or CUADv1.json")
-    ap.add_argument("--output", type=Path, default=ROOT / "benchmark" / "data" / "realworld" / "cuad_test.jsonl")
+    ap.add_argument("--output", type=Path, default=ROOT / "benchmark" / "data" / "realworld" / "cuad_test_v2.jsonl")
     ap.add_argument("--tokenizer", default=None)
     ap.add_argument("--max-docs", type=int, default=None)
     a = ap.parse_args()
@@ -49,7 +51,7 @@ def main() -> None:
                 cat = m.group(1) if m else q["question"]
                 desc = q["question"].split("Details:", 1)[1].strip() if "Details:" in q["question"] else cat
                 k = key_of(cat)
-                props[k] = {"type": "array", "description": f"{cat}: {desc}", "items": {"type": "string"}}
+                props[k] = {"type": "array", "description": desc[0].upper() + desc[1:] if desc else cat, "items": {"type": "string"}}
                 spans = []
                 for ans in q["answers"]:
                     t = " ".join(ans["text"].split())
