@@ -118,6 +118,8 @@ def balanced_ids(examples: list[dict], count: int, seed: int) -> list[str]:
     for item in examples:
         grouped[item["seen_service"]][item["service"]].append(item)
     targets = {True: count // 2, False: count - count // 2}
+    if not grouped[False]:  # corpora without unseen services (e.g. MultiWOZ 2.2): balance across services only
+        targets = {True: count, False: 0}
     selected = []
     for seen, target in targets.items():
         queues = []
