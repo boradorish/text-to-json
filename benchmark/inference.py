@@ -249,6 +249,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.9)
     parser.add_argument("--max-model-len", type=int, default=None)
+    parser.add_argument("--hf-overrides", default=None, help="JSON dict passed to vLLM hf_overrides, e.g. rope_scaling for YaRN long context.")
     parser.add_argument(
         "--enforce-eager",
         action="store_true",
@@ -307,6 +308,7 @@ def main() -> None:
         max_model_len=args.max_model_len,
         enforce_eager=args.enforce_eager,
         guided_decoding_backend=args.guided_json_backend,
+        hf_overrides=json.loads(args.hf_overrides) if args.hf_overrides else None,
         tokenizer_mode=args.tokenizer_mode,
     )
 

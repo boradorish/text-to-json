@@ -14,6 +14,21 @@ ROOT = Path(__file__).resolve().parents[1]
 PROMPT_PREFIX = "Extract the invoice fields from the document text according to the JSON Schema.\n\n"
 
 
+def fix_types(node):
+    """RealKIE uses the non-standard JSON Schema type "float"; map it to "number" (and "int" to "integer")."""
+    if isinstance(node, dict):
+        if node.get("type") == "float":
+            node["type"] = "number"
+        elif node.get("type") == "int":
+            node["type"] = "integer"
+        for v in node.values():
+            fix_types(v)
+    elif isinstance(node, list):
+        for v in node:
+            fix_types(v)
+    return node
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default="amazon-agi/RealKIE-FCC-Verified")
@@ -35,6 +50,7 @@ def main() -> None:
     with a.output.open("w", encoding="utf-8") as fh:
         for i, r in enumerate(rows):
             schema = json.loads(r["json_schema"]) if isinstance(r["json_schema"], str) else r["json_schema"]
+            schema = fix_types(schema)
             gold = json.loads(r["json_response"]) if isinstance(r["json_response"], str) else r["json_response"]
             prompt = f"{PROMPT_PREFIX}=== Report ===\n{r['text']}\n\n=== JSON Schema ===\n{json.dumps(schema, ensure_ascii=False, indent=2)}"
             rec = {"stem": f"realkie_fcc_{i:03d}", "source_id": r["id"], "user_prompt": prompt,

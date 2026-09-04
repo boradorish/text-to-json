@@ -35,6 +35,7 @@ def load_vllm_model(
     max_model_len: int | None = None,
     enforce_eager: bool = False,
     guided_decoding_backend: str | None = None,
+    hf_overrides: dict | None = None,
     tokenizer_mode: str = "auto",
 ) -> VllmModel:
     try:
@@ -81,6 +82,7 @@ def load_vllm_model(
         tokenizer_src = str(tokenizer_path) if tokenizer_path else base_model
         print(f"LoRA 어댑터 감지. vLLM 베이스 모델: {base_model}")
         llm = LLM(
+            hf_overrides=hf_overrides,
             model=base_model,
             tokenizer=tokenizer_src,
             enable_lora=True,
