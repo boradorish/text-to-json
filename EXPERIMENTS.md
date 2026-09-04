@@ -893,7 +893,7 @@ STAGE-Eval의 xgrammar 조건은 2–4k 구간에서 PFR/SCR이 떨어진다(bas
 - **VRDU registration-form** (FARA; 1,915건, 평면 6필드, p50 1.4k 토큰). 짧고 단순 → 대조군.
 - **CUAD test** (102건 계약서, 41개 조항 카테고리 → 배열 필드, 2,643 gold span, 70%가 빈 필드; p50 8.6k / p90 26k / 최대 68k 토큰, YaRN 131k 사용). `prepare_cuad.py`, `score_cuad.py`(정규화 Jaccard ≥ 0.5 span 매칭, presence 정확도, 빈 필드 hallucinated fill 비율).
 - **SWDE validation** (141 웹페이지, 1,111 verbatim 속성값, p50 ≈1.2k 토큰). 짧아서 낮은 우선순위, 큐 뒤에 실행.
-- **RealKIE S-1 pages** (Zenodo 13327077 `s1_pages.zip` 3.9GB 내려받는 중, `/mnt/nvme/cache/interns/realkie_raw/`). 긴 SEC 등록신고서 → 최우선 장문 후보.
+- **RealKIE 원본 5세트** (Indico; Wasabi 공개 버킷 `s3://project-fruitfly`의 `<subset>/{train,val,test}.csv`를 익명 HTTPS로 바로 받음: `https://s3.us-east-2.wasabisys.com/project-fruitfly/<subset>/test.csv`, 컬럼 `text`, `labels`(문자 span, 오프셋 전수 검증 통과), `ocr`; Zenodo zip은 PDF 포함 수 GB라 불필요). `/mnt/nvme/cache/interns/realkie_raw/csv/`. gold는 모두 **원문 그대로의 span**이라 Kleister의 canonical 형식과 달리 STAGE의 verbatim 복사와 맞는다. `benchmark/prepare_realkie_raw.py --subset …`(클래스 → 문자열 배열 필드, 문서마다 고유 span 목록; 채점 `score_cuad.py` 공용). test split 기준: **charities** 108건·28클래스·3,629 span(p50 6.7k / p90 18k / 최대 33.9k 토큰), **nda** 98건·3클래스·376 span(p50 3.6k / 최대 15k; Kleister-NDA 음성이 canonical 표기 탓인지 판별), **resource_contracts** 40건·23클래스·1,768 span(p50 45k / p90 73k / 최대 86k 토큰, YaRN 131k), **s1_pages** 300건 표본·24클래스(페이지 단위, p50 2.4k). fcc_invoices는 HF 검증판으로 이미 평가. 추론 큐 `rw_queue3.sh`(SWDE 뒤), 출력 `outputs/realworld_realkie_raw/`.
 - 보류: **DocILE**(6.7k 송장, KILE/LIR gold) — 데이터 내려받기에 docile.rossum.ai 토큰(등록) 필요, 저자 계정으로 받아야 함. **ExtractBench 237 @131k YaRN**(실험 4A 재실행, `outputs/extractbench_long/`) 실행 중.
 
 ## 인프라 메모
