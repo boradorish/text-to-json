@@ -68,7 +68,11 @@ def main() -> None:
     ap.add_argument("runs", nargs="+")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--normalized", action="store_true", help="Print lenient normalized VA instead of strict rule VA")
+    ap.add_argument("--stems-from", type=Path, default=None, help="Restrict every run to the stems present in this JSONL (common denominator)")
     a = ap.parse_args()
+    keep = None
+    if a.stems_from:
+        keep = {str(json.loads(l).get("stem")) for l in a.stems_from.open(encoding="utf-8") if l.strip()}
     edges = [int(x) for x in a.edges.split(",")]
     bucket = make_bucket(edges)
     bench = {}
@@ -88,7 +92,7 @@ def main() -> None:
     for spec in a.runs:
         name, path = spec.split("=", 1)
         rows = [json.loads(l) for l in Path(path).open(encoding="utf-8") if l.strip()]
-        rows = [r for r in rows if not r.get("skip_reason")]
+        rows = [r for r in rows if not r.get("skip_reason") and (keep is None or str(r.get("stem")) in keep)]
         per = {}
         for r in rows:
             b = bench.get(str(r.get("stem")))

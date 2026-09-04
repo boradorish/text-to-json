@@ -63,9 +63,13 @@ if len(_s.argv)>2:
     print("\n-- header VA / item-field VA by prompt-token bucket --")
     files=[f for f in sorted(glob.glob(f"{R}/*.jsonl")) if any(r.get("pred_json") for r in load(f))]
     print(f"{'bucket':10}{'n':>5}"+"".join(f"{os.path.basename(f)[:22]:>24}" for f in files))
+    out={"benchmark":_s.argv[2],"edges":edges,"runs":{}}
     for bk in sorted({bucket(b["prompt_tokens"]) for b in bench.values()}, key=lambda k:(k.startswith(">"),int(k.lstrip(">").split("-")[0].rstrip("k")))):
         cells=[]; n=0
         for f in files:
             rows=[r for r in load(f) if r["stem"] in bench and bucket(bench[r["stem"]]["prompt_tokens"])==bk]; n=len(rows)
             h,lf,lr,c=score(rows) if rows else (0,0,0,0); cells.append(f"{h:>11.1f}/{lf:<12.1f}")
+            out["runs"].setdefault(os.path.basename(f)[:-6],{})[bk]={"n":n,"header_va":h,"item_field_va":lf,"item_recall":lr,"count_ok":c}
         print(f"{bk:10}{n:>5}"+"".join(f"{c:>24}" for c in cells))
+    os.makedirs("outputs/length_buckets", exist_ok=True)
+    json.dump(out, open("outputs/length_buckets/realkie_header.json","w"), indent=2); print("saved outputs/length_buckets/realkie_header.json")

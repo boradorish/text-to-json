@@ -870,6 +870,8 @@ Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70
 
 ## 실험 13 — 길이 분포별 양성/음성 분석 + 실세계 벤치마크 확장 (2026-09-05, 진행 중)
 
+**그림.** `benchmark/paper_figures/fig_length.py` → `overleaf-paper/figures/fig_len_a.pdf`(RealKIE 헤더 VA by 길이), `fig_len_b.pdf`(ExtractBench 194 파싱 성공률 by 길이); 입력 `benchmark/paper_figures/data/length_buckets/*.json`. 부록 F에 삽입.
+
 **목적.** (a) 같은 데이터셋 안에서 프롬프트 길이(토큰) 구간별로 STAGE의 우위가 뒤집히는지 확인하고, (b) gold가 있고 실세계 원문인 데이터셋을 계속 찾아 STAGE가 잘하는 순서(원문 값을 스키마로 옮기는 과제, 길고 중첩 구조가 있는 문서)로 평가한다. 스크립트: `benchmark/length_bucket_analysis.py`(규칙 VA와 정규화 VA를 프롬프트 토큰 구간별로 집계, 결과 `outputs/length_buckets/*.json`), `benchmark/score_realkie.py`(두 번째 인자로 벤치마크 파일을 주면 구간별 헤더/품목 VA), `benchmark/score_vrdu.py`, `benchmark/score_cuad.py`(구간 breakdown 내장).
 
 ### 길이 구간 분석 결과 (base Qwen3-4B thinking 끔 vs STAGE SFT)
@@ -877,8 +879,8 @@ Seen services JGA/slot accuracy는 52.38/56.71 → **76.34/81.13**, unseen은 70
 | 데이터셋 | 구간 (n) | base | STAGE SFT | 해석 |
 |---|---|---:|---:|---|
 | STAGE-Eval 851 (VA) | ≤1k (161) / 1–2k (555) / 2–4k (135) | 71.9 / 67.8 / 70.7 | 89.6 / 82.8 / 87.7 | 모든 구간에서 +15~18, 길이 무관 |
-| ExtractBench 194 (PFR) | 4–8k (61) / 8–16k (77) / >16k (43) | 69.7 / 74.4 / 53.5 | 75.4 / 87.0 / 72.1 | **길수록 격차 확대**(>16k에서 +18.6) |
-| ExtractBench 194 (VA) | 4–8k / 8–16k / >16k | 37.7 / 37.9 / 22.9 | 36.9 / 30.9 / 26.4 | 8–16k는 음성, >16k는 양성; 짧은 구간(≤4k, n=13)은 base 우위 |
+| ExtractBench 194 (PFR) | 4–8k (61) / 8–16k (77) / >16k (43) | 67.2 / 75.3 / 53.5 | 75.4 / 87.0 / 72.1 | **길수록 격차 확대**(>16k에서 +18.6) |
+| ExtractBench 194 (VA) | 4–8k / 8–16k / >16k | 34.4 / 38.4 / 22.9 | 36.9 / 30.9 / 26.4 | 8–16k는 음성, >16k는 양성; 짧은 구간(≤4k, n=13)은 base 우위 |
 | RealKIE-FCC 74 (헤더 VA) | ≤4k (33) / 4–8k (26) / 8–16k (11) / >16k (4) | 66.2 / 46.2 / 24.2 / 8.3 | 65.7 / 52.6 / 74.2 / 83.3 | **4k 이하는 동률, 그 이상에서 base 붕괴·STAGE 유지** → RealKIE 양성은 전부 장문 구간에서 나온다 |
 | RealKIE-FCC 74 (품목 필드 VA) | 같은 구간 | 33.8 / 18.1 / 5.8 / 6.7 | 32.0 / 21.9 / 21.1 / 11.4 | 같은 방향 |
 | Kleister Charity 421 (정규화 VA) | ≤2k (14) / 2–4k (64) / 4–8k (148) / 8–16k (94) / 16–32k (90) / >32k (11) | 66.2 / 64.8 / 67.4 / 65.6 / 71.2 / 67.2 | 63.0 / 59.0 / 57.5 / 56.2 / 60.9 / 57.0 | 모든 구간에서 −3~−10, 길이 무관 → 음성은 표기 규칙(단위·canonical) 문제이지 길이 문제가 아님 |
