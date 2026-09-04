@@ -1001,6 +1001,18 @@ Charities v1 참고값(echo 포함, base vs SFT): span 재현율 66.5 vs 49.2, �
 
 **원인 (STAGE 모델 한계, 가장 극단적인 coverage bias).** 한 페이지에 24개 필드 중 평균 3개만 값이 있는데 STAGE는 페이지당 47개 span을 낸다. v2 설명문("Text of the X as it appears in the document")에서도 span의 46.8%(218/300 페이지)가 필드명 자체("dividend policy", "agent name")다 → 값이 없으면 필드명을 값으로 만들어 넣는다. base는 5%만 채운다. STAGE-Dialog는 채움을 57%로, 필드명 echo를 18.5%로 줄이지만 F1 7.3으로 base(24.1)에 크게 못 미친다. base 자체도 정밀도 18%로 낮은 과제(risk clause 등 긴 passage). 학습 데이터(95.5%가 all-required, 빈 값 없음)와 정반대인 희소 라벨 설정이라 STAGE의 scope 밖. `required`를 비운 v3로 한 번 더 확인(`rw_queue5.sh`) 후 최종 기록.
 
+### 결과 — CUAD v2 (평서문 설명; v1 결론 유지, 2026-09-04)
+
+| 조건 | PFR | SCR | span 정밀도 | span 재현율 | span F1 | presence 정확도 | 빈 필드 채움률 (↓) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| base (thinking 끔) | 88.2 | 84.3 | **49.7** | 24.6 | 32.9 | 82.4 | **8.6** |
+| base + xgrammar | 96.1 | 93.1 | 48.7 | **27.6** | **35.2** | **83.9** | 10.4 |
+| STAGE SFT | **98.0** | **95.1** | 16.0 | 18.8 | 17.3 | 60.2 | 43.0 |
+| STAGE SFT + xgrammar | 98.0 | 95.1 | 16.0 | 18.8 | 17.3 | 60.2 | 43.0 |
+| + STAGE-Dialog v2 | 98.0 | 95.1 | 30.1 | 18.6 | 23.0 | 80.0 | 11.8 |
+
+설명문 echo가 25.7% → 7.1%로 줄었는데도 수치가 v1과 같다(STAGE F1 17.5 → 17.3, Dialog 22.9 → 23.0) → **CUAD 음성은 프롬프트 형식이 아니라 모델 한계**(조항을 3단어 조각으로 자르는 짧은 값 prior + 빈 필드 채움)로 확정. STAGE-Dialog는 채움을 base 수준(11.8)으로 내리고 presence 정확도 80.0을 회복하지만 재현율은 18.6으로 그대로다(조각 출력은 Dialog가 못 고침). 부록 미반영, Limitations의 "긴 passage 추출" scope 문장 근거.
+
 ### 새 데이터셋 (변환 완료; VRDU·CUAD 완료, SWDE·RealKIE 원본 큐 실행 중)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
