@@ -39,7 +39,7 @@ def meanstd_row(label_regex: str, block: str) -> list[float]:
     """Return the numeric \\meanstd / \\bestmeanstd values of the first row whose label matches."""
     for row in re.split(r"\\\\", block):
         lines = [l.strip() for l in row.splitlines() if l.strip() and not re.match(r"\\(mid|cmid|top|bottom)rule", l.strip())]
-        if lines and re.search(label_regex, lines[0]):
+        if lines and re.search(label_regex, re.sub(r"^(%%\s*)+", "", lines[0])):  # rows commented out in the manuscript keep their numbers
             vals = re.findall(r"\\(?:best|second)?meanstd\{([0-9.]+)\}", row)
             if vals:
                 return [float(v) for v in vals]
