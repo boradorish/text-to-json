@@ -1150,7 +1150,7 @@ Section 4 Experiments를 "공통 설정 + 실험 3개(설계·결과 동거)"로
 
 ## 인프라 메모
 
-- (2026-09-05) pod `/root`에 있던 실험 13·14 러너 스크립트와 로그는 `outputs/_runners/`로 옮겼다(레포 사본은 `benchmark/scripts/`). `/root`에는 실행 중인 `rw_greedy.sh`(greedy 재실행)와 `aligned_ft.sh`(ScrapeGraphAI 학습), 재개 대기 중인 `aligned_jsb.sh`, 그 로그만 남겨 두었다. `/root`는 pod 재예약 시 사라지므로 새 러너는 끝나는 대로 같은 위치로 옮긴다.
+- (2026-09-05) 실험 13·14의 러너 스크립트와 로그는 모두 공유 볼륨 `~/work/sunghee/runners/`에 둔다(레포 사본은 `benchmark/scripts/`). 실행 중이던 `rw_greedy.sh`·`aligned_ft.sh`(ScrapeGraphAI)는 끝나는 즉시 `runners/finalize_root.sh`가 같은 곳으로 옮기고 `finalize.log`에 기록한다. 이후 새 러너는 `/root`가 아니라 `~/work/sunghee/runners/`에서 실행하고 로그도 거기에 쓴다.
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
 - 기존 코드: `benchmark/inference.py` (추론), `benchmark/evaluate.py` (채점), `src/utils/vllm_inference.py`
