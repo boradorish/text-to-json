@@ -124,26 +124,28 @@ def fig_main():
         for b, v in zip(bars, vals):
             ax.text(b.get_x() + b.get_width() / 2, v + 1.5, f"{v:.0f}", ha="center", va="bottom", fontsize=5.0)
     ax.set_xticks(x); ax.set_xticklabels([n.replace(" (ours)", "\n(ours)") for n in names], fontsize=6.0)
-    ax.set_ylim(0, 105); ax.set_ylabel("Score on STAGE-Eval (%)")
+    ax.set_ylim(0, 118); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_ylabel("Score on STAGE-Eval (%)")
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
-    ax.legend(frameon=False, fontsize=5.4, loc="upper left", ncol=1, handlelength=1.0)
+    ax.legend(frameon=False, fontsize=5.4, loc="upper center", ncol=3, handlelength=1.0, columnspacing=1.0, borderaxespad=0.1)
     check_texts(fig, ax); finish(fig, OUT / "fig_main_a.pdf")
 
-    # (b) training vs constrained decoding on the 798 schemas: EMR (open) and VA (filled), latency noted
-    se = DATA["stage_eval"]; cost = {(r["label"], r["pass"], r["batch_size"]): r for r in DATA["inference_cost"]}
-    rows = [("Qwen3-4B, free", "base_nothink_free", "base_nothink_free"), ("Qwen3-4B, xgrammar", "base_nothink_xgrammar", "base_nothink_xgrammar"),
-            ("+ STAGE, free", "stage_sft_free", "sft_free"), ("+ STAGE, xgrammar", "stage_sft_xgrammar", "sft_xgrammar")]
+    # (b) training vs constrained decoding on the 798 schemas: grouped bars (exact match, schema validity, value accuracy)
+    #     per decoding condition, same shading scheme as (a); latency in the tick labels
+    se = DATA["stage_eval"]; cost = {(r["label"], r["pass"], str(r["batch_size"])): r for r in DATA["inference_cost"]}
+    rows = [("Qwen3-4B\nfree", "base_nothink_free", "base_nothink_free"), ("Qwen3-4B\nxgrammar", "base_nothink_xgrammar", "base_nothink_xgrammar"),
+            ("+ STAGE\nfree", "stage_sft_free", "sft_free"), ("+ STAGE\nxgrammar", "stage_sft_xgrammar", "sft_xgrammar")]
     fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
-    y = list(range(len(rows)))
-    for yi, (lab, sk, ck) in zip(y, rows):
-        m = se[sk]["compat798"]; c = TEAL if "STAGE" in lab else OCHRE
-        ax.plot([m["EMR"], m["VA"]], [yi, yi], color=GREY, linewidth=0.8, zorder=1)
-        ax.scatter([m["EMR"]], [yi], s=18, facecolors="white", edgecolors=c, linewidths=0.9, zorder=3)
-        ax.scatter([m["VA"]], [yi], s=18, facecolors=c, edgecolors=c, linewidths=0.9, zorder=3)
-        lat = float(cost[(ck, "warm", "1")]["latency_median_seconds"])
-        ax.annotate(f"{m['VA']:.1f}  ({lat:.2f} s)", (m["VA"], yi), xytext=(4, 0), textcoords="offset points", fontsize=5.6, va="center", ha="left")
-    ax.set_yticks(y); ax.set_yticklabels([r[0] for r in rows]); ax.set_xlim(0, 100); ax.set_xlabel("Score on STAGE-Eval, 798 schemas (%)")
-    ax.grid(True, axis="x", linewidth=0.3, color="#DDDDDD", zorder=0); ax.tick_params(axis="y", length=0)
+    x = np.arange(len(rows)); w = 0.26
+    for i, (metric, label, alpha) in enumerate([("EMR", "exact match", 0.45), ("SCR", "schema validity", 0.7), ("VA", "value accuracy", 1.0)]):
+        vals = [se[sk]["compat798"][metric] for _, sk, _ in rows]; cols = [TEAL if "STAGE" in lab else OCHRE for lab, _, _ in rows]
+        bars = ax.bar(x + (i - 1) * w, vals, w, color=cols, alpha=alpha, zorder=3, label=label)
+        for b, v in zip(bars, vals):
+            ax.text(b.get_x() + b.get_width() / 2, v + 1.5, f"{v:.0f}", ha="center", va="bottom", fontsize=5.0)
+    ticks = [f"{lab}\n{float(cost[(ck, 'warm', '1')]['latency_median_seconds']):.2f} s" for lab, _, ck in rows]
+    ax.set_xticks(x); ax.set_xticklabels(ticks, fontsize=5.6)
+    ax.set_ylim(0, 118); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_ylabel("Score on STAGE-Eval, 798 schemas (%)")
+    ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
+    ax.legend(frameon=False, fontsize=5.4, loc="upper center", ncol=3, handlelength=1.0, columnspacing=1.0, borderaxespad=0.1)
     check_texts(fig, ax); finish(fig, OUT / "fig_main_b.pdf")
 
 
