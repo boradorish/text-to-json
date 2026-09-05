@@ -1142,6 +1142,20 @@ Section 4 Experiments를 "공통 설정 + 실험 3개(설계·결과 동거)"로
 
 **실행.** `runners/sampling3.sh`: STAGE-Eval 851, temperature 0.6, top-p 1.0, seed 42/43/44, max_new_tokens 4,096, thinking 끔. GPU0: 미학습 Qwen3-4B 자유/xgrammar, STAGE 자유/xgrammar(12회); GPU1: `jsonschemabench_llm_full`, `glaive_full`, `scrapegraph_full`(9회). 출력 `outputs/sampling3/<cond>_s<seed>.jsonl`, 요약 `summary.json`(seed 평균·표준편차, 851 전체와 xgrammar 공통 부분집합 둘 다). 반영 대상: Figure 3 막대 7개, 부록 D 제약 디코딩 표, 4절 Training Setup의 디코딩 문장(greedy → temperature 0.6 3회 평균), 5.2·부록 D 문장 수치. 실세계 절은 이미 temperature 0.6(1 seed)이므로 "seed 수"만 다르다고 명시.
 
+**결과 (STAGE-Eval, 13:16 UTC 완료; `outputs/sampling3/summary.json`).** seed 평균(±표준편차), 851 전체 / 798 공통:
+
+| 조건 | PFR | EMR | SCR | NR | VA | 798 EMR / SCR / VA |
+|---|---:|---:|---:|---:|---:|---|
+| Qwen3-4B 자유 | 99.9 | 38.0 ±0.1 | 91.1 ±0.3 | 5.6 | 68.8 ±0.1 | 38.4 / 92.1 / 69.1 |
+| Qwen3-4B + xgrammar (798) | 99.8 | 34.3 ±0.2 | 95.2 ±0.1 | 0.6 | 66.9 ±0.1 | 34.3 / 95.2 / 66.9 |
+| STAGE 자유 | 100 | 64.5 ±0.9 | 97.9 ±0.3 | 1.1 | 85.3 ±0.4 | 64.9 / 98.0 / 85.2 |
+| STAGE + xgrammar (798) | 99.9 | 60.3 ±1.0 | 95.3 ±0.1 | 0.5 | 83.0 ±0.5 | 60.3 / 95.3 / 83.0 |
+| JSONSchemaBench full-FT | 99.1 | 32.7 ±0.2 | 84.3 ±0.8 | 7.4 | 59.6 ±0.5 | 32.9 / 85.1 / 59.7 |
+| Glaive full-FT | 96.9 | 19.1 ±0.1 | 43.2 ±2.0 | 19.9 | 34.3 ±0.9 | 19.8 / 44.9 / 35.3 |
+| ScrapeGraphAI full-FT | 99.6 | 29.0 ±0.2 | 74.9 ±0.7 | 7.1 | 49.1 ±0.8 | 30.2 / 76.9 / 50.4 |
+
+greedy·단일 seed 값과 ±1 안에서 같다. **반영**: Figure 3(자유 막대 = 851 평균, xgrammar 막대 = 798 평균), 부록 D 표, 5.2 제약 디코딩 문단, 부록 D 문장. `paper_data.json`: `stage_eval_sampling3`, `matched_full_ft_harness`(3 seed 평균으로 갱신). 4절의 추론 설정 문장은 사용자가 부록 "Inference setting"으로 정리(temperature 0.6, top-p 1.0, 3,100 토큰). RealKIE 3 seed: 헤더 VA base 51.5 ±0.6 / STAGE 62.8 ±1.7 / Dialog 56.0 ±1.3, 품목 16.0 / 20.1 / 22.1, SCR 78.8 / 96.8 / 95.9 — 길이 구간(base / STAGE): ≤4k 66.2 / 64.3, 4–8k 46.2 / 55.8, 8–16k 23.2 / 67.7, >16k 43.1 / 81.9. ExtractBench 3 seed는 실행 중(사용자 지시로 결과는 원고에 넣지 않고 그림으로 먼저 공유).
+
 ## 실험 15 — 디코딩 통일: greedy 재실행 (2026-09-05)
 
 **목적.** Table 1(greedy, 4,096 토큰, 3회 평균)과 나머지 실험(temperature 0.6 샘플링, 3,100 토큰)의 디코딩 불일치를 없앤다. 러너 `runners/greedy_798.sh`(STAGE-Eval 4조건), `runners/rw_greedy.sh`(RealKIE 5조건, ExtractBench 32k 4조건, 131k 2조건), `runners/gpu1_chain.sh`(RealKIE STAGE 누락분). 출력 `outputs/greedy_798/`, `outputs/realworld_realkie_greedy/`, `outputs/extractbench_greedy/`.
