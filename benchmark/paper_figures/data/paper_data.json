@@ -1275,54 +1275,55 @@
  "realkie_fcc_74": {
   "qwen3_4b_base_nothink": {
    "n": 74,
-   "header_va": 49.77477477477478,
-   "item_field_va": 12.741172187841283,
-   "item_recall": 9.828904259191845,
-   "count_ok": 40.54054054054054,
-   "PFR": 98.64864864864865,
-   "SCR": 0.0,
-   "NR": 55.855855855855864
-  },
-  "qwen3_4b_base_nothink_xgrammar": {
-   "n": 74,
-   "header_va": 50.9009009009009,
-   "item_field_va": 15.151073898798689,
-   "item_recall": 9.24645067346196,
+   "header_va": 51.35135135135135,
+   "item_field_va": 16.476155806334184,
+   "item_recall": 9.9381143065162,
    "count_ok": 41.891891891891895,
    "PFR": 98.64864864864865,
    "SCR": 78.37837837837837,
    "NR": 21.62162162162162
   },
-  "qwen3_4b_stage_dialog_v2": {
+  "qwen3_4b_base_nothink_xgrammar": {
    "n": 74,
-   "header_va": 56.531531531531535,
-   "item_field_va": 24.397524572260647,
-   "item_recall": 6.807426283218056,
-   "count_ok": 20.27027027027027,
+   "header_va": 51.35135135135135,
+   "item_field_va": 16.476155806334184,
+   "item_recall": 9.9381143065162,
+   "count_ok": 41.891891891891895,
    "PFR": 98.64864864864865,
-   "SCR": 0.0,
-   "NR": 45.608108108108134
+   "SCR": 78.37837837837837,
+   "NR": 21.62162162162162
   },
   "qwen3_4b_stage_sft": {
    "n": 74,
    "header_va": 63.288288288288285,
-   "item_field_va": 19.06079359301056,
-   "item_recall": 8.88241718238078,
-   "count_ok": 29.72972972972973,
+   "item_field_va": 21.47797597378959,
+   "item_recall": 9.719694211867491,
+   "count_ok": 24.324324324324326,
    "PFR": 100.0,
-   "SCR": 0.0,
-   "NR": 44.03153153153158
+   "SCR": 97.29729729729729,
+   "NR": 2.7027027027027026
   },
   "qwen3_4b_stage_sft_xgrammar": {
    "n": 74,
-   "header_va": 62.16216216216216,
-   "item_field_va": 19.06807426283218,
-   "item_recall": 7.8995267564615945,
-   "count_ok": 25.675675675675674,
+   "header_va": 63.288288288288285,
+   "item_field_va": 21.390607935930106,
+   "item_recall": 9.319257371678194,
+   "count_ok": 24.324324324324326,
    "PFR": 100.0,
-   "SCR": 95.94594594594594,
-   "NR": 4.054054054054054
-  }
+   "SCR": 97.29729729729729,
+   "NR": 2.7027027027027026
+  },
+  "qwen3_4b_stage_dialog_v2": {
+   "n": 74,
+   "header_va": 57.88288288288288,
+   "item_field_va": 17.313432835820898,
+   "item_recall": 7.863123407353477,
+   "count_ok": 27.027027027027028,
+   "PFR": 100.0,
+   "SCR": 91.89189189189189,
+   "NR": 8.108108108108109
+  },
+  "_note": "greedy, max_new_tokens 4096, max_model_len 40960; thinking disabled for the untrained model; outputs/realworld_realkie_greedy/ (2026-09-05); the earlier temperature-0.6 run is kept under realkie_fcc_74_sampling"
  },
  "docubench_44": {
   "base_nothink": {
@@ -1861,5 +1862,132 @@
    "pmc_author_field_recall": 71.38888888888889
   },
   "_note": "SWDE (hazyresearch/based-swde, 1,111 pages, one attribute each), BASED FDA 510(k) excerpts (1,102), PMC open-access article metadata (119 articles, prepare_pmc.py). VA_norm ignores case/punctuation; strict is exact leaf match. Built 2026-09-05 from outputs/realworld_swde, outputs/realworld_fda, outputs/realworld_pmc/score_pmc.json."
+ },
+ "stage_eval_greedy": {
+  "qwen3_4b_base_nothink_free": {
+   "all": {
+    "n": 851,
+    "PFR": 99.88249118683902,
+    "EMR": 38.072855464159815,
+    "SCR": 91.18683901292597,
+    "NR": 5.364826481794753,
+    "VA": 69.01754228275082
+   },
+   "compat": {
+    "n": 798,
+    "PFR": 99.87468671679198,
+    "EMR": 38.471177944862156,
+    "SCR": 92.10526315789474,
+    "NR": 4.481196267930122,
+    "VA": 69.30830428584966
+   }
+  },
+  "qwen3_4b_base_nothink_xgrammar": {
+   "all": {
+    "n": 798,
+    "PFR": 99.87468671679198,
+    "EMR": 34.335839598997495,
+    "SCR": 95.36340852130326,
+    "NR": 0.5465802280206713,
+    "VA": 67.34303260514373
+   },
+   "compat": {
+    "n": 798,
+    "PFR": 99.87468671679198,
+    "EMR": 34.335839598997495,
+    "SCR": 95.36340852130326,
+    "NR": 0.5465802280206713,
+    "VA": 67.34303260514373
+   }
+  },
+  "qwen3_4b_sft_free": {
+   "all": {
+    "n": 851,
+    "PFR": 100.0,
+    "EMR": 64.86486486486487,
+    "SCR": 97.76733254994124,
+    "NR": 1.1101734883618013,
+    "VA": 85.58058295420321
+   },
+   "compat": {
+    "n": 798,
+    "PFR": 100.0,
+    "EMR": 65.41353383458646,
+    "SCR": 97.74436090225564,
+    "NR": 1.0616499536167125,
+    "VA": 85.53224410289043
+   }
+  },
+  "qwen3_4b_sft_xgrammar": {
+   "all": {
+    "n": 798,
+    "PFR": 99.87468671679198,
+    "EMR": 61.152882205513784,
+    "SCR": 95.11278195488721,
+    "NR": 0.6263250446075932,
+    "VA": 83.56166986737281
+   },
+   "compat": {
+    "n": 798,
+    "PFR": 99.87468671679198,
+    "EMR": 61.152882205513784,
+    "SCR": 95.11278195488721,
+    "NR": 0.6263250446075932,
+    "VA": 83.56166986737281
+   }
+  },
+  "_note": "greedy (temperature 0), max_new_tokens 4096, max_model_len 16384, thinking disabled for the untrained model; single run; outputs/greedy_798/ (2026-09-05). 'compat' = 798 xgrammar-compilable schemas, 'all' = 851 (xgrammar rows only exist for the 798)."
+ },
+ "realkie_fcc_74_sampling": {
+  "qwen3_4b_base_nothink": {
+   "n": 74,
+   "header_va": 49.77477477477478,
+   "item_field_va": 12.741172187841283,
+   "item_recall": 9.828904259191845,
+   "count_ok": 40.54054054054054,
+   "PFR": 98.64864864864865,
+   "SCR": 0.0,
+   "NR": 55.855855855855864
+  },
+  "qwen3_4b_base_nothink_xgrammar": {
+   "n": 74,
+   "header_va": 50.9009009009009,
+   "item_field_va": 15.151073898798689,
+   "item_recall": 9.24645067346196,
+   "count_ok": 41.891891891891895,
+   "PFR": 98.64864864864865,
+   "SCR": 78.37837837837837,
+   "NR": 21.62162162162162
+  },
+  "qwen3_4b_stage_dialog_v2": {
+   "n": 74,
+   "header_va": 56.531531531531535,
+   "item_field_va": 24.397524572260647,
+   "item_recall": 6.807426283218056,
+   "count_ok": 20.27027027027027,
+   "PFR": 98.64864864864865,
+   "SCR": 0.0,
+   "NR": 45.608108108108134
+  },
+  "qwen3_4b_stage_sft": {
+   "n": 74,
+   "header_va": 63.288288288288285,
+   "item_field_va": 19.06079359301056,
+   "item_recall": 8.88241718238078,
+   "count_ok": 29.72972972972973,
+   "PFR": 100.0,
+   "SCR": 0.0,
+   "NR": 44.03153153153158
+  },
+  "qwen3_4b_stage_sft_xgrammar": {
+   "n": 74,
+   "header_va": 62.16216216216216,
+   "item_field_va": 19.06807426283218,
+   "item_recall": 7.8995267564615945,
+   "count_ok": 25.675675675675674,
+   "PFR": 100.0,
+   "SCR": 95.94594594594594,
+   "NR": 4.054054054054054
+  }
  }
 }

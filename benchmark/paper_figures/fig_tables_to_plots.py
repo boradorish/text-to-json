@@ -166,8 +166,8 @@ def fig_main_combined():
     """One 5.5 in x 2.3 in panel: untrained Qwen3-4B (free / xgrammar), Qwen3-4B trained on the three comparison
     datasets, and Qwen3-4B trained on STAGE (free / xgrammar). Bars = exact match / schema validity / value accuracy
     (author palette); hatched bars = xgrammar-constrained decoding; grey band = the three alternative datasets."""
-    se = DATA["stage_eval"]
-    def se_m(key, metric): return se[key]["compat798"][metric]
+    se = DATA["stage_eval_greedy"]  # greedy decoding, same as Table 1 (2026-09-05); sampling values remain in DATA["stage_eval"]
+    def se_m(key, metric): return se["qwen3_4b_" + key.replace("stage_sft", "sft")]["compat"][metric]
     groups = [  # label, (EMR, SCR, VA), xgrammar?, section
         ("Qwen3-4B\n(untrained)", (se_m("base_nothink_free", "EMR"), se_m("base_nothink_free", "SCR"), se_m("base_nothink_free", "VA")), False, "none"),
         ("Qwen3-4B\n+ xgrammar", (se_m("base_nothink_xgrammar", "EMR"), se_m("base_nothink_xgrammar", "SCR"), se_m("base_nothink_xgrammar", "VA")), True, "none"),

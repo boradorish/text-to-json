@@ -1,0 +1,53 @@
+{
+  "decoding": "greedy, max_new_tokens 4096, max_model_len 40960; thinking disabled for the untrained model",
+  "qwen3_4b_base_nothink": {
+    "n": 74,
+    "header_va": 51.35135135135135,
+    "item_field_va": 16.476155806334184,
+    "item_recall": 9.9381143065162,
+    "count_ok": 41.891891891891895,
+    "PFR": 98.64864864864865,
+    "SCR": 78.37837837837837,
+    "NR": 21.62162162162162
+  },
+  "qwen3_4b_base_nothink_xgrammar": {
+    "n": 74,
+    "header_va": 51.35135135135135,
+    "item_field_va": 16.476155806334184,
+    "item_recall": 9.9381143065162,
+    "count_ok": 41.891891891891895,
+    "PFR": 98.64864864864865,
+    "SCR": 78.37837837837837,
+    "NR": 21.62162162162162
+  },
+  "qwen3_4b_stage_sft": {
+    "n": 74,
+    "header_va": 63.288288288288285,
+    "item_field_va": 21.47797597378959,
+    "item_recall": 9.719694211867491,
+    "count_ok": 24.324324324324326,
+    "PFR": 100.0,
+    "SCR": 97.29729729729729,
+    "NR": 2.7027027027027026
+  },
+  "qwen3_4b_stage_sft_xgrammar": {
+    "n": 74,
+    "header_va": 63.288288288288285,
+    "item_field_va": 21.390607935930106,
+    "item_recall": 9.319257371678194,
+    "count_ok": 24.324324324324326,
+    "PFR": 100.0,
+    "SCR": 97.29729729729729,
+    "NR": 2.7027027027027026
+  },
+  "qwen3_4b_stage_dialog_v2": {
+    "n": 74,
+    "header_va": 57.88288288288288,
+    "item_field_va": 17.313432835820898,
+    "item_recall": 7.863123407353477,
+    "count_ok": 27.027027027027028,
+    "PFR": 100.0,
+    "SCR": 91.89189189189189,
+    "NR": 8.108108108108109
+  }
+}
