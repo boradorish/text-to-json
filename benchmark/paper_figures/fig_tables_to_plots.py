@@ -20,6 +20,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.transforms import Bbox
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -113,19 +114,19 @@ def dumbbell(ax, rows, base, stage, color_stage=TEAL, color_base=OCHRE, xlim=(0,
 
 # ------------------------------------------------------------------ main-text figure
 def fig_main():
-    # (a) data construction, matched full FT: EMR (open) and VA (filled) per training set
+    # (a) data construction, matched full FT: grouped bars (exact match, schema validity, value accuracy) per training set
+    #     -- style chosen by the author from fig_alternatives.py (3a_2_grouped_bars)
     fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
-    names = list(MATCHED); y = list(range(len(names)))
-    for yi, n in zip(y, names):
-        emr, sv, va = MATCHED[n]; c = TEAL if "STAGE" in n else OCHRE
-        ax.plot([emr, va], [yi, yi], color=GREY, linewidth=0.8, zorder=1)
-        ax.scatter([emr], [yi], s=18, facecolors="white", edgecolors=c, linewidths=0.9, zorder=3)
-        ax.scatter([va], [yi], s=18, facecolors=c, edgecolors=c, linewidths=0.9, zorder=3)
-        ax.annotate(f"{va:.1f}", (va, yi), xytext=(4, 0), textcoords="offset points", fontsize=5.6, va="center", ha="left")
-    ax.set_yticks(y); ax.set_yticklabels(names); ax.set_xlim(0, 100); ax.set_xlabel("Score on STAGE-Eval (%)")
-    ax.grid(True, axis="x", linewidth=0.3, color="#DDDDDD", zorder=0); ax.tick_params(axis="y", length=0)
-    ax.scatter([], [], s=18, facecolors="white", edgecolors=GREY, label="exact match"); ax.scatter([], [], s=18, facecolors=GREY, edgecolors=GREY, label="value accuracy")
-    ax.legend(frameon=False, fontsize=5.6, loc="upper left", handletextpad=0.3)
+    names = list(MATCHED); x = np.arange(len(names)); w = 0.26
+    for i, (metric, label, alpha) in enumerate([(0, "exact match", 0.45), (1, "schema validity", 0.7), (2, "value accuracy", 1.0)]):
+        vals = [MATCHED[n][metric] for n in names]; cols = [TEAL if "STAGE" in n else OCHRE for n in names]
+        bars = ax.bar(x + (i - 1) * w, vals, w, color=cols, alpha=alpha, zorder=3, label=label)
+        for b, v in zip(bars, vals):
+            ax.text(b.get_x() + b.get_width() / 2, v + 1.5, f"{v:.0f}", ha="center", va="bottom", fontsize=5.0)
+    ax.set_xticks(x); ax.set_xticklabels([n.replace(" (ours)", "\n(ours)") for n in names], fontsize=6.0)
+    ax.set_ylim(0, 105); ax.set_ylabel("Score on STAGE-Eval (%)")
+    ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
+    ax.legend(frameon=False, fontsize=5.4, loc="upper left", ncol=1, handlelength=1.0)
     check_texts(fig, ax); finish(fig, OUT / "fig_main_a.pdf")
 
     # (b) training vs constrained decoding on the 798 schemas: EMR (open) and VA (filled), latency noted
