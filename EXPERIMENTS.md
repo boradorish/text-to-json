@@ -1136,6 +1136,25 @@ Section 4 Experiments를 "공통 설정 + 실험 3개(설계·결과 동거)"로
 - **RealKIE 원본 5세트** (Indico; Wasabi 공개 버킷 `s3://project-fruitfly`의 `<subset>/{train,val,test}.csv`를 익명 HTTPS로 바로 받음: `https://s3.us-east-2.wasabisys.com/project-fruitfly/<subset>/test.csv`, 컬럼 `text`, `labels`(문자 span, 오프셋 전수 검증 통과), `ocr`; Zenodo zip은 PDF 포함 수 GB라 불필요). `/mnt/nvme/cache/interns/realkie_raw/csv/`. gold는 모두 **원문 그대로의 span**이라 Kleister의 canonical 형식과 달리 STAGE의 verbatim 복사와 맞는다. `benchmark/prepare_realkie_raw.py --subset …`(클래스 → 문자열 배열 필드, 문서마다 고유 span 목록; 채점 `score_cuad.py` 공용). test split 기준: **charities** 108건·28클래스·3,629 span(p50 6.7k / p90 18k / 최대 33.9k 토큰), **nda** 98건·3클래스·376 span(p50 3.6k / 최대 15k; Kleister-NDA 음성이 canonical 표기 탓인지 판별), **resource_contracts** 40건·23클래스·1,768 span(p50 45k / p90 73k / 최대 86k 토큰, YaRN 131k), **s1_pages** 300건 표본·24클래스(페이지 단위, p50 2.4k). fcc_invoices는 HF 검증판으로 이미 평가. 추론 큐 `rw_queue3.sh`(SWDE 뒤), 출력 `outputs/realworld_realkie_raw/`.
 - 보류: **DocILE**(6.7k 송장, KILE/LIR gold) — 데이터 내려받기에 docile.rossum.ai 토큰(등록) 필요, 저자 계정으로 받아야 함. **ExtractBench 237 @131k YaRN**(실험 4A 재실행, `outputs/extractbench_long/`) 실행 중.
 
+## 실험 15 — 디코딩 통일: greedy 재실행 (2026-09-05)
+
+**목적.** Table 1(greedy, 4,096 토큰, 3회 평균)과 나머지 실험(temperature 0.6 샘플링, 3,100 토큰)의 디코딩 불일치를 없앤다. 러너 `runners/greedy_798.sh`(STAGE-Eval 4조건), `runners/rw_greedy.sh`(RealKIE 5조건, ExtractBench 32k 4조건, 131k 2조건), `runners/gpu1_chain.sh`(RealKIE STAGE 누락분). 출력 `outputs/greedy_798/`, `outputs/realworld_realkie_greedy/`, `outputs/extractbench_greedy/`.
+
+| 세트 | 조건 | 샘플링(이전) | greedy |
+|---|---|---:|---:|
+| STAGE-Eval 798 | base 자유 EMR / SCR / VA | 38.6 / 92.0 / 69.3 | 38.5 / 92.1 / 69.3 |
+| | base + xgrammar | 34.6 / 95.4 / 67.1 | 34.3 / 95.4 / 67.3 |
+| | STAGE 자유 | 63.7 / 97.6 / 84.7 | 65.4 / 97.7 / 85.5 |
+| | STAGE + xgrammar | 59.3 / 95.4 / 82.6 | 61.2 / 95.1 / 83.6 |
+| STAGE-Eval 851 | STAGE 자유 EMR / VA | 63.3 / 84.9 | 64.9 / 85.6 |
+| RealKIE 74 | base 헤더 VA / 품목 VA / SCR | 49.8 / 12.7 / — | 51.4 / 16.5 / 78.4 |
+| | STAGE | 63.3 / 19.1 / — | 63.3 / 21.5 / 97.3 |
+| | STAGE-Dialog | 56.5 / 24.4 / — | 57.9 / 17.3 / 91.9 |
+
+RealKIE 길이 구간 헤더 VA(base / STAGE, greedy): ≤4k 67.7 / 64.1, 4–8k 44.9 / 57.1, 8–16k 22.7 / 68.2, >16k 37.5 / 83.3. greedy에서는 xgrammar가 RealKIE 출력을 전혀 바꾸지 않았다(base·STAGE 모두 자유 = 제약).
+
+**핵심 관찰.** 디코딩을 바꿔도 결론은 그대로이며, **Table 1의 STAGE 74.27 / 90.69와 하네스의 64.9 / 85.6 차이는 디코딩이 아니다.** 채점기(`src/test/evaluate.py` = `benchmark/evaluate.py` 정의 동일), 프롬프트(같은 system prompt·`build_chat_prompts`), 평가 세트(HF stage-eval test 851 동일)를 확인했고, 남는 후보는 체크포인트(pod의 `STAGE-Qwen3-4B-SFT`는 LlamaFactory `sunny_reasoning` 3 epoch, eval loss 0.0106; HF에 `qwen3-4b-new`, `qwen3-4b-new-prompt`, `baseline-qwen3-4b-best` 등 다수)다. 사용자 확인 대기. 원고: `paper_data.json`에 `stage_eval_greedy`, `realkie_fcc_74`(greedy; 이전 값은 `realkie_fcc_74_sampling`) 추가, Figure 3·부록 D 표·부록 F 표·본문 4.3/4.4·부록 D/F 문장을 greedy 값으로 교체. ExtractBench는 131k 실행 완료 후 교체.
+
 ## 실험 14 — 비교 데이터셋의 정렬 full-FT (2026-09-05 03:51 UTC 시작, 실행 중)
 
 **목적.** 4.1절 데이터 구성 비교의 세 데이터셋(JSONSchemaBench 4,583 / Glaive 20,000 / ScrapeGraphAI 20,000)을 STAGE와 **동일한 full fine-tuning 레시피**(Table 3: Qwen3-4B, full params, cutoff 8192, 3 epoch, lr 4e-5, cosine warmup 0.1, 유효 배치 32, bf16, enable_thinking=False, 5% 검증, 최대 20,000샘플, seed 42)로 직접 학습해 rebuttal의 정렬 수치(EMR/SV/VA: JSONSchemaBench 30.67/76.38/53.75, Glaive 4.23/20.21/11.03, ScrapeGraphAI 27.97/66.63/51.05)를 이 레포에서 재현·검증한다.
