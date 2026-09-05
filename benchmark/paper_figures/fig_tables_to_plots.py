@@ -160,6 +160,48 @@ def fig_main():
     check_texts(fig, ax); finish(fig, OUT / "fig_main_b.pdf")
 
 
+# ------------------------------------------------------------------ main-text figure, single panel (author request 2026-09-05)
+def fig_main_combined():
+    """One 5.5 in x 2.3 in panel: untrained Qwen3-4B (free / xgrammar), Qwen3-4B trained on the three comparison
+    datasets, and Qwen3-4B trained on STAGE (free / xgrammar). Bars = exact match / schema validity / value accuracy
+    (author palette); hatched bars = xgrammar-constrained decoding; grey band = the three alternative datasets."""
+    se = DATA["stage_eval"]
+    def se_m(key, metric): return se[key]["compat798"][metric]
+    groups = [  # label, (EMR, SCR, VA), xgrammar?, section
+        ("Qwen3-4B\n(untrained)", (se_m("base_nothink_free", "EMR"), se_m("base_nothink_free", "SCR"), se_m("base_nothink_free", "VA")), False, "none"),
+        ("Qwen3-4B\n+ xgrammar", (se_m("base_nothink_xgrammar", "EMR"), se_m("base_nothink_xgrammar", "SCR"), se_m("base_nothink_xgrammar", "VA")), True, "none"),
+        ("+ JSONSchema-\nBench data", MATCHED["JSONSchemaBench"], False, "other"),
+        ("+ Glaive\ndata", MATCHED["Glaive"], False, "other"),
+        ("+ ScrapeGraphAI\ndata", MATCHED["ScrapeGraphAI"], False, "other"),
+        ("+ STAGE data\n(ours)", MATCHED["STAGE (ours)"], False, "stage"),
+        ("+ STAGE data\n+ xgrammar", (se_m("stage_sft_xgrammar", "EMR"), se_m("stage_sft_xgrammar", "SCR"), se_m("stage_sft_xgrammar", "VA")), True, "stage"),
+    ]
+    WW, HH = 5.5, 2.5
+    fig, ax = plt.subplots(figsize=(WW, HH), layout="constrained")
+    x = np.arange(len(groups)); w = 0.26
+    # background band for the three alternative datasets
+    ax.axvspan(1.5, 4.5, color=BAND, zorder=0, linewidth=0)
+    for i, (label, alpha) in enumerate([("exact match", 1), ("schema validity", 1), ("value accuracy", 1)]):
+        vals = [g[1][i] for g in groups]
+        for xi, (g, v) in enumerate(zip(groups, vals)):
+            ax.bar(xi + (i - 1) * w, v, w, color=METRIC_COLORS[label], edgecolor=BAR_EDGE, linewidth=0.5, zorder=3,
+                   hatch="////" if g[2] else None, label=label if xi == 0 else None)
+            ax.text(xi + (i - 1) * w, v + 1.5, f"{v:.0f}", ha="center", va="bottom", fontsize=5.4)
+    ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
+    ax.set_ylim(0, 116); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_ylabel("Score on STAGE-Eval (%)")
+    ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
+    # section brackets
+    for (lo, hi, text) in [(-0.4, 1.4, "no training"), (1.6, 4.4, "full fine-tuning on other data"), (4.6, 6.4, "full fine-tuning on STAGE data")]:
+        ax.plot([lo, hi], [106, 106], color=GREY, linewidth=0.6, clip_on=False); ax.text((lo + hi) / 2, 108, text, ha="center", va="bottom", fontsize=5.8, color=GREY)
+    import matplotlib.patches as mpatches
+    handles = [mpatches.Patch(facecolor=METRIC_COLORS[k], edgecolor=BAR_EDGE, linewidth=0.5, label=k) for k in METRIC_COLORS]
+    handles.append(mpatches.Patch(facecolor="white", edgecolor=BAR_EDGE, linewidth=0.5, hatch="////", label="xgrammar-constrained decoding"))
+    ax.legend(handles=handles, frameon=False, fontsize=5.6, loc="lower center", ncol=4, handlelength=1.2, columnspacing=1.2, bbox_to_anchor=(0.5, 1.0), borderaxespad=0.2)
+    fig.canvas.draw(); tb = fig.get_tightbbox(fig.canvas.get_renderer()); page = Bbox.from_bounds(0, 0, WW, HH)
+    assert page.contains(tb.x0, tb.y0) and page.contains(tb.x1, tb.y1), f"clipping fig_main: {tb}"
+    OUT.mkdir(parents=True, exist_ok=True); fig.savefig(OUT / "fig_main.pdf"); plt.close(fig)
+
+
 # ------------------------------------------------------------------ appendix: DeepJSONEval medium / hard
 def fig_dje():
     mh = parse_mh()
@@ -203,7 +245,7 @@ def fig_eb():
 
 def main():
     with plt.rc_context(RC):
-        fig_main(); fig_dje(); fig_eb()
+        fig_main(); fig_main_combined(); fig_dje(); fig_eb()
     mh = parse_mh()
     print("self-check DeepJSONEval parsed (base -> STAGE, hard strict):", {k: (v["base"]["hard"][2], v["stage"]["hard"][2]) for k, v in mh.items()})
     for f in sorted(OUT.glob("fig_*.pdf")):
