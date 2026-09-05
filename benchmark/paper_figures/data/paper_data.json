@@ -2084,5 +2084,74 @@
    }
   },
   "_note": "Qwen3-4B only; greedy, max_new_tokens 4096, 32k context; same 194 xgrammar-compilable documents; outputs/extractbench_greedy/ (2026-09-05). The sampling-based block extractbench_194 (temperature 0.6, re-parsed) also covers Qwen2.5-3B."
+ },
+ "matched_full_ft_harness": {
+  "JSONSchemaBench": {
+   "EMR": 33.84,
+   "SCR": 85.78,
+   "VA": 61.05,
+   "PFR": 99.06,
+   "NR": 5.61,
+   "n": 851,
+   "model": "outputs/aligned_baselines/jsonschemabench_llm_full",
+   "train_samples": 4324
+  },
+  "Glaive": {
+   "EMR": 20.68,
+   "SCR": 44.65,
+   "VA": 36.42,
+   "PFR": 97.06,
+   "NR": 20.03,
+   "n": 851,
+   "model": "outputs/aligned_baselines/glaive_full",
+   "train_samples": 20000
+  },
+  "ScrapeGraphAI": {
+   "EMR": 29.38,
+   "SCR": 75.09,
+   "VA": 49.11,
+   "PFR": 99.76,
+   "NR": 6.69,
+   "n": 851,
+   "model": "outputs/aligned_baselines/scrapegraph_full",
+   "train_samples": 20000
+  },
+  "STAGE (ours)": {
+   "EMR": 64.86486486486487,
+   "SCR": 97.76733254994124,
+   "VA": 85.58058295420321,
+   "PFR": 100.0,
+   "NR": 1.1101734883618013,
+   "n": 851,
+   "model": "/root/work/sunghee/models/STAGE-Qwen3-4B-SFT"
+  },
+  "_rebuttal_reference": {
+   "JSONSchemaBench": [
+    30.67,
+    76.38,
+    53.75
+   ],
+   "Glaive": [
+    4.23,
+    20.21,
+    11.03
+   ],
+   "ScrapeGraphAI": [
+    27.97,
+    66.63,
+    51.05
+   ],
+   "STAGE (ours)": [
+    74.27,
+    93.54,
+    90.69
+   ],
+   "columns": [
+    "EMR",
+    "SV",
+    "VA"
+   ]
+  },
+  "_note": "Comparison datasets trained in this repo with benchmark/train_full_sft.py (STAGE recipe, Table 3) and scored on STAGE-Eval 851 with benchmark/evaluate.py under greedy decoding (max_new_tokens 4096, thinking off); outputs/aligned_baselines/eval_greedy/ (2026-09-05). STAGE row = the pod checkpoint under the same harness (outputs/greedy_798/qwen3_4b_sft_free, 851 rows); it differs from Table 1's 74.27 / 90.69 whose checkpoint is unconfirmed."
  }
 }

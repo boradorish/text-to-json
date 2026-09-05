@@ -78,9 +78,12 @@ def parse_mh() -> dict:
     return out
 
 
-MATCHED = {  # numbers supplied by the authors (rebuttal), also in tables/tab_matched_ft.tex
+MATCHED_REBUTTAL = {  # numbers supplied by the authors (rebuttal), also in tables/tab_matched_ft.tex; kept for reference
     "JSONSchemaBench": (30.67, 76.38, 53.75), "Glaive": (4.23, 20.21, 11.03),
     "ScrapeGraphAI": (27.97, 66.63, 51.05), "STAGE (ours)": (74.27, 93.54, 90.69)}
+# Figure 3 now uses the in-repo reproduction (Exp 14/15): same recipe, same harness, greedy decoding; (EMR, SCR, VA)
+_h = DATA["matched_full_ft_harness"]
+MATCHED = {k: (_h[k]["EMR"], _h[k]["SCR"], _h[k]["VA"]) for k in ("JSONSchemaBench", "Glaive", "ScrapeGraphAI", "STAGE (ours)")}
 
 
 METRIC_COLORS = {"exact match": "#8EDCE6", "schema validity": "#D5DCF9", "value accuracy": "#A7B0CA"}  # author-chosen palette

@@ -1171,6 +1171,17 @@ RealKIE 길이 구간 헤더 VA(base / STAGE, greedy): ≤4k 67.7 / 64.1, 4–8k
 
 **중간 결과 4 (09:35 UTC).** `jsonschemabench_llm_full`: 논문 방식 재생성 데이터 4,324건(`src/prepare_jsonschemabench_report_sft.py --gold-mode llm`, 6,000 요청 중 스키마 검증·리포트 검증 통과분; 생성 12분) → 387 step 학습(32분) → STAGE-Eval 851: PFR 98.9, EMR 32.8, SCR 83.2, VA 59.8. rebuttal(30.67 / 76.38 / 53.75) 대비 EMR +2.1, VA +6.0 — 방향·크기는 재현되고 VA가 다소 높다(재생성 데이터가 확률적이고 샘플 수가 4,324 vs 5.75K로 다름). 세 세트 정리: ScrapeGraphAI 일치, JSONSchemaBench 근사 일치, Glaive 불일치(19.2 vs 4.23). 세 평가는 하네스 기본값(temperature 0.6, 3,100 토큰)이었으므로 4절의 greedy 설정으로 재평가 중(`runners/aligned_greedy_eval.sh`, `outputs/aligned_baselines/eval_greedy/`); Figure 3의 비교 막대는 그 값으로 교체할 예정.
 
+**최종 (greedy 재평가, `outputs/aligned_baselines/eval_greedy/`, STAGE-Eval 851).**
+
+| 학습 데이터 | PFR | EMR | SCR | NR | VA | rebuttal (EMR / SV / VA) |
+|---|---:|---:|---:|---:|---:|---|
+| JSONSchemaBench (재생성 4,324) | 99.1 | 33.8 | 85.8 | 5.6 | 61.1 | 30.67 / 76.38 / 53.75 |
+| Glaive 20k | 97.1 | 20.7 | 44.7 | 20.0 | 36.4 | 4.23 / 20.21 / 11.03 |
+| ScrapeGraphAI 20k | 99.8 | 29.4 | 75.1 | 6.7 | 49.1 | 27.97 / 66.63 / 51.05 |
+| STAGE (pod 체크포인트, 같은 하네스) | 100 | 64.9 | 97.8 | 1.1 | 85.6 | 74.27 / 93.54 / 90.69 |
+
+**반영.** Figure 3의 비교 막대 4개(세 데이터셋 + STAGE 자유)를 이 하네스 값으로 교체(`paper_data.json` `matched_full_ft_harness`; rebuttal 값은 `_rebuttal_reference`와 `fig_tables_to_plots.MATCHED_REBUTTAL`에 보존). 이유: 한 그림 안에서 rebuttal 값과 하네스 값이 섞이면 STAGE 자유(74.27)와 STAGE+xgrammar(61.2)가 서로 다른 파이프라인이 되어 비교가 성립하지 않기 때문. 결과적으로 **Figure 3의 STAGE 64.9 / 85.6과 Table 1의 74.27 / 90.69가 불일치**하며, 이는 Table 1 체크포인트 확인(사용자)으로 해소해야 한다. 순위·결론(STAGE ≫ JSONSchemaBench ≈ ScrapeGraphAI > Glaive; 값 격차 25포인트 이상)은 rebuttal과 같다.
+
 **판정 기준.** 본문 Figure 3(a)의 rebuttal 값과 EMR/VA가 ±2 안이면 그대로 두고, 벗어나면 이 실행값으로 `paper_data.json`·그림을 교체하고 정정 기록을 남긴다(SV는 정의가 불명확하므로 SCR로 대체 보고).
 
 ## 인프라 메모
