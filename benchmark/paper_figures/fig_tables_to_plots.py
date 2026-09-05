@@ -86,6 +86,7 @@ MATCHED = {  # numbers supplied by the authors (rebuttal), also in tables/tab_ma
 METRIC_COLORS = {"exact match": "#8EDCE6", "schema validity": "#D5DCF9", "value accuracy": "#A7B0CA"}  # author-chosen palette
 BAR_EDGE = "#1B1B1E"
 BAND = "#EFEFEF"  # background band behind the STAGE-trained groups
+HATCH_COLOR = "#7F8590"  # quiet grey hatch for grammar-constrained bars
 
 
 # ------------------------------------------------------------------ helpers
@@ -178,14 +179,16 @@ def fig_main_combined():
     ]
     WW, HH = 5.5, 2.5
     fig, ax = plt.subplots(figsize=(WW, HH), layout="constrained")
+    plt.rcParams["hatch.linewidth"] = 0.4
     x = np.arange(len(groups)); w = 0.26
     # background band for the three alternative datasets
     ax.axvspan(1.5, 4.5, color=BAND, zorder=0, linewidth=0)
     for i, (label, alpha) in enumerate([("exact match", 1), ("schema validity", 1), ("value accuracy", 1)]):
         vals = [g[1][i] for g in groups]
         for xi, (g, v) in enumerate(zip(groups, vals)):
-            ax.bar(xi + (i - 1) * w, v, w, color=METRIC_COLORS[label], edgecolor=BAR_EDGE, linewidth=0.5, zorder=3,
-                   hatch="////" if g[2] else None, label=label if xi == 0 else None)
+            ax.bar(xi + (i - 1) * w, v, w, color=METRIC_COLORS[label], edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
+            if g[2]:  # xgrammar: quiet, sparse grey hatch drawn over the solid bar (hatch colour decoupled from the border)
+                ax.bar(xi + (i - 1) * w, v, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
             ax.text(xi + (i - 1) * w, v + 1.5, f"{v:.0f}", ha="center", va="bottom", fontsize=5.4)
     ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
     ax.set_ylim(0, 116); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_ylabel("Score on STAGE-Eval (%)")
@@ -195,7 +198,7 @@ def fig_main_combined():
         ax.plot([lo, hi], [106, 106], color=GREY, linewidth=0.6, clip_on=False); ax.text((lo + hi) / 2, 108, text, ha="center", va="bottom", fontsize=5.8, color=GREY)
     import matplotlib.patches as mpatches
     handles = [mpatches.Patch(facecolor=METRIC_COLORS[k], edgecolor=BAR_EDGE, linewidth=0.5, label=k) for k in METRIC_COLORS]
-    handles.append(mpatches.Patch(facecolor="white", edgecolor=BAR_EDGE, linewidth=0.5, hatch="////", label="xgrammar-constrained decoding"))
+    handles.append(mpatches.Patch(facecolor="white", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", label="xgrammar-constrained decoding"))
     ax.legend(handles=handles, frameon=False, fontsize=5.6, loc="lower center", ncol=4, handlelength=1.2, columnspacing=1.2, bbox_to_anchor=(0.5, 1.0), borderaxespad=0.2)
     fig.canvas.draw(); tb = fig.get_tightbbox(fig.canvas.get_renderer()); page = Bbox.from_bounds(0, 0, WW, HH)
     assert page.contains(tb.x0, tb.y0) and page.contains(tb.x1, tb.y1), f"clipping fig_main: {tb}"
