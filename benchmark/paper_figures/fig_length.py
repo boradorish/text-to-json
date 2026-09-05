@@ -90,7 +90,6 @@ def panel_b():
     ax.set_ylabel("Parse success (%)")
     ax.set_ylim(0, 104); ax.set_yticks([0, 20, 40, 60, 80, 100])
     ax.axvspan(3.5, 5.5, color="#EEEEEE", zorder=0, linewidth=0)
-    ax.text(3.6, 45, "beyond native\n32k context", ha="left", va="top", fontsize=5.6, color=GREY)
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0)
     ax.legend(loc="lower left", frameon=False, handletextpad=0.3, borderaxespad=0.2)
     finish(fig, OUT / "fig_len_b.pdf")
