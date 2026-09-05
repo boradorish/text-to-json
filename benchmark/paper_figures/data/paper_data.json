@@ -1275,55 +1275,55 @@
  "realkie_fcc_74": {
   "qwen3_4b_base_nothink": {
    "n": 74,
-   "header_va": 51.35135135135135,
-   "item_field_va": 16.476155806334184,
-   "item_recall": 9.9381143065162,
+   "header_va": 49.77477477477478,
+   "item_field_va": 12.741172187841283,
+   "item_recall": 9.828904259191845,
+   "count_ok": 40.54054054054054,
+   "PFR": 98.64864864864865,
+   "SCR": 0.0,
+   "NR": 55.855855855855864
+  },
+  "qwen3_4b_base_nothink_xgrammar": {
+   "n": 74,
+   "header_va": 50.9009009009009,
+   "item_field_va": 15.151073898798689,
+   "item_recall": 9.24645067346196,
    "count_ok": 41.891891891891895,
    "PFR": 98.64864864864865,
    "SCR": 78.37837837837837,
    "NR": 21.62162162162162
   },
-  "qwen3_4b_base_nothink_xgrammar": {
+  "qwen3_4b_stage_dialog_v2": {
    "n": 74,
-   "header_va": 51.35135135135135,
-   "item_field_va": 16.476155806334184,
-   "item_recall": 9.9381143065162,
-   "count_ok": 41.891891891891895,
+   "header_va": 56.531531531531535,
+   "item_field_va": 24.397524572260647,
+   "item_recall": 6.807426283218056,
+   "count_ok": 20.27027027027027,
    "PFR": 98.64864864864865,
-   "SCR": 78.37837837837837,
-   "NR": 21.62162162162162
+   "SCR": 0.0,
+   "NR": 45.608108108108134
   },
   "qwen3_4b_stage_sft": {
    "n": 74,
    "header_va": 63.288288288288285,
-   "item_field_va": 21.47797597378959,
-   "item_recall": 9.719694211867491,
-   "count_ok": 24.324324324324326,
+   "item_field_va": 19.06079359301056,
+   "item_recall": 8.88241718238078,
+   "count_ok": 29.72972972972973,
    "PFR": 100.0,
-   "SCR": 97.29729729729729,
-   "NR": 2.7027027027027026
+   "SCR": 0.0,
+   "NR": 44.03153153153158
   },
   "qwen3_4b_stage_sft_xgrammar": {
    "n": 74,
-   "header_va": 63.288288288288285,
-   "item_field_va": 21.390607935930106,
-   "item_recall": 9.319257371678194,
-   "count_ok": 24.324324324324326,
+   "header_va": 62.16216216216216,
+   "item_field_va": 19.06807426283218,
+   "item_recall": 7.8995267564615945,
+   "count_ok": 25.675675675675674,
    "PFR": 100.0,
-   "SCR": 97.29729729729729,
-   "NR": 2.7027027027027026
+   "SCR": 95.94594594594594,
+   "NR": 4.054054054054054
   },
-  "qwen3_4b_stage_dialog_v2": {
-   "n": 74,
-   "header_va": 57.88288288288288,
-   "item_field_va": 17.313432835820898,
-   "item_recall": 7.863123407353477,
-   "count_ok": 27.027027027027028,
-   "PFR": 100.0,
-   "SCR": 91.89189189189189,
-   "NR": 8.108108108108109
-  },
-  "_note": "greedy, max_new_tokens 4096, max_model_len 40960; thinking disabled for the untrained model; outputs/realworld_realkie_greedy/ (2026-09-05); the earlier temperature-0.6 run is kept under realkie_fcc_74_sampling"
+  "_note": "temperature-0.6 sampling run (seed 42), the setting used for Figure 4 and the real-world section; greedy re-run under realkie_fcc_74_greedy"
  },
  "docubench_44": {
   "base_nothink": {
@@ -1938,58 +1938,6 @@
   },
   "_note": "greedy (temperature 0), max_new_tokens 4096, max_model_len 16384, thinking disabled for the untrained model; single run; outputs/greedy_798/ (2026-09-05). 'compat' = 798 xgrammar-compilable schemas, 'all' = 851 (xgrammar rows only exist for the 798)."
  },
- "realkie_fcc_74_sampling": {
-  "qwen3_4b_base_nothink": {
-   "n": 74,
-   "header_va": 49.77477477477478,
-   "item_field_va": 12.741172187841283,
-   "item_recall": 9.828904259191845,
-   "count_ok": 40.54054054054054,
-   "PFR": 98.64864864864865,
-   "SCR": 0.0,
-   "NR": 55.855855855855864
-  },
-  "qwen3_4b_base_nothink_xgrammar": {
-   "n": 74,
-   "header_va": 50.9009009009009,
-   "item_field_va": 15.151073898798689,
-   "item_recall": 9.24645067346196,
-   "count_ok": 41.891891891891895,
-   "PFR": 98.64864864864865,
-   "SCR": 78.37837837837837,
-   "NR": 21.62162162162162
-  },
-  "qwen3_4b_stage_dialog_v2": {
-   "n": 74,
-   "header_va": 56.531531531531535,
-   "item_field_va": 24.397524572260647,
-   "item_recall": 6.807426283218056,
-   "count_ok": 20.27027027027027,
-   "PFR": 98.64864864864865,
-   "SCR": 0.0,
-   "NR": 45.608108108108134
-  },
-  "qwen3_4b_stage_sft": {
-   "n": 74,
-   "header_va": 63.288288288288285,
-   "item_field_va": 19.06079359301056,
-   "item_recall": 8.88241718238078,
-   "count_ok": 29.72972972972973,
-   "PFR": 100.0,
-   "SCR": 0.0,
-   "NR": 44.03153153153158
-  },
-  "qwen3_4b_stage_sft_xgrammar": {
-   "n": 74,
-   "header_va": 62.16216216216216,
-   "item_field_va": 19.06807426283218,
-   "item_recall": 7.8995267564615945,
-   "count_ok": 25.675675675675674,
-   "PFR": 100.0,
-   "SCR": 95.94594594594594,
-   "NR": 4.054054054054054
-  }
- },
  "extractbench_194_greedy": {
   "qwen3_4b_base_nothink_free": {
    "all194": {
@@ -2153,5 +2101,58 @@
    ]
   },
   "_note": "Comparison datasets trained in this repo with benchmark/train_full_sft.py (STAGE recipe, Table 3) and scored on STAGE-Eval 851 with benchmark/evaluate.py under greedy decoding (max_new_tokens 4096, thinking off); outputs/aligned_baselines/eval_greedy/ (2026-09-05). STAGE row = the pod checkpoint under the same harness (outputs/greedy_798/qwen3_4b_sft_free, 851 rows); it differs from Table 1's 74.27 / 90.69 whose checkpoint is unconfirmed."
+ },
+ "realkie_fcc_74_greedy": {
+  "qwen3_4b_base_nothink": {
+   "n": 74,
+   "header_va": 51.35135135135135,
+   "item_field_va": 16.476155806334184,
+   "item_recall": 9.9381143065162,
+   "count_ok": 41.891891891891895,
+   "PFR": 98.64864864864865,
+   "SCR": 78.37837837837837,
+   "NR": 21.62162162162162
+  },
+  "qwen3_4b_base_nothink_xgrammar": {
+   "n": 74,
+   "header_va": 51.35135135135135,
+   "item_field_va": 16.476155806334184,
+   "item_recall": 9.9381143065162,
+   "count_ok": 41.891891891891895,
+   "PFR": 98.64864864864865,
+   "SCR": 78.37837837837837,
+   "NR": 21.62162162162162
+  },
+  "qwen3_4b_stage_sft": {
+   "n": 74,
+   "header_va": 63.288288288288285,
+   "item_field_va": 21.47797597378959,
+   "item_recall": 9.719694211867491,
+   "count_ok": 24.324324324324326,
+   "PFR": 100.0,
+   "SCR": 97.29729729729729,
+   "NR": 2.7027027027027026
+  },
+  "qwen3_4b_stage_sft_xgrammar": {
+   "n": 74,
+   "header_va": 63.288288288288285,
+   "item_field_va": 21.390607935930106,
+   "item_recall": 9.319257371678194,
+   "count_ok": 24.324324324324326,
+   "PFR": 100.0,
+   "SCR": 97.29729729729729,
+   "NR": 2.7027027027027026
+  },
+  "qwen3_4b_stage_dialog_v2": {
+   "n": 74,
+   "header_va": 57.88288288288288,
+   "item_field_va": 17.313432835820898,
+   "item_recall": 7.863123407353477,
+   "count_ok": 27.027027027027028,
+   "PFR": 100.0,
+   "SCR": 91.89189189189189,
+   "NR": 8.108108108108109
+  },
+  "_note": "greedy, max_new_tokens 4096, max_model_len 40960; thinking disabled for the untrained model; outputs/realworld_realkie_greedy/ (2026-09-05); the earlier temperature-0.6 run is kept under realkie_fcc_74_sampling"
  }
 }

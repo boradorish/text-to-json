@@ -276,7 +276,7 @@ tab_rk = r"""
 """ + lines[4] + r"""
 \bottomrule
 \end{tabular}
-\caption{\CLAUDE{\textbf{On multi-page invoices, \method{} training raises header-field and line-item accuracy over the untrained model.} RealKIE-FCC-Verified, the 74 of 75 invoices whose OCR text fits a 40,960-token context (median 4.8k tokens, 16 above 8k); one shared schema with six header fields and a \texttt{LineItems} array (up to 25 items). Header and line-item field accuracy compare values after number and whitespace normalisation, with predicted line items matched to gold items by field overlap; item count is the share of documents whose predicted list has the gold length; SCR is JSON Schema validity of the whole output. Greedy decoding with up to 4,096 new tokens; Qwen3-4B runs with thinking disabled. Exact match is zero for every row and omitted.}}
+\caption{\CLAUDE{\textbf{On multi-page invoices, \method{} training raises header-field and line-item accuracy over the untrained model.} RealKIE-FCC-Verified, the 74 of 75 invoices whose OCR text fits a 40,960-token context (median 4.8k tokens, 16 above 8k); one shared schema with six header fields and a \texttt{LineItems} array (up to 25 items). Header and line-item field accuracy compare values after number and whitespace normalisation, with predicted line items matched to gold items by field overlap; item count is the share of documents whose predicted list has the gold length; SCR is JSON Schema validity of the whole output. Nucleus sampling at temperature 0.6 (one seed); Qwen3-4B runs with thinking disabled. Exact match is zero for every row and omitted.}}
 \label{tab:app_realkie}
 \end{table}
 """
