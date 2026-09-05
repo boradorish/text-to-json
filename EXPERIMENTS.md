@@ -1144,6 +1144,8 @@ Section 4 Experiments를 "공통 설정 + 실험 3개(설계·결과 동거)"로
 
 **중간 결과 (2026-09-05 04:30 UTC).** `jsonschemabench_full` 학습 종료(loss 0.0000) 후 STAGE-Eval 851: PFR 99.1, EMR 17.6, SCR 77.6, VA 24.9 — rebuttal(30.67 / 76.38 / 53.75)과 EMR·VA가 크게 다르다. 원인: 학습 파일 `data/sft/jsonschemabench_report_full.jsonl`의 assistant 타깃이 중앙값 30자(`[]`, `{}` 등 최소 스키마 충족 JSON 333건 포함)라 모델이 빈 객체 `{}`를 내도록 학습됐다(출력 중앙값 33자). 즉 이 파일은 `generate_minimal` 계열 산출물로, rebuttal이 쓴 JSONSchemaBench 학습 데이터(LLM 생성 gold + 리포트)와 다르다 → **이 실행은 정렬 비교로 무효**, 올바른 JSONSchemaBench SFT 데이터를 확보한 뒤 재학습해야 한다. Glaive·ScrapeGraphAI 파일은 타깃 분포가 정상(중앙값 38자 / 139자, 빈 타깃 0)이라 그대로 진행.
 
+**중간 결과 2 (07:06 UTC).** `glaive_full`(20,000샘플, 1,782 step, 2h22m) STAGE-Eval 851(temperature 0.6 하네스 기본값): PFR 97.1, EMR 19.2, SCR 41.6, NR 20.9, VA 35.1 — rebuttal(4.23 / 20.21 / 11.03)보다 EMR·VA가 훨씬 높다. 출력 길이 중앙값 385자(gold 938자)로 짧게 끊는 경향은 같지만 값은 맞춘다. JSONSchemaBench(무효)와 함께 보면 rebuttal의 정렬 수치와 이 레포의 재현이 두 세트 모두 크게 어긋난다 → rebuttal 값의 출처(체크포인트·데이터·채점 설정) 확인이 필요하며, 그 전까지 Figure 3의 세 비교 데이터셋 막대는 rebuttal 값 그대로 둔다. Glaive 평가는 GPU 공유로 첫 시도가 vLLM 초기화 실패(rc=1) → 메모리 0.4로 수동 재실행(`/root/glaive_eval.sh`).
+
 **판정 기준.** 본문 Figure 3(a)의 rebuttal 값과 EMR/VA가 ±2 안이면 그대로 두고, 벗어나면 이 실행값으로 `paper_data.json`·그림을 교체하고 정정 기록을 남긴다(SV는 정의가 불명확하므로 SCR로 대체 보고).
 
 ## 인프라 메모
