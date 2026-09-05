@@ -1118,7 +1118,8 @@ Hub 미러(`rajistics/sroie`)는 이미지와 Donut 형식 gold만 있어 tesser
 ### 논문 반영 (실험 13, 2026-09-05)
 
 - 부록 E: ExtractBench 재파싱 수치·그림(`fig_eb_a` 스키마 준수)·문장 교체.
-- 부록 F: 길이 의존성 문단 + `fig_len_a/b`(RealKIE 헤더 VA by 길이, ExtractBench 237 @131k 파싱 성공 by 길이); "Short documents" 문단 + `tables/tab_realworld_short.tex`(SWDE·FDA·PMC: 정규화/엄격 VA, PMC 스칼라·키워드·참고문헌·저자).
+- **본문 Results**: "Transfer to long real-world documents" 문단 + Figure `fig:realworld`(`fig_len_a/b`: RealKIE 헤더 VA by 길이, ExtractBench 237 @131k 파싱 성공 by 길이) — 2026-09-05 사용자 요청으로 부록 F에서 본문으로 이동(부록 F 문단은 본문 그림을 참조).
+- 부록 F: 길이 의존성 문단(그림은 본문); "Short documents" 문단 + `tables/tab_realworld_short.tex`(SWDE·FDA·PMC: 정규화/엄격 VA, PMC 스칼라·키워드·참고문헌·저자).
 - 부록 G: "The same correction on real documents" 문단 + `tables/tab_realkie_spans.tex`(Charities v2·NDA); "A second dialogue corpus" 문단(MultiWOZ 2.2 범위 한정).
 - 음성 세트(VRDU, CUAD, S-1, Resource Contracts, SciREX, ExtractBench OCR, SROIE)는 부록 미반영, 본 문서에 원인 분석만. 데이터 `paper_data.json`의 `realkie_spans`, `realworld_short`, `multiwoz22_1631`, `extractbench_194`(재파싱), `length_buckets/*.json`.
 
