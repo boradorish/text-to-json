@@ -28,14 +28,15 @@ RC = {
     "axes.linewidth": 0.6, "xtick.major.width": 0.5, "ytick.major.width": 0.5,
     "axes.spines.top": False, "axes.spines.right": False, "pdf.fonttype": 42, "savefig.dpi": 400,
 }
-TEAL, OCHRE, GREY = "#1E6E8A", "#8A6A1A", "#6B7580"
-# label, run key, colour, marker, fill
+GREY, INK = "#6B7580", "#1B1B1E"
+C_BASE, C_STAGE = "#A7B0CA", "#8EDCE6"  # author palette (2026-09-05): grey-blue = untrained, aqua = STAGE
+# label, run key, colour, marker, fill  (STAGE-Dialog removed from the main-text figure at the author's request)
 ARMS_A = [
-    ("Qwen3-4B", "qwen3_4b_base_nothink", OCHRE, "o", "white"),
-    ("+ STAGE", "qwen3_4b_stage_sft", TEAL, "s", "white"),
-    ("+ STAGE + STAGE-Dialog", "qwen3_4b_stage_dialog_v2", TEAL, "s", TEAL),
+    ("Qwen3-4B", "qwen3_4b_base_nothink", C_BASE, "o", C_BASE),
+    ("+ STAGE", "qwen3_4b_stage_sft", C_STAGE, "o", C_STAGE),
 ]
-ARMS_B = [("Qwen3-4B", "base", OCHRE, "o", "white"), ("+ STAGE", "sft", TEAL, "s", "white")]
+ARMS_B = [("Qwen3-4B", "base", C_BASE, "o", C_BASE), ("+ STAGE", "sft", C_STAGE, "o", C_STAGE)]
+MS, MEW, LW = 11, 0.45, 1.1  # marker area, marker edge width, line width
 
 
 def finish(fig, path):
@@ -61,8 +62,8 @@ def panel_a():
     x = list(range(len(buckets)))
     for label, key, color, marker, face in ARMS_A:
         y = [d["runs"][key][b]["header_va"] for b in buckets]
-        ax.plot(x, y, color=color, linewidth=1.0, zorder=2)
-        ax.scatter(x, y, marker=marker, s=22, facecolors=face, edgecolors=color, linewidths=0.9, zorder=3, label=label)
+        ax.plot(x, y, color=color, linewidth=LW, zorder=2, solid_capstyle="round")
+        ax.scatter(x, y, marker=marker, s=MS, facecolors=face, edgecolors=INK, linewidths=MEW, zorder=3, label=label)
     ax.set_xticks(x); ax.set_xticklabels(xlabels(buckets, ns))
     ax.set_xlabel("Prompt length (tokens)")
     ax.set_ylabel("Header-field value accuracy (%)")
@@ -82,8 +83,8 @@ def panel_b():
     x = list(range(len(buckets)))
     for label, key, color, marker, face in ARMS_B:
         y = [100 * d["runs"][key][b]["PFR"] for b in buckets]
-        ax.plot(x, y, color=color, linewidth=1.0, zorder=2)
-        ax.scatter(x, y, marker=marker, s=22, facecolors=face, edgecolors=color, linewidths=0.9, zorder=3, label=label)
+        ax.plot(x, y, color=color, linewidth=LW, zorder=2, solid_capstyle="round")
+        ax.scatter(x, y, marker=marker, s=MS, facecolors=face, edgecolors=INK, linewidths=MEW, zorder=3, label=label, clip_on=False)
     ax.set_xticks(x); ax.set_xticklabels([f"{b.replace('<=4k', '$\\leq$4k')}\n(n={n})" for b, n in zip(buckets, ns)], fontsize=5.6)
     ax.set_xlabel("Prompt length (tokens)")
     ax.set_ylabel("Parse success (%)")
