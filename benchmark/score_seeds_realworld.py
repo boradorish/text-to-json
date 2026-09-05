@@ -11,7 +11,69 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from evaluate import evaluate_row  # noqa: E402
-from score_realkie import score as rk_score  # noqa: E402
+import re
+
+
+# --- RealKIE scoring (copied from score_realkie.py, which is a script and cannot be imported)
+def _norm(v):
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return str(v).lower()
+    if isinstance(v, (int, float)):
+        return f"{float(v):.2f}"
+    s = str(v).strip()
+    m = re.fullmatch(r"[$]?\s*([-\d][\d,]*\.?\d*)", s)
+    if m:
+        try:
+            return f"{float(m.group(1).replace(',', '')):.2f}"
+        except ValueError:
+            pass
+    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+
+HDR = ["Agency", "Advertiser", "GrossTotal", "PaymentTerms", "AgencyCommission", "NetAmountDue"]
+
+
+def _J(v):
+    try:
+        return json.loads(v) if isinstance(v, str) else v
+    except Exception:
+        return None
+
+
+def _item_sim(a, b):
+    keys = set(a) | set(b)
+    return sum(1 for k in keys if _norm(a.get(k)) == _norm(b.get(k))) / max(1, len(keys))
+
+
+def rk_score(rows):
+    hdr = [0, 0]; li_field = [0, 0]; li_recall = [0, 0]; cnt_ok = 0
+    for r in rows:
+        g = _J(r["gold_json"]); p = _J(r.get("pred_json")) or {}
+        for k in HDR:
+            if k in g:
+                hdr[1] += 1; hdr[0] += _norm(p.get(k, "<M>")) == _norm(g[k])
+        gi = g.get("LineItems") or []; pi = (p.get("LineItems") if isinstance(p, dict) else None) or []
+        pi = [x for x in pi if isinstance(x, dict)]
+        cnt_ok += len(pi) == len(gi)
+        used = set()
+        for gitem in gi:
+            best, bi = -1, None
+            for j, pitem in enumerate(pi):
+                if j in used:
+                    continue
+                sc = _item_sim(gitem, pitem)
+                if sc > best:
+                    best, bi = sc, j
+            li_recall[1] += 1
+            if bi is not None and best >= 0.5:
+                used.add(bi); li_recall[0] += 1
+            for k, v in gitem.items():
+                li_field[1] += 1
+                if bi is not None and _norm(pi[bi].get(k, "<M>")) == _norm(v):
+                    li_field[0] += 1
+    return 100 * hdr[0] / max(1, hdr[1]), 100 * li_field[0] / max(1, li_field[1]), 100 * li_recall[0] / max(1, li_recall[1]), 100 * cnt_ok / max(1, len(rows))
 
 SEEDS = (42, 43, 44)
 
