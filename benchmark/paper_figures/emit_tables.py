@@ -26,17 +26,17 @@ def write(name: str, body: str) -> None:
 
 # ---------------------------------------------------------------- Table: constrained decoding
 se = D["stage_eval"]
-se_g = D["stage_eval_greedy"]  # greedy decoding (Table 1 setting); the temperature-0.6 run stays in D["stage_eval"]
+se_g = D["stage_eval_sampling3"]  # Table 1 protocol: temperature 0.6, three seeds averaged; 798 compilable schemas
 rows = [
-    ("Qwen3-4B", "free", "qwen3_4b_base_nothink_free"),
-    ("Qwen3-4B", "xgrammar", "qwen3_4b_base_nothink_xgrammar"),
-    ("Qwen3-4B + \\method", "free", "qwen3_4b_sft_free"),
-    ("Qwen3-4B + \\method", "xgrammar", "qwen3_4b_sft_xgrammar"),
+    ("Qwen3-4B", "free", "base_nothink_free"),
+    ("Qwen3-4B", "xgrammar", "base_nothink_xgrammar"),
+    ("Qwen3-4B + \\method", "free", "sft_free"),
+    ("Qwen3-4B + \\method", "xgrammar", "sft_xgrammar"),
 ]
 lines = []
 for model, dec, key in rows:
-    m = se_g[key]["compat"]
-    bold = key == "qwen3_4b_sft_free"
+    m = {k: v["mean"] for k, v in se_g[key]["compat"].items() if isinstance(v, dict)}
+    bold = key == "sft_free"
     cells = [f1(100 - m["PFR"]), f1(m["EMR"]), f1(m["SCR"]), f1(m["NR"]), f1(m["VA"])]
     if bold:
         cells = [f"\\textbf{{{c}}}" for c in cells]

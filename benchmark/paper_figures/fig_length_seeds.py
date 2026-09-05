@@ -46,7 +46,7 @@ def main():
             panel(ax, bk, ns, [("Qwen3-4B", [rk["base_nothink"]["buckets"][b][key]["mean"] for b in bk], [rk["base_nothink"]["buckets"][b][key]["std"] for b in bk], C_BASE),
                                 ("+ STAGE", [rk["sft"]["buckets"][b][key]["mean"] for b in bk], [rk["sft"]["buckets"][b][key]["std"] for b in bk], C_STAGE)], ylabel)
             fig.savefig(a.out / fname, bbox_inches="tight", pad_inches=0.02); plt.close(fig)
-        eb = d["extractbench_131k_237"]; order = ["<=4k", "4-8k", "8-16k", "16-32k", "32-64k", ">64k"]; bk = [b for b in order if b in eb["base_nothink_yarn"]["buckets"]]
+        eb = d["extractbench_131k_237"]; order = ["<=4k", "4-8k", "8-16k", "16-32k", "32-64k", ">64k"]; bk = [b for b in order if b in eb["base_nothink_yarn"]["buckets"] and b in eb["sft_yarn"]["buckets"]]
         ns = [eb["base_nothink_yarn"]["buckets"][b]["n"] for b in bk]
         for key, fname, ylabel in [("PFR", "4c_extractbench_parse_seeds.png", "Parse success (%)"), ("VA", "4d_extractbench_va_seeds.png", "Value accuracy (%)"), ("SCR", "4e_extractbench_scr_seeds.png", "Schema compliance (%)")]:
             fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
