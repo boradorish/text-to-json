@@ -1132,6 +1132,14 @@ Hub 미러(`rajistics/sroie`)는 이미지와 Donut 형식 gold만 있어 tesser
 - **RealKIE 원본 5세트** (Indico; Wasabi 공개 버킷 `s3://project-fruitfly`의 `<subset>/{train,val,test}.csv`를 익명 HTTPS로 바로 받음: `https://s3.us-east-2.wasabisys.com/project-fruitfly/<subset>/test.csv`, 컬럼 `text`, `labels`(문자 span, 오프셋 전수 검증 통과), `ocr`; Zenodo zip은 PDF 포함 수 GB라 불필요). `/mnt/nvme/cache/interns/realkie_raw/csv/`. gold는 모두 **원문 그대로의 span**이라 Kleister의 canonical 형식과 달리 STAGE의 verbatim 복사와 맞는다. `benchmark/prepare_realkie_raw.py --subset …`(클래스 → 문자열 배열 필드, 문서마다 고유 span 목록; 채점 `score_cuad.py` 공용). test split 기준: **charities** 108건·28클래스·3,629 span(p50 6.7k / p90 18k / 최대 33.9k 토큰), **nda** 98건·3클래스·376 span(p50 3.6k / 최대 15k; Kleister-NDA 음성이 canonical 표기 탓인지 판별), **resource_contracts** 40건·23클래스·1,768 span(p50 45k / p90 73k / 최대 86k 토큰, YaRN 131k), **s1_pages** 300건 표본·24클래스(페이지 단위, p50 2.4k). fcc_invoices는 HF 검증판으로 이미 평가. 추론 큐 `rw_queue3.sh`(SWDE 뒤), 출력 `outputs/realworld_realkie_raw/`.
 - 보류: **DocILE**(6.7k 송장, KILE/LIR gold) — 데이터 내려받기에 docile.rossum.ai 토큰(등록) 필요, 저자 계정으로 받아야 함. **ExtractBench 237 @131k YaRN**(실험 4A 재실행, `outputs/extractbench_long/`) 실행 중.
 
+## 실험 14 — 비교 데이터셋의 정렬 full-FT (2026-09-05 03:51 UTC 시작, 실행 중)
+
+**목적.** 4.1절 데이터 구성 비교의 세 데이터셋(JSONSchemaBench 4,583 / Glaive 20,000 / ScrapeGraphAI 20,000)을 STAGE와 **동일한 full fine-tuning 레시피**(Table 3: Qwen3-4B, full params, cutoff 8192, 3 epoch, lr 4e-5, cosine warmup 0.1, 유효 배치 32, bf16, enable_thinking=False, 5% 검증, 최대 20,000샘플, seed 42)로 직접 학습해 rebuttal의 정렬 수치(EMR/SV/VA: JSONSchemaBench 30.67/76.38/53.75, Glaive 4.23/20.21/11.03, ScrapeGraphAI 27.97/66.63/51.05)를 이 레포에서 재현·검증한다.
+
+**실행.** `benchmark/train_full_sft.py`(기본값 = Table 3) → `benchmark/inference.py --no-thinking`으로 STAGE-Eval 851 추론 → `benchmark/evaluate.py`. 러너 `/root/aligned_ft.sh <gpu> <name> <jsonl> …`(pod 43b30e): GPU0 `jsonschemabench_full`(411 step) → `glaive_full`, GPU1 `scrapegraph_full`(1,782 step). 학습 데이터 `data/sft/{jsonschemabench_report_full,glaive_full20k,scrapegraph_full20k}.jsonl`(ShareGPT 형식). 출력 `outputs/aligned_baselines/<name>/`(모델), `outputs/aligned_baselines/eval/<name>_stage_eval851{.jsonl,_eval.txt}`, 로그 `outputs/aligned_baselines/<name>.{train,eval}.log`, `/root/aligned_gpu{0,1}.log`.
+
+**판정 기준.** 본문 Figure 3(a)의 rebuttal 값과 EMR/VA가 ±2 안이면 그대로 두고, 벗어나면 이 실행값으로 `paper_data.json`·그림을 교체하고 정정 기록을 남긴다(SV는 정의가 불명확하므로 SCR로 대체 보고).
+
 ## 인프라 메모
 
 - 추론: vLLM, 1× H200 (설정은 논문 Appendix C 참조: temp 0.6, top-p 1.0, max_new 3100, max_len 8192, seed 42)
