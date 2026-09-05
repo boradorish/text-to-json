@@ -83,6 +83,11 @@ MATCHED = {  # numbers supplied by the authors (rebuttal), also in tables/tab_ma
     "ScrapeGraphAI": (27.97, 66.63, 51.05), "STAGE (ours)": (74.27, 93.54, 90.69)}
 
 
+METRIC_COLORS = {"exact match": "#8EDCE6", "schema validity": "#D5DCF9", "value accuracy": "#A7B0CA"}  # author-chosen palette
+BAR_EDGE = "#1B1B1E"
+BAND = "#EFEFEF"  # background band behind the STAGE-trained groups
+
+
 # ------------------------------------------------------------------ helpers
 def finish(fig, path):
     fig.canvas.draw()
@@ -118,12 +123,15 @@ def fig_main():
     #     -- style chosen by the author from fig_alternatives.py (3a_2_grouped_bars)
     fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
     names = list(MATCHED); x = np.arange(len(names)); w = 0.26
-    for i, (metric, label, alpha) in enumerate([(0, "exact match", 0.45), (1, "schema validity", 0.7), (2, "value accuracy", 1.0)]):
-        vals = [MATCHED[n][metric] for n in names]; cols = [TEAL if "STAGE" in n else OCHRE for n in names]
-        bars = ax.bar(x + (i - 1) * w, vals, w, color=cols, alpha=alpha, zorder=3, label=label)
+    for xi, n in zip(x, names):
+        if "STAGE" in n:
+            ax.axvspan(xi - 0.5, xi + 0.5, color=BAND, zorder=0, linewidth=0)
+    for i, (metric, label) in enumerate([(0, "exact match"), (1, "schema validity"), (2, "value accuracy")]):
+        vals = [MATCHED[n][metric] for n in names]
+        bars = ax.bar(x + (i - 1) * w, vals, w, color=METRIC_COLORS[label], edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label)
         for b, v in zip(bars, vals):
             ax.text(b.get_x() + b.get_width() / 2, v + 1.5, f"{v:.0f}", ha="center", va="bottom", fontsize=5.0)
-    ax.set_xticks(x); ax.set_xticklabels([n.replace(" (ours)", "\n(ours)") for n in names], fontsize=6.0)
+    ax.set_xticks(x); ax.set_xticklabels([n.replace(" (ours)", "\n(ours)") for n in names], fontsize=6.0); ax.set_xlim(-0.5, len(names) - 0.5)
     ax.set_ylim(0, 118); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_ylabel("Score on STAGE-Eval (%)")
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=5.4, loc="upper center", ncol=3, handlelength=1.0, columnspacing=1.0, borderaxespad=0.1)
@@ -136,13 +144,16 @@ def fig_main():
             ("+ STAGE\nfree", "stage_sft_free", "sft_free"), ("+ STAGE\nxgrammar", "stage_sft_xgrammar", "sft_xgrammar")]
     fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
     x = np.arange(len(rows)); w = 0.26
-    for i, (metric, label, alpha) in enumerate([("EMR", "exact match", 0.45), ("SCR", "schema validity", 0.7), ("VA", "value accuracy", 1.0)]):
-        vals = [se[sk]["compat798"][metric] for _, sk, _ in rows]; cols = [TEAL if "STAGE" in lab else OCHRE for lab, _, _ in rows]
-        bars = ax.bar(x + (i - 1) * w, vals, w, color=cols, alpha=alpha, zorder=3, label=label)
+    for xi, (lab, _, _) in zip(x, rows):
+        if "STAGE" in lab:
+            ax.axvspan(xi - 0.5, xi + 0.5, color=BAND, zorder=0, linewidth=0)
+    for i, (metric, label) in enumerate([("EMR", "exact match"), ("SCR", "schema validity"), ("VA", "value accuracy")]):
+        vals = [se[sk]["compat798"][metric] for _, sk, _ in rows]
+        bars = ax.bar(x + (i - 1) * w, vals, w, color=METRIC_COLORS[label], edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label)
         for b, v in zip(bars, vals):
             ax.text(b.get_x() + b.get_width() / 2, v + 1.5, f"{v:.0f}", ha="center", va="bottom", fontsize=5.0)
     ticks = [f"{lab}\n{float(cost[(ck, 'warm', '1')]['latency_median_seconds']):.2f} s" for lab, _, ck in rows]
-    ax.set_xticks(x); ax.set_xticklabels(ticks, fontsize=5.6)
+    ax.set_xticks(x); ax.set_xticklabels(ticks, fontsize=5.6); ax.set_xlim(-0.5, len(rows) - 0.5)
     ax.set_ylim(0, 118); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_ylabel("Score on STAGE-Eval, 798 schemas (%)")
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
     ax.legend(frameon=False, fontsize=5.4, loc="upper center", ncol=3, handlelength=1.0, columnspacing=1.0, borderaxespad=0.1)
