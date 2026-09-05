@@ -1123,6 +1123,10 @@ Hub 미러(`rajistics/sroie`)는 이미지와 Donut 형식 gold만 있어 tesser
 - 부록 G: "The same correction on real documents" 문단 + `tables/tab_realkie_spans.tex`(Charities v2·NDA); "A second dialogue corpus" 문단(MultiWOZ 2.2 범위 한정).
 - 음성 세트(VRDU, CUAD, S-1, Resource Contracts, SciREX, ExtractBench OCR, SROIE)는 부록 미반영, 본 문서에 원인 분석만. 데이터 `paper_data.json`의 `realkie_spans`, `realworld_short`, `multiwoz22_1631`, `extractbench_194`(재파싱), `length_buckets/*.json`.
 
+### 원고 구조 변경 (2026-09-05, 사용자 요청)
+
+Section 4 Experiments를 "공통 설정 + 실험 3개(설계·결과 동거)"로 재편하고 Section 5 Results를 흡수했다. 4.1 Common Setup(벤치마크·지표 원문 유지 + 모델·학습·추론 설정 문단 신규), 4.2 Exp 1(Models 문단 재사용 → Setup; Table 1; Overall performance·Error analysis 원문 유지), 4.3 Exp 2(Data construction comparison 원문 → Setup + xgrammar 설정 문단 신규; Figure 3; 결과 문단 두 개), 4.4 Exp 3(Setup 신규: RealKIE 74/75·ExtractBench 237/370·194 공통 분모·길이 구간·샘플링 디코딩 명시; Figure 4; 결과 문단; "Coverage bias and its data-side fix" 문단 신규 → 부록 G 참조). 원문 삭제는 `%% [CLAUDE-REMOVED]` 주석으로, 신규 문장은 `\CLAUDE{}`로 표시. 컴파일 18쪽(본문 결론 7쪽, 부록 11쪽부터). **후속**: 4.1에 적은 "greedy·4096·thinking 끔·3회 평균"에 맞춰 Figure 3의 untrained·xgrammar 막대(현재 temperature 0.6 값)와 Table 1 base 행(thinking 켠 값)을 greedy 재실행 결과로 교체해야 한다.
+
 ### 실험 13 데이터셋 목록 (모두 완료)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
