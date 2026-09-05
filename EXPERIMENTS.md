@@ -1111,6 +1111,10 @@ JATS XML을 독자가 보는 순서(제목·저자줄·소속·저널·키워드
 
 ExtractBench 분할 기준(base → SFT): short(93) VA 43.3 → 35.7, medium(12) 31.6 → 23.1. 모든 구간에서 VA −7~−10, SCR은 +2~+3. **해석.** 디지털 194건(재파싱)의 −4.1보다 큰 음성. OCR 잡음이 섞인 원문에서 STAGE는 잡음까지 그대로 베끼는 반면 base는 정정해 쓰는 경향(CORD·Kleister의 "표기 규칙 변환 못 함"과 같은 계열; 스캔 서식은 짧아 STAGE의 장문 강점도 없음). 모델 한계, 부록 미반영. 실험 4A의 "디지털만" 제한이 STAGE에 불리한 선택이 아니었음을 확인.
 
+### 결과 — SROIE 영수증 618건 (tesseract OCR, 4필드; 음성, 2026-09-05)
+
+Hub 미러(`rajistics/sroie`)는 이미지와 Donut 형식 gold만 있어 tesseract(psm 6)로 OCR(`benchmark/prepare_sroie.py`). 정규화 VA: base 42.7 (xgrammar 42.7), STAGE SFT 35.2 (xgrammar 35.6), STAGE-Dialog 37.7; 엄격 VA 33.6 / 27.3 / 30.6. CORD(영수증, 80.0 vs 71.7)와 같은 방향의 음성이고 OCR 잡음 때문에 절대값이 낮다. 짧은 서식 + 잡음 복사 → STAGE의 약점만 드러나는 세트. 모델 한계, 부록 미반영.
+
 ### 실험 13 데이터셋 목록 (모두 완료)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
