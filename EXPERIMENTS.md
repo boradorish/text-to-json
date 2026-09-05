@@ -1146,6 +1146,8 @@ Section 4 Experiments를 "공통 설정 + 실험 3개(설계·결과 동거)"로
 
 **중간 결과 2 (07:06 UTC).** `glaive_full`(20,000샘플, 1,782 step, 2h22m) STAGE-Eval 851(temperature 0.6 하네스 기본값): PFR 97.1, EMR 19.2, SCR 41.6, NR 20.9, VA 35.1 — rebuttal(4.23 / 20.21 / 11.03)보다 EMR·VA가 훨씬 높다. 출력 길이 중앙값 385자(gold 938자)로 짧게 끊는 경향은 같지만 값은 맞춘다. JSONSchemaBench(무효)와 함께 보면 rebuttal의 정렬 수치와 이 레포의 재현이 두 세트 모두 크게 어긋난다 → rebuttal 값의 출처(체크포인트·데이터·채점 설정) 확인이 필요하며, 그 전까지 Figure 3의 세 비교 데이터셋 막대는 rebuttal 값 그대로 둔다. Glaive 평가는 GPU 공유로 첫 시도가 vLLM 초기화 실패(rc=1) → 메모리 0.4로 수동 재실행(`/root/glaive_eval.sh`).
 
+**중간 결과 3 (08:38 UTC).** `scrapegraph_full`(20,000샘플, 1,782 step, 4h39m) STAGE-Eval 851: PFR 99.7, EMR 28.9, SCR 74.7, NR 7.4, VA 49.4 — rebuttal(27.97 / 66.63 / 51.05)과 EMR +0.9, VA −1.6로 **±2 안에서 일치**(SV 66.63은 SCR 74.7과 정의가 달라 비교 제외). 세 세트 중 ScrapeGraphAI만 재현되고 Glaive는 크게 다르며(19.2 vs 4.23), JSONSchemaBench는 논문 방식 데이터로 재생성 중(`runners/gpu1_chain.sh`, GPU1). Glaive 차이의 후보: rebuttal 쪽 Glaive 데이터 구성(샘플 선택·리포트 구성)이 `src/prepare_glaive_sft.py` 현재 버전과 다를 가능성.
+
 **판정 기준.** 본문 Figure 3(a)의 rebuttal 값과 EMR/VA가 ±2 안이면 그대로 두고, 벗어나면 이 실행값으로 `paper_data.json`·그림을 교체하고 정정 기록을 남긴다(SV는 정의가 불명확하므로 SCR로 대체 보고).
 
 ## 인프라 메모
