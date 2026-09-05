@@ -198,8 +198,12 @@ def fig_main_combined():
         ax.plot([lo, hi], [106, 106], color=GREY, linewidth=0.6, clip_on=False); ax.text((lo + hi) / 2, 108, text, ha="center", va="bottom", fontsize=5.8, color=GREY)
     import matplotlib.patches as mpatches
     handles = [mpatches.Patch(facecolor=METRIC_COLORS[k], edgecolor=BAR_EDGE, linewidth=0.5, label=k) for k in METRIC_COLORS]
-    handles.append(mpatches.Patch(facecolor="white", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", label="xgrammar-constrained decoding"))
-    ax.legend(handles=handles, frameon=False, fontsize=5.6, loc="lower center", ncol=4, handlelength=1.2, columnspacing=1.2, bbox_to_anchor=(0.5, 1.0), borderaxespad=0.2)
+    from matplotlib.legend_handler import HandlerTuple
+    xg_swatch = (mpatches.Patch(facecolor="white", edgecolor=BAR_EDGE, linewidth=0.5),
+                 mpatches.Patch(facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="////"))  # bordered box with the grey hatch
+    labels = list(METRIC_COLORS) + ["xgrammar-constrained decoding"]
+    ax.legend(handles + [xg_swatch], labels, handler_map={tuple: HandlerTuple(ndivide=1, pad=0)}, frameon=False, fontsize=5.6,
+              loc="lower center", ncol=4, handlelength=1.6, handleheight=0.9, columnspacing=1.2, bbox_to_anchor=(0.5, 1.0), borderaxespad=0.2)
     fig.canvas.draw(); tb = fig.get_tightbbox(fig.canvas.get_renderer()); page = Bbox.from_bounds(0, 0, WW, HH)
     assert page.contains(tb.x0, tb.y0) and page.contains(tb.x1, tb.y1), f"clipping fig_main: {tb}"
     OUT.mkdir(parents=True, exist_ok=True); fig.savefig(OUT / "fig_main.pdf"); plt.close(fig)
