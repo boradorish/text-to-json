@@ -1136,6 +1136,12 @@ Section 4 Experiments를 "공통 설정 + 실험 3개(설계·결과 동거)"로
 - **RealKIE 원본 5세트** (Indico; Wasabi 공개 버킷 `s3://project-fruitfly`의 `<subset>/{train,val,test}.csv`를 익명 HTTPS로 바로 받음: `https://s3.us-east-2.wasabisys.com/project-fruitfly/<subset>/test.csv`, 컬럼 `text`, `labels`(문자 span, 오프셋 전수 검증 통과), `ocr`; Zenodo zip은 PDF 포함 수 GB라 불필요). `/mnt/nvme/cache/interns/realkie_raw/csv/`. gold는 모두 **원문 그대로의 span**이라 Kleister의 canonical 형식과 달리 STAGE의 verbatim 복사와 맞는다. `benchmark/prepare_realkie_raw.py --subset …`(클래스 → 문자열 배열 필드, 문서마다 고유 span 목록; 채점 `score_cuad.py` 공용). test split 기준: **charities** 108건·28클래스·3,629 span(p50 6.7k / p90 18k / 최대 33.9k 토큰), **nda** 98건·3클래스·376 span(p50 3.6k / 최대 15k; Kleister-NDA 음성이 canonical 표기 탓인지 판별), **resource_contracts** 40건·23클래스·1,768 span(p50 45k / p90 73k / 최대 86k 토큰, YaRN 131k), **s1_pages** 300건 표본·24클래스(페이지 단위, p50 2.4k). fcc_invoices는 HF 검증판으로 이미 평가. 추론 큐 `rw_queue3.sh`(SWDE 뒤), 출력 `outputs/realworld_realkie_raw/`.
 - 보류: **DocILE**(6.7k 송장, KILE/LIR gold) — 데이터 내려받기에 docile.rossum.ai 토큰(등록) 필요, 저자 계정으로 받아야 함. **ExtractBench 237 @131k YaRN**(실험 4A 재실행, `outputs/extractbench_long/`) 실행 중.
 
+## 실험 16 — Figure 3 프로토콜 정정: temperature 0.6 × 3 seed 평균 (2026-09-05 11:20 UTC 시작)
+
+**배경.** 사용자 확인: Table 1은 greedy가 아니라 **temperature 0.6 샘플링을 세 번 돌려 평균**한 값이다(`src/test/infer.py`의 temperature 0.0은 현재 코드 상태일 뿐). 따라서 실험 15의 greedy 통일은 잘못된 방향이었고, Figure 3의 모든 조건을 원 프로토콜로 다시 맞춘다.
+
+**실행.** `runners/sampling3.sh`: STAGE-Eval 851, temperature 0.6, top-p 1.0, seed 42/43/44, max_new_tokens 4,096, thinking 끔. GPU0: 미학습 Qwen3-4B 자유/xgrammar, STAGE 자유/xgrammar(12회); GPU1: `jsonschemabench_llm_full`, `glaive_full`, `scrapegraph_full`(9회). 출력 `outputs/sampling3/<cond>_s<seed>.jsonl`, 요약 `summary.json`(seed 평균·표준편차, 851 전체와 xgrammar 공통 부분집합 둘 다). 반영 대상: Figure 3 막대 7개, 부록 D 제약 디코딩 표, 4절 Training Setup의 디코딩 문장(greedy → temperature 0.6 3회 평균), 5.2·부록 D 문장 수치. 실세계 절은 이미 temperature 0.6(1 seed)이므로 "seed 수"만 다르다고 명시.
+
 ## 실험 15 — 디코딩 통일: greedy 재실행 (2026-09-05)
 
 **목적.** Table 1(greedy, 4,096 토큰, 3회 평균)과 나머지 실험(temperature 0.6 샘플링, 3,100 토큰)의 디코딩 불일치를 없앤다. 러너 `runners/greedy_798.sh`(STAGE-Eval 4조건), `runners/rw_greedy.sh`(RealKIE 5조건, ExtractBench 32k 4조건, 131k 2조건), `runners/gpu1_chain.sh`(RealKIE STAGE 누락분). 출력 `outputs/greedy_798/`, `outputs/realworld_realkie_greedy/`, `outputs/extractbench_greedy/`.
