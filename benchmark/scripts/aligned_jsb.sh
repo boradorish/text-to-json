@@ -4,7 +4,7 @@
 cd /root/work/sunghee/text-to-json
 export CUDA_DEVICE_ORDER=PCI_BUS_ID TRANSFORMERS_OFFLINE=0 HF_HUB_OFFLINE=0 HF_HOME=/mnt/nvme/cache/interns/hf
 V=/root/work/sunghee/venv/bin/python
-until grep -q "GREEDY_DONE" /root/greedy_798.log 2>/dev/null; do sleep 120; done
+until grep -q "RW_GREEDY_DONE" /root/rw_greedy.log 2>/dev/null; do sleep 120; done
 echo "JSB_GEN_START $(date -u)"
 CUDA_VISIBLE_DEVICES=0 $V src/prepare_jsonschemabench_report_sft.py --gold-mode llm --split train --num-samples 6000 --batch-size 64 --output data/sft/jsonschemabench_report_llm_full.jsonl > outputs/aligned_baselines/jsonschemabench_llm.gen.log 2>&1
 echo "JSB_GEN_END rc=$? rows=$(wc -l < data/sft/jsonschemabench_report_llm_full.jsonl 2>/dev/null) $(date -u)"
