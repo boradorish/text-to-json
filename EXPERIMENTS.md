@@ -1115,6 +1115,13 @@ ExtractBench 분할 기준(base → SFT): short(93) VA 43.3 → 35.7, medium(12)
 
 Hub 미러(`rajistics/sroie`)는 이미지와 Donut 형식 gold만 있어 tesseract(psm 6)로 OCR(`benchmark/prepare_sroie.py`). 정규화 VA: base 42.7 (xgrammar 42.7), STAGE SFT 35.2 (xgrammar 35.6), STAGE-Dialog 37.7; 엄격 VA 33.6 / 27.3 / 30.6. CORD(영수증, 80.0 vs 71.7)와 같은 방향의 음성이고 OCR 잡음 때문에 절대값이 낮다. 짧은 서식 + 잡음 복사 → STAGE의 약점만 드러나는 세트. 모델 한계, 부록 미반영.
 
+### 논문 반영 (실험 13, 2026-09-05)
+
+- 부록 E: ExtractBench 재파싱 수치·그림(`fig_eb_a` 스키마 준수)·문장 교체.
+- 부록 F: 길이 의존성 문단 + `fig_len_a/b`(RealKIE 헤더 VA by 길이, ExtractBench 237 @131k 파싱 성공 by 길이); "Short documents" 문단 + `tables/tab_realworld_short.tex`(SWDE·FDA·PMC: 정규화/엄격 VA, PMC 스칼라·키워드·참고문헌·저자).
+- 부록 G: "The same correction on real documents" 문단 + `tables/tab_realkie_spans.tex`(Charities v2·NDA); "A second dialogue corpus" 문단(MultiWOZ 2.2 범위 한정).
+- 음성 세트(VRDU, CUAD, S-1, Resource Contracts, SciREX, ExtractBench OCR, SROIE)는 부록 미반영, 본 문서에 원인 분석만. 데이터 `paper_data.json`의 `realkie_spans`, `realworld_short`, `multiwoz22_1631`, `extractbench_194`(재파싱), `length_buckets/*.json`.
+
 ### 실험 13 데이터셋 목록 (모두 완료)
 
 - **VRDU ad-buy-form** (Google, DeepForm 원본; 641건 FCC 광고 송장, 헤더 9필드 + 중첩 line_items 5필드, 9,163 품목; 프롬프트 p50 3.2k / p90 6.4k / 최대 18k). gold는 원문 그대로의 span(여러 occurrence 모두 `gold_alts`로 보존). `benchmark/prepare_vrdu.py --subset ad-buy-form`, 채점 `score_vrdu.py`(meta의 match 함수별 정규화: 문자열/숫자/날짜/금액).
