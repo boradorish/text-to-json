@@ -1167,6 +1167,8 @@ RealKIE 길이 구간 헤더 VA(base / STAGE, greedy): ≤4k 67.7 / 64.1, 4–8k
 
 **중간 결과 3 (08:38 UTC).** `scrapegraph_full`(20,000샘플, 1,782 step, 4h39m) STAGE-Eval 851: PFR 99.7, EMR 28.9, SCR 74.7, NR 7.4, VA 49.4 — rebuttal(27.97 / 66.63 / 51.05)과 EMR +0.9, VA −1.6로 **±2 안에서 일치**(SV 66.63은 SCR 74.7과 정의가 달라 비교 제외). 세 세트 중 ScrapeGraphAI만 재현되고 Glaive는 크게 다르며(19.2 vs 4.23), JSONSchemaBench는 논문 방식 데이터로 재생성 중(`runners/gpu1_chain.sh`, GPU1). Glaive 차이의 후보: rebuttal 쪽 Glaive 데이터 구성(샘플 선택·리포트 구성)이 `src/prepare_glaive_sft.py` 현재 버전과 다를 가능성.
 
+**중간 결과 4 (09:35 UTC).** `jsonschemabench_llm_full`: 논문 방식 재생성 데이터 4,324건(`src/prepare_jsonschemabench_report_sft.py --gold-mode llm`, 6,000 요청 중 스키마 검증·리포트 검증 통과분; 생성 12분) → 387 step 학습(32분) → STAGE-Eval 851: PFR 98.9, EMR 32.8, SCR 83.2, VA 59.8. rebuttal(30.67 / 76.38 / 53.75) 대비 EMR +2.1, VA +6.0 — 방향·크기는 재현되고 VA가 다소 높다(재생성 데이터가 확률적이고 샘플 수가 4,324 vs 5.75K로 다름). 세 세트 정리: ScrapeGraphAI 일치, JSONSchemaBench 근사 일치, Glaive 불일치(19.2 vs 4.23). 세 평가는 하네스 기본값(temperature 0.6, 3,100 토큰)이었으므로 4절의 greedy 설정으로 재평가 중(`runners/aligned_greedy_eval.sh`, `outputs/aligned_baselines/eval_greedy/`); Figure 3의 비교 막대는 그 값으로 교체할 예정.
+
 **판정 기준.** 본문 Figure 3(a)의 rebuttal 값과 EMR/VA가 ±2 안이면 그대로 두고, 벗어나면 이 실행값으로 `paper_data.json`·그림을 교체하고 정정 기록을 남긴다(SV는 정의가 불명확하므로 SCR로 대체 보고).
 
 ## 인프라 메모
