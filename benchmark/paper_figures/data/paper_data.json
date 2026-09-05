@@ -1793,5 +1793,73 @@
    "samples": 1631
   },
   "_note": "MultiWOZ 2.2 test, SGD protocol (latest-user-grounded filter, full history), all 1,631 eligible turns; official SGD metric via evaluate_sgd.py; outputs/multiwoz22/summary.txt (2026-09-05). Percent units."
+ },
+ "realworld_short": {
+  "base": {
+   "swde_n": 1111,
+   "swde_va_norm": 84.60846084608461,
+   "swde_va_strict": 84.24842484248425,
+   "fda_n": 1102,
+   "fda_va_norm": 86.47912885662433,
+   "fda_va_strict": 85.2087114337568,
+   "pmc_n": 119,
+   "pmc_scalar_va": 97.47899159663865,
+   "pmc_keyword_recall": 96.32892804698973,
+   "pmc_ref_record_recall": 80.88154269972452,
+   "pmc_author_field_recall": 85.55555555555556
+  },
+  "base_xgr": {
+   "swde_n": 1111,
+   "swde_va_norm": 84.69846984698471,
+   "swde_va_strict": 84.33843384338434,
+   "fda_n": 1102,
+   "fda_va_norm": 86.38838475499092,
+   "fda_va_strict": 85.02722323049002,
+   "pmc_n": 119,
+   "pmc_scalar_va": 97.47899159663865,
+   "pmc_keyword_recall": 96.32892804698973,
+   "pmc_ref_record_recall": 80.88154269972452,
+   "pmc_author_field_recall": 85.55555555555556
+  },
+  "sft": {
+   "swde_n": 1111,
+   "swde_va_norm": 85.32853285328534,
+   "swde_va_strict": 79.74797479747974,
+   "fda_n": 1102,
+   "fda_va_norm": 87.93103448275862,
+   "fda_va_strict": 53.35753176043557,
+   "pmc_n": 119,
+   "pmc_scalar_va": 98.31932773109243,
+   "pmc_keyword_recall": 99.85315712187959,
+   "pmc_ref_record_recall": 80.64279155188247,
+   "pmc_author_field_recall": 70.18518518518519
+  },
+  "sft_xgr": {
+   "swde_n": 1111,
+   "swde_va_norm": 85.32853285328534,
+   "swde_va_strict": 79.74797479747974,
+   "fda_n": 1102,
+   "fda_va_norm": 88.02177858439202,
+   "fda_va_strict": 53.17604355716878,
+   "pmc_n": 119,
+   "pmc_scalar_va": 96.63865546218487,
+   "pmc_keyword_recall": 98.09104258443465,
+   "pmc_ref_record_recall": 78.62258953168045,
+   "pmc_author_field_recall": 68.88888888888889
+  },
+  "dialog": {
+   "swde_n": 1111,
+   "swde_va_norm": 86.85868586858686,
+   "swde_va_strict": 86.22862286228623,
+   "fda_n": 1102,
+   "fda_va_norm": 87.56805807622504,
+   "fda_va_strict": 61.88747731397459,
+   "pmc_n": 119,
+   "pmc_scalar_va": 99.15966386554622,
+   "pmc_keyword_recall": 99.85315712187959,
+   "pmc_ref_record_recall": 78.23691460055096,
+   "pmc_author_field_recall": 71.38888888888889
+  },
+  "_note": "SWDE (hazyresearch/based-swde, 1,111 pages, one attribute each), BASED FDA 510(k) excerpts (1,102), PMC open-access article metadata (119 articles, prepare_pmc.py). VA_norm ignores case/punctuation; strict is exact leaf match. Built 2026-09-05 from outputs/realworld_swde, outputs/realworld_fda, outputs/realworld_pmc/score_pmc.json."
  }
 }

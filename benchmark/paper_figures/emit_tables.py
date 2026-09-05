@@ -319,3 +319,42 @@ tab_sp = r"""
 \end{table}
 """
 write("tab_realkie_spans.tex", tab_sp)
+
+# ---------------------------------------------------------------- Table (appendix): short real-world verbatim sets (SWDE, FDA, PMC)
+rs = D["realworld_short"]
+rs_rows = [
+    ("Qwen3-4B", "free", "base"),
+    ("Qwen3-4B", "xgrammar", "base_xgr"),
+    ("Qwen3-4B + \\method", "free", "sft"),
+    ("Qwen3-4B + \\method", "xgrammar", "sft_xgr"),
+    ("Qwen3-4B + \\method{} + \\method-Dialog", "free", "dialog"),
+]
+lines = []
+for model, dec, key in rs_rows:
+    m = rs[key]
+    assert m["swde_n"] == 1111 and m["fda_n"] == 1102 and m["pmc_n"] == 119, (m["swde_n"], m["fda_n"], m["pmc_n"])
+    lines.append(f"{model} & {dec} & {f1(m['swde_va_norm'])} & {f1(m['swde_va_strict'])} & {f1(m['fda_va_norm'])} & {f1(m['fda_va_strict'])} & {f1(m['pmc_scalar_va'])} & {f1(m['pmc_keyword_recall'])} & {f1(m['pmc_ref_record_recall'])} & {f1(m['pmc_author_field_recall'])} \\\\")
+tab_rs = r"""
+\begin{table}[h]
+\CLAUDEcolor
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llcccccccc}
+\toprule
+& & \multicolumn{2}{c}{\textbf{SWDE} (1,111)} & \multicolumn{2}{c}{\textbf{FDA 510(k)} (1,102)} & \multicolumn{4}{c}{\textbf{PMC articles} (119)} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-10}
+\textbf{Model} & \textbf{Decoding} & norm. & exact & norm. & exact & scalar & keywords & references & authors \\
+\midrule
+""" + "\n".join(lines[:2]) + r"""
+\midrule
+""" + "\n".join(lines[2:4]) + r"""
+\midrule
+""" + lines[4] + r"""
+\bottomrule
+\end{tabular}
+\caption{\CLAUDE{\textbf{On short real-world documents with verbatim gold, \method{} training is neutral to slightly positive on values and the \method-Dialog continuation is the best free-decoding row on two of three sets.} SWDE web pages (one attribute per page) and FDA 510(k) decision-summary excerpts (BASED benchmark, 2k-token windows): value accuracy after case and punctuation normalisation (norm.) and exact leaf match (exact); the exact gap for the \method{} rows comes from dropped commas and final periods, not from wrong values. PMC open-access articles (median 9k tokens): accuracy on title, journal and year (scalar), keyword recall, reference-record recall (first author, year, title; 46 references per article) and author-field recall (surname, given names, affiliations), with records aligned greedily. The \method{} model loses on author fields because it splits affiliation strings into department and university parts. Qwen3-4B runs with thinking disabled.}}
+\label{tab:app_realworld_short}
+\end{table}
+"""
+write("tab_realworld_short.tex", tab_rs)

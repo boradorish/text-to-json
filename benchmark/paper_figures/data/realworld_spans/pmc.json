@@ -1,0 +1,302 @@
+{
+  "base": {
+    "all": {
+      "n": 119,
+      "PFR": 1.0,
+      "SCR": 0.9831932773109243,
+      "scalar_VA": 0.9747899159663865,
+      "keyword_recall": 0.9632892804698973,
+      "author_record_recall": 0.9367088607594937,
+      "author_field_recall": 0.8555555555555555,
+      "author_precision": 0.966903073286052,
+      "ref_record_recall": 0.8088154269972452,
+      "ref_field_recall": 0.8278026348496147,
+      "ref_precision": 0.9971885813148789,
+      "ref_count_ratio": 0.8492194674012856
+    },
+    "buckets": {
+      "0-8k": {
+        "n": 46,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "scalar_VA": 0.9927536231884058,
+        "keyword_recall": 0.9959839357429718,
+        "author_record_recall": 0.9584664536741214,
+        "author_field_recall": 0.8918918918918919,
+        "author_precision": 0.9648562300319489,
+        "ref_record_recall": 0.869475138121547,
+        "ref_field_recall": 0.8949739212897108,
+        "ref_precision": 0.9962377727614747,
+        "ref_count_ratio": 0.9178176795580111
+      },
+      "16-32k": {
+        "n": 5,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "scalar_VA": 0.9333333333333333,
+        "keyword_recall": 1.0,
+        "author_record_recall": 0.9302325581395349,
+        "author_field_recall": 0.8527131782945736,
+        "author_precision": 0.9302325581395349,
+        "ref_record_recall": 0.6308139534883721,
+        "ref_field_recall": 0.6400778210116731,
+        "ref_precision": 0.9955357142857143,
+        "ref_count_ratio": 0.6511627906976745
+      },
+      "8-16k": {
+        "n": 68,
+        "PFR": 1.0,
+        "SCR": 0.9705882352941176,
+        "scalar_VA": 0.9656862745098039,
+        "keyword_recall": 0.9405940594059405,
+        "author_record_recall": 0.9239766081871345,
+        "author_field_recall": 0.8350116189000775,
+        "author_precision": 0.9714285714285714,
+        "ref_record_recall": 0.8015329865863674,
+        "ref_field_recall": 0.8194726166328601,
+        "ref_precision": 0.9977206121784435,
+        "ref_count_ratio": 0.840678894059677
+      }
+    }
+  },
+  "base_xgr": {
+    "all": {
+      "n": 119,
+      "PFR": 1.0,
+      "SCR": 0.9831932773109243,
+      "scalar_VA": 0.9747899159663865,
+      "keyword_recall": 0.9632892804698973,
+      "author_record_recall": 0.9367088607594937,
+      "author_field_recall": 0.8555555555555555,
+      "author_precision": 0.966903073286052,
+      "ref_record_recall": 0.8088154269972452,
+      "ref_field_recall": 0.8278026348496147,
+      "ref_precision": 0.9971885813148789,
+      "ref_count_ratio": 0.8492194674012856
+    },
+    "buckets": {
+      "0-8k": {
+        "n": 46,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "scalar_VA": 0.9927536231884058,
+        "keyword_recall": 0.9959839357429718,
+        "author_record_recall": 0.9584664536741214,
+        "author_field_recall": 0.8918918918918919,
+        "author_precision": 0.9648562300319489,
+        "ref_record_recall": 0.869475138121547,
+        "ref_field_recall": 0.8949739212897108,
+        "ref_precision": 0.9962377727614747,
+        "ref_count_ratio": 0.9178176795580111
+      },
+      "16-32k": {
+        "n": 5,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "scalar_VA": 0.9333333333333333,
+        "keyword_recall": 1.0,
+        "author_record_recall": 0.9302325581395349,
+        "author_field_recall": 0.8527131782945736,
+        "author_precision": 0.9302325581395349,
+        "ref_record_recall": 0.6308139534883721,
+        "ref_field_recall": 0.6400778210116731,
+        "ref_precision": 0.9955357142857143,
+        "ref_count_ratio": 0.6511627906976745
+      },
+      "8-16k": {
+        "n": 68,
+        "PFR": 1.0,
+        "SCR": 0.9705882352941176,
+        "scalar_VA": 0.9656862745098039,
+        "keyword_recall": 0.9405940594059405,
+        "author_record_recall": 0.9239766081871345,
+        "author_field_recall": 0.8350116189000775,
+        "author_precision": 0.9714285714285714,
+        "ref_record_recall": 0.8015329865863674,
+        "ref_field_recall": 0.8194726166328601,
+        "ref_precision": 0.9977206121784435,
+        "ref_count_ratio": 0.840678894059677
+      }
+    }
+  },
+  "sft": {
+    "all": {
+      "n": 119,
+      "PFR": 1.0,
+      "SCR": 0.9747899159663865,
+      "scalar_VA": 0.9831932773109243,
+      "keyword_recall": 0.9985315712187959,
+      "author_record_recall": 0.8768699654775605,
+      "author_field_recall": 0.7018518518518518,
+      "author_precision": 0.9341463414634147,
+      "ref_record_recall": 0.8064279155188246,
+      "ref_field_recall": 0.7828113348247576,
+      "ref_precision": 0.9954993570510073,
+      "ref_count_ratio": 0.8569329660238751
+    },
+    "buckets": {
+      "0-8k": {
+        "n": 46,
+        "PFR": 1.0,
+        "SCR": 0.9782608695652174,
+        "scalar_VA": 0.9927536231884058,
+        "keyword_recall": 0.9959839357429718,
+        "author_record_recall": 0.8945686900958466,
+        "author_field_recall": 0.7675675675675676,
+        "author_precision": 0.9302325581395349,
+        "ref_record_recall": 0.8998618784530387,
+        "ref_field_recall": 0.8923660502607871,
+        "ref_precision": 0.9906272530641672,
+        "ref_count_ratio": 0.9578729281767956
+      },
+      "16-32k": {
+        "n": 5,
+        "PFR": 1.0,
+        "SCR": 0.8,
+        "scalar_VA": 1.0,
+        "keyword_recall": 1.0,
+        "author_record_recall": 0.9069767441860465,
+        "author_field_recall": 0.6046511627906976,
+        "author_precision": 0.8888888888888888,
+        "ref_record_recall": 0.7790697674418605,
+        "ref_field_recall": 0.7850194552529183,
+        "ref_precision": 0.9968454258675079,
+        "ref_count_ratio": 0.9215116279069767
+      },
+      "8-16k": {
+        "n": 68,
+        "PFR": 1.0,
+        "SCR": 0.9852941176470589,
+        "scalar_VA": 0.9754901960784313,
+        "keyword_recall": 1.0,
+        "author_record_recall": 0.8635477582846004,
+        "author_field_recall": 0.6738962044926413,
+        "author_precision": 0.9409282700421941,
+        "ref_record_recall": 0.7719682452778538,
+        "ref_field_recall": 0.7399963120044256,
+        "ref_precision": 0.9976367319378798,
+        "ref_count_ratio": 0.810840405146455
+      }
+    }
+  },
+  "sft_xgr": {
+    "all": {
+      "n": 119,
+      "PFR": 1.0,
+      "SCR": 0.9831932773109243,
+      "scalar_VA": 0.9663865546218487,
+      "keyword_recall": 0.9809104258443465,
+      "author_record_recall": 0.8607594936708861,
+      "author_field_recall": 0.6888888888888889,
+      "author_precision": 0.9318463444857497,
+      "ref_record_recall": 0.7862258953168044,
+      "ref_field_recall": 0.761558538404176,
+      "ref_precision": 0.9958195819581959,
+      "ref_count_ratio": 0.8347107438016529
+    },
+    "buckets": {
+      "0-8k": {
+        "n": 46,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "scalar_VA": 0.9927536231884058,
+        "keyword_recall": 0.9959839357429718,
+        "author_record_recall": 0.8945686900958466,
+        "author_field_recall": 0.7675675675675676,
+        "author_precision": 0.9271523178807947,
+        "ref_record_recall": 0.8998618784530387,
+        "ref_field_recall": 0.8923660502607871,
+        "ref_precision": 0.9906272530641672,
+        "ref_count_ratio": 0.9578729281767956
+      },
+      "16-32k": {
+        "n": 5,
+        "PFR": 1.0,
+        "SCR": 0.8,
+        "scalar_VA": 0.8,
+        "keyword_recall": 0.7857142857142857,
+        "author_record_recall": 0.6976744186046512,
+        "author_field_recall": 0.46511627906976744,
+        "author_precision": 0.8611111111111112,
+        "ref_record_recall": 0.5988372093023255,
+        "ref_field_recall": 0.5963035019455253,
+        "ref_precision": 1.0,
+        "ref_count_ratio": 0.7209302325581395
+      },
+      "8-16k": {
+        "n": 68,
+        "PFR": 1.0,
+        "SCR": 0.9852941176470589,
+        "scalar_VA": 0.9607843137254902,
+        "keyword_recall": 0.9851485148514851,
+        "author_record_recall": 0.8538011695906432,
+        "author_field_recall": 0.6661502711076684,
+        "author_precision": 0.9402985074626866,
+        "ref_record_recall": 0.7588283602518477,
+        "ref_field_recall": 0.726350728379126,
+        "ref_precision": 0.9979381443298969,
+        "ref_count_ratio": 0.7966055297016151
+      }
+    }
+  },
+  "dialog": {
+    "all": {
+      "n": 119,
+      "PFR": 1.0,
+      "SCR": 0.9663865546218487,
+      "scalar_VA": 0.9915966386554622,
+      "keyword_recall": 0.9985315712187959,
+      "author_record_recall": 0.8584579976985041,
+      "author_field_recall": 0.7138888888888889,
+      "author_precision": 0.8786464410735122,
+      "ref_record_recall": 0.7823691460055097,
+      "ref_field_recall": 0.7938727317921949,
+      "ref_precision": 0.9953632148377125,
+      "ref_count_ratio": 0.8317722681359045
+    },
+    "buckets": {
+      "0-8k": {
+        "n": 46,
+        "PFR": 1.0,
+        "SCR": 0.9565217391304348,
+        "scalar_VA": 1.0,
+        "keyword_recall": 0.9959839357429718,
+        "author_record_recall": 0.8722044728434505,
+        "author_field_recall": 0.7581081081081081,
+        "author_precision": 0.8950819672131147,
+        "ref_record_recall": 0.8591160220994475,
+        "ref_field_recall": 0.8999525841631105,
+        "ref_precision": 0.9889705882352942,
+        "ref_count_ratio": 0.9392265193370166
+      },
+      "16-32k": {
+        "n": 5,
+        "PFR": 1.0,
+        "SCR": 1.0,
+        "scalar_VA": 1.0,
+        "keyword_recall": 1.0,
+        "author_record_recall": 0.9069767441860465,
+        "author_field_recall": 0.7131782945736435,
+        "author_precision": 0.9302325581395349,
+        "ref_record_recall": 0.7180232558139535,
+        "ref_field_recall": 0.7373540856031129,
+        "ref_precision": 0.9961977186311787,
+        "ref_count_ratio": 0.7645348837209303
+      },
+      "8-16k": {
+        "n": 68,
+        "PFR": 1.0,
+        "SCR": 0.9705882352941176,
+        "scalar_VA": 0.9852941176470589,
+        "keyword_recall": 1.0,
+        "author_record_recall": 0.8460038986354775,
+        "author_field_recall": 0.6886134779240899,
+        "author_precision": 0.8644400785854617,
+        "ref_record_recall": 0.7580071174377224,
+        "ref_field_recall": 0.7579752904296515,
+        "ref_precision": 0.9982794218857536,
+        "ref_count_ratio": 0.7955105392827813
+      }
+    }
+  }
+}
