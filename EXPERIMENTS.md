@@ -1138,6 +1138,8 @@ Hub 미러(`rajistics/sroie`)는 이미지와 Donut 형식 gold만 있어 tesser
 
 **실행.** `benchmark/train_full_sft.py`(기본값 = Table 3) → `benchmark/inference.py --no-thinking`으로 STAGE-Eval 851 추론 → `benchmark/evaluate.py`. 러너 `/root/aligned_ft.sh <gpu> <name> <jsonl> …`(pod 43b30e): GPU0 `jsonschemabench_full`(411 step) → `glaive_full`, GPU1 `scrapegraph_full`(1,782 step). 학습 데이터 `data/sft/{jsonschemabench_report_full,glaive_full20k,scrapegraph_full20k}.jsonl`(ShareGPT 형식). 출력 `outputs/aligned_baselines/<name>/`(모델), `outputs/aligned_baselines/eval/<name>_stage_eval851{.jsonl,_eval.txt}`, 로그 `outputs/aligned_baselines/<name>.{train,eval}.log`, `/root/aligned_gpu{0,1}.log`.
 
+**중간 결과 (2026-09-05 04:30 UTC).** `jsonschemabench_full` 학습 종료(loss 0.0000) 후 STAGE-Eval 851: PFR 99.1, EMR 17.6, SCR 77.6, VA 24.9 — rebuttal(30.67 / 76.38 / 53.75)과 EMR·VA가 크게 다르다. 원인: 학습 파일 `data/sft/jsonschemabench_report_full.jsonl`의 assistant 타깃이 중앙값 30자(`[]`, `{}` 등 최소 스키마 충족 JSON 333건 포함)라 모델이 빈 객체 `{}`를 내도록 학습됐다(출력 중앙값 33자). 즉 이 파일은 `generate_minimal` 계열 산출물로, rebuttal이 쓴 JSONSchemaBench 학습 데이터(LLM 생성 gold + 리포트)와 다르다 → **이 실행은 정렬 비교로 무효**, 올바른 JSONSchemaBench SFT 데이터를 확보한 뒤 재학습해야 한다. Glaive·ScrapeGraphAI 파일은 타깃 분포가 정상(중앙값 38자 / 139자, 빈 타깃 0)이라 그대로 진행.
+
 **판정 기준.** 본문 Figure 3(a)의 rebuttal 값과 EMR/VA가 ±2 안이면 그대로 두고, 벗어나면 이 실행값으로 `paper_data.json`·그림을 교체하고 정정 기록을 남긴다(SV는 정의가 불명확하므로 SCR로 대체 보고).
 
 ## 인프라 메모
