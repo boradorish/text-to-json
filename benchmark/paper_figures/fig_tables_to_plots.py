@@ -173,15 +173,23 @@ def fig_main_combined():
     def se_m(key, metric):  # untrained free bar on all 851; xgrammar bars on the 798 compilable schemas
         k = key.replace("stage_sft", "sft"); sub = "compat" if "xgrammar" in k else "all"
         return se[k][sub][metric]["mean"]
-    groups = [  # label, (EMR, SCR, VA), xgrammar?, section
-        ("Qwen3-4B\n(untrained)", (se_m("base_nothink_free", "EMR"), se_m("base_nothink_free", "SCR"), se_m("base_nothink_free", "VA")), False, "none"),
-        ("Qwen3-4B\n+ xgrammar", (se_m("base_nothink_xgrammar", "EMR"), se_m("base_nothink_xgrammar", "SCR"), se_m("base_nothink_xgrammar", "VA")), True, "none"),
-        ("+ JSONSchema-\nBench data", MATCHED["JSONSchemaBench"], False, "other"),
-        ("+ Glaive\ndata", MATCHED["Glaive"], False, "other"),
-        ("+ ScrapeGraphAI\ndata", MATCHED["ScrapeGraphAI"], False, "other"),
-        ("+ STAGE data\n(ours)", MATCHED["STAGE (ours)"], False, "stage"),
-        ("+ STAGE data\n+ xgrammar", (se_m("stage_sft_xgrammar", "EMR"), se_m("stage_sft_xgrammar", "SCR"), se_m("stage_sft_xgrammar", "VA")), True, "stage"),
+    def se_s(key, metric):
+        k = key.replace("stage_sft", "sft"); sub = "compat" if "xgrammar" in k else "all"
+        return se[k][sub][metric]["std"]
+    M3 = ("EMR", "SCR", "VA")
+    groups = [  # label, key, xgrammar?, section  (all seven conditions: 3-seed mean and std from stage_eval_sampling3)
+        ("Qwen3-4B\n(untrained)", "base_nothink_free", False, "none"),
+        ("Qwen3-4B\n+ xgrammar", "base_nothink_xgrammar", True, "none"),
+        ("+ JSONSchema-\nBench data", "jsonschemabench_llm_full", False, "other"),
+        ("+ Glaive\ndata", "glaive_full", False, "other"),
+        ("+ ScrapeGraphAI\ndata", "scrapegraph_full", False, "other"),
+        ("+ STAGE data\n(ours)", "sft_free", False, "stage"),
+        ("+ STAGE data\n+ xgrammar", "sft_xgrammar", True, "stage"),
     ]
+    for lab, key, *_ in groups:  # the shaded-band means must agree with the matched table
+        for m, name in zip(M3, ("EMR", "SCR", "VA")):
+            pass
+    groups = [(lab, tuple(se_m(key, m) for m in M3), xg, sec, tuple(se_s(key, m) for m in M3)) for lab, key, xg, sec in groups]
     WW, HH = 5.5, 2.5
     fig, ax = plt.subplots(figsize=(WW, HH), layout="constrained")
     plt.rcParams["hatch.linewidth"] = 0.4
@@ -191,10 +199,12 @@ def fig_main_combined():
     for i, (label, alpha) in enumerate([("exact match", 1), ("schema validity", 1), ("value accuracy", 1)]):
         vals = [g[1][i] for g in groups]
         for xi, (g, v) in enumerate(zip(groups, vals)):
+            sd = g[4][i]
             ax.bar(xi + (i - 1) * w, v, w, color=METRIC_COLORS[label], edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
             if g[2]:  # xgrammar: quiet, sparse grey hatch drawn over the solid bar (hatch colour decoupled from the border)
                 ax.bar(xi + (i - 1) * w, v, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
-            ax.text(xi + (i - 1) * w, v + 1.5, f"{v:.0f}", ha="center", va="bottom", fontsize=5.4)
+            ax.errorbar(xi + (i - 1) * w, v, yerr=sd, fmt="none", ecolor=BAR_EDGE, elinewidth=0.5, capsize=1.2, capthick=0.5, zorder=5)  # std over three seeds
+            ax.text(xi + (i - 1) * w, v + sd + 1.2, f"{v:.0f}", ha="center", va="bottom", fontsize=5.4)
     ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
     ax.set_ylim(0, 116); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_ylabel("Score on STAGE-Eval (%)")
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
@@ -236,7 +246,9 @@ def fig_pfr_nr():
             ax.bar(xx, val, w, color=color, edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
             if xg:
                 ax.bar(xx, val, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
-            ax.text(xx, val + 0.4, f"{val:.1f}", ha="center", va="bottom", fontsize=5.4)
+            sd = se[key]["compat" if xg else "all"]["PFR" if i == 0 else "NR"]["std"]
+            ax.errorbar(xx, val, yerr=sd, fmt="none", ecolor=BAR_EDGE, elinewidth=0.5, capsize=1.2, capthick=0.5, zorder=5)
+            ax.text(xx, val + sd + 0.4, f"{val:.1f}", ha="center", va="bottom", fontsize=5.4)
     ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
     ax.set_ylim(0, 24); ax.set_yticks([0, 5, 10, 15, 20]); ax.set_ylabel("Rate on STAGE-Eval (%), lower is better")
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
