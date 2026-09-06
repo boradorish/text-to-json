@@ -214,6 +214,45 @@ def fig_main_combined():
     OUT.mkdir(parents=True, exist_ok=True); fig.savefig(OUT / "fig_main.pdf"); plt.close(fig)
 
 
+# ------------------------------------------------------------------ appendix: PFR and NR for the Figure 3 conditions
+def fig_pfr_nr():
+    """One 5.5 x 2.2 in panel: parse-failure rate and noise ratio (both lower is better) for the seven Figure 3
+    conditions, same protocol, grouping and hatching as Figure 3."""
+    se = DATA["stage_eval_sampling3"]
+    def v(k, metric):
+        sub = "compat" if "xgrammar" in k else "all"; return se[k][sub][metric]["mean"]
+    groups = [("Qwen3-4B\n(untrained)", "base_nothink_free", False), ("Qwen3-4B\n+ xgrammar", "base_nothink_xgrammar", True),
+              ("+ JSONSchema-\nBench data", "jsonschemabench_llm_full", False), ("+ Glaive\ndata", "glaive_full", False), ("+ ScrapeGraphAI\ndata", "scrapegraph_full", False),
+              ("+ STAGE data\n(ours)", "sft_free", False), ("+ STAGE data\n+ xgrammar", "sft_xgrammar", True)]
+    WW, HH = 5.5, 2.2
+    plt.rcParams["hatch.linewidth"] = 0.4
+    fig, ax = plt.subplots(figsize=(WW, HH), layout="constrained")
+    x = np.arange(len(groups)); w = 0.36
+    ax.axvspan(1.5, 4.5, color=BAND, zorder=0, linewidth=0)
+    series = [("parse failure rate", METRIC_COLORS["value accuracy"], lambda k: 100 - v(k, "PFR")), ("noise ratio", METRIC_COLORS["exact match"], lambda k: v(k, "NR"))]
+    for i, (label, color, f) in enumerate(series):
+        for xi, (lab, key, xg) in zip(x, groups):
+            val = f(key); xx = xi + (i - 0.5) * w
+            ax.bar(xx, val, w, color=color, edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
+            if xg:
+                ax.bar(xx, val, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
+            ax.text(xx, val + 0.4, f"{val:.1f}", ha="center", va="bottom", fontsize=5.4)
+    ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
+    ax.set_ylim(0, 24); ax.set_yticks([0, 5, 10, 15, 20]); ax.set_ylabel("Rate on STAGE-Eval (%), lower is better")
+    ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
+    for (lo, hi, text) in [(-0.4, 1.4, "no training"), (1.6, 4.4, "full fine-tuning on other data"), (4.6, 6.4, "full fine-tuning on STAGE data")]:
+        ax.plot([lo, hi], [21.5, 21.5], color=GREY, linewidth=0.6, clip_on=False); ax.text((lo + hi) / 2, 22, text, ha="center", va="bottom", fontsize=5.8, color=GREY)
+    import matplotlib.patches as mpatches
+    from matplotlib.legend_handler import HandlerTuple
+    handles = [mpatches.Patch(facecolor=c, edgecolor=BAR_EDGE, linewidth=0.5) for _, c, _ in series]
+    xg_swatch = (mpatches.Patch(facecolor="white", edgecolor=BAR_EDGE, linewidth=0.5), mpatches.Patch(facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="////"))
+    ax.legend(handles + [xg_swatch], [s[0] for s in series] + ["xgrammar-constrained decoding"], handler_map={tuple: HandlerTuple(ndivide=1, pad=0)}, frameon=False, fontsize=5.6,
+              loc="lower center", ncol=3, handlelength=1.6, handleheight=0.9, columnspacing=1.2, bbox_to_anchor=(0.5, 1.0), borderaxespad=0.2)
+    fig.canvas.draw(); tb = fig.get_tightbbox(fig.canvas.get_renderer()); page = Bbox.from_bounds(0, 0, WW, HH)
+    assert page.contains(tb.x0, tb.y0) and page.contains(tb.x1, tb.y1), f"clipping fig_pfr_nr: {tb}"
+    fig.savefig(OUT / "fig_pfr_nr.pdf"); plt.close(fig)
+
+
 # ------------------------------------------------------------------ appendix: DeepJSONEval medium / hard
 def fig_dje():
     mh = parse_mh()
@@ -257,7 +296,7 @@ def fig_eb():
 
 def main():
     with plt.rc_context(RC):
-        fig_main(); fig_main_combined(); fig_dje(); fig_eb()
+        fig_main(); fig_main_combined(); fig_pfr_nr(); fig_dje(); fig_eb()
     mh = parse_mh()
     print("self-check DeepJSONEval parsed (base -> STAGE, hard strict):", {k: (v["base"]["hard"][2], v["stage"]["hard"][2]) for k, v in mh.items()})
     for f in sorted(OUT.glob("fig_*.pdf")):
