@@ -104,6 +104,34 @@ tab_cost = r"""
 """
 write("tab_inference_cost.tex", tab_cost)
 
+# ---------------------------------------------------------------- Table: inference cost, compact main-text version
+main_rows = [("Qwen3-4B", "free", "base_nothink_free", "100"), ("Qwen3-4B", "xgrammar", "base_nothink_xgrammar", "93.8"),
+             ("Qwen3-4B + \\method", "free", "sft_free", "100"), ("Qwen3-4B + \\method", "xgrammar", "sft_xgrammar", "93.8")]
+mlines = []
+for model, dec, lab, cov in main_rows:
+    comp = c(lab, "warm", 1, "grammar_compile_median_seconds", 1000, 1) if dec == "xgrammar" else "--"
+    mlines.append(f"{model} & {dec} & {c(lab, 'warm', 1, 'latency_median_seconds')} & {c(lab, 'throughput', 32, 'examples_per_second')} & {comp} & {cov} \\\\")
+tab_cost_main = r"""
+\begin{table}[t]
+\CLAUDEcolor
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Model} & \textbf{Decoding} & \shortstack{Latency\\median (s)} & \shortstack{Throughput\\(ex/s)} & \shortstack{Grammar\\compile (ms)} & \shortstack{Schema\\coverage (\%)} \\
+\midrule
+""" + "\n".join(mlines[:2]) + r"""
+\midrule
+""" + "\n".join(mlines[2:]) + r"""
+\bottomrule
+\end{tabular}
+\caption{\CLAUDE{\textbf{Inference cost of training versus grammar constraints on \bench{}.} Batch-1 median latency and batch-32 throughput on one H200 over the 798 xgrammar-compatible examples; grammar compile time is per schema. Schema coverage is the share of the 851 \bench{} schemas each strategy can serve. Full measurements in Appendix~\ref{app:constrained} (Table~\ref{tab:app_cost}).}}
+\label{tab:cost}
+\end{table}
+"""
+write("tab_cost_main.tex", tab_cost_main)
+
 # ---------------------------------------------------------------- Table: ExtractBench
 eb = D["extractbench_194"]
 eb_rows = [
