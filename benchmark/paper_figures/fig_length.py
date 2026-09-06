@@ -3,7 +3,7 @@
 Two independent panels at final print size (2.70 x 1.95 in) for a 5.5 in column,
 composed with subcaption.
   (a) RealKIE-FCC (74 invoices): header-field value accuracy per prompt-length bucket
-  (b) ExtractBench (237 digital documents, 131k YaRN context): parse success per prompt-length bucket
+  (b) ExtractBench (237 digital documents, 131k YaRN context): schema compliance per prompt-length bucket
 Inputs: benchmark/paper_figures/data/length_buckets/{realkie_header,extractbench_long}.json,
 built on the pod with benchmark/score_realkie.py and benchmark/length_bucket_analysis.py.
 """
@@ -82,18 +82,18 @@ def panel_b():
     fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
     x = list(range(len(buckets)))
     for label, key, color, marker, face in ARMS_B:
-        y = [100 * d["runs"][key][b]["PFR"] for b in buckets]
+        y = [100 * d["runs"][key][b]["SCR"] for b in buckets]
         ax.plot(x, y, color=color, linewidth=LW, zorder=2, solid_capstyle="round")
         ax.scatter(x, y, marker=marker, s=MS, facecolors=face, edgecolors=INK, linewidths=MEW, zorder=3, label=label, clip_on=False)
     ax.set_xticks(x); ax.set_xticklabels([f"{b.replace('<=4k', '$\\leq$4k')}\n(n={n})" for b, n in zip(buckets, ns)], fontsize=5.6)
     ax.set_xlabel("Prompt length (tokens)")
-    ax.set_ylabel("Parse success (%)")
+    ax.set_ylabel("Schema compliance (%)")
     ax.set_ylim(0, 104); ax.set_yticks([0, 20, 40, 60, 80, 100])
     ax.axvspan(3.5, 5.5, color="#EEEEEE", zorder=0, linewidth=0)
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0)
     ax.legend(loc="lower left", frameon=False, handletextpad=0.3, borderaxespad=0.2)
     finish(fig, OUT / "fig_len_b.pdf")
-    return {label: [100 * d["runs"][key][b]["PFR"] for b in buckets] for label, key, *_ in ARMS_B}, ns
+    return {label: [100 * d["runs"][key][b]["SCR"] for b in buckets] for label, key, *_ in ARMS_B}, ns
 
 
 def main():
@@ -102,7 +102,7 @@ def main():
     print("self-check (a) RealKIE header VA by bucket", na)
     for k, v in a.items():
         print(f"  {k:26}", " ".join(f"{x:5.1f}" for x in v))
-    print("self-check (b) ExtractBench 237 @131k parse success by bucket", nb)
+    print("self-check (b) ExtractBench 237 @131k schema compliance by bucket", nb)
     for k, v in b.items():
         print(f"  {k:26}", " ".join(f"{x:5.1f}" for x in v))
     for name in ("fig_len_a.pdf", "fig_len_b.pdf"):
