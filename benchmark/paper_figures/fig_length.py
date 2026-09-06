@@ -2,7 +2,7 @@
 
 Two independent panels at final print size (2.70 x 1.95 in) for a 5.5 in column,
 composed with subcaption.
-  (a) RealKIE-FCC (74 invoices): header-field value accuracy per prompt-length bucket
+  (a) RealKIE-FCC (74 invoices): header-field value accuracy per prompt-length bucket, 16,384-token generation budget, 3 seeds
   (b) ExtractBench (237 digital documents, 131k YaRN context): schema compliance per prompt-length bucket
 Inputs: benchmark/paper_figures/data/length_buckets/{realkie_header,extractbench_long}.json,
 built on the pod with benchmark/score_realkie.py and benchmark/length_bucket_analysis.py.
@@ -54,24 +54,27 @@ def xlabels(buckets, ns):
 
 
 def panel_a():
-    d = json.loads((DATA / "realkie_header.json").read_text())
-    buckets = ["0-4k", "4-8k", "8-16k", ">16k"]
-    ns = [d["runs"]["qwen3_4b_base_nothink"][b]["n"] for b in buckets]
+    """RealKIE-FCC header-field VA per prompt-length bucket with a 16,384-token generation budget (so that neither model is
+    truncated); 3-seed means from data/realkie_budget_summary.json (built on the pod by benchmark/score_realkie_budget.py)."""
+    d = json.loads((ROOT / "benchmark/paper_figures/data/realkie_budget_summary.json").read_text())["16384"]
+    buckets = ["<=4k", "4-8k", "8-16k", ">16k"]
+    ns = [d["base"]["buckets"][b]["n"] for b in buckets]
     assert sum(ns) == 74, ns
     fig, ax = plt.subplots(figsize=(W, H), layout="constrained")
     x = list(range(len(buckets)))
     for label, key, color, marker, face in ARMS_A:
-        y = [d["runs"][key][b]["header_va"] for b in buckets]
+        arm = "base" if "base" in key else "stage"
+        y = [d[arm]["buckets"][b]["header_va"]["mean"] for b in buckets]
         ax.plot(x, y, color=color, linewidth=LW, zorder=2, solid_capstyle="round")
         ax.scatter(x, y, marker=marker, s=MS, facecolors=face, edgecolors=INK, linewidths=MEW, zorder=3, label=label)
-    ax.set_xticks(x); ax.set_xticklabels(xlabels(buckets, ns))
+    ax.set_xticks(x); ax.set_xticklabels(xlabels([b.replace("<=4k", "0-4k") for b in buckets], ns))
     ax.set_xlabel("Prompt length (tokens)")
     ax.set_ylabel("Header-field value accuracy (%)")
     ax.set_ylim(0, 100); ax.set_yticks([0, 20, 40, 60, 80, 100])
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0)
     ax.legend(loc="lower left", frameon=False, handletextpad=0.3, borderaxespad=0.2)
     finish(fig, OUT / "fig_len_a.pdf")
-    return {label: [d["runs"][key][b]["header_va"] for b in buckets] for label, key, *_ in ARMS_A}, ns
+    return {label: [d["base" if "base" in key else "stage"]["buckets"][b]["header_va"]["mean"] for b in buckets] for label, key, *_ in ARMS_A}, ns
 
 
 def panel_b():
