@@ -38,11 +38,10 @@ def fig_eb131():
 
 def fig_rk_budget():
     """RealKIE-FCC 74 by prompt-length bucket, three panels (schema compliance, header-field accuracy, line-item field
-    accuracy); solid = 16,384-token budget (Figure 4a protocol), dashed = 3,100-token budget; 3-seed mean with std bars."""
+    accuracy); 16,384-token budget (Figure 4a protocol); 3-seed mean with std bars."""
     d = json.loads((DATA / "realkie_budget_summary.json").read_text())
     B = ["<=4k", "4-8k", "8-16k", ">16k"]; ns = [d["16384"]["base"]["buckets"][b]["n"] for b in B]
-    arms = [("16384", "base", C_BASE, "Qwen3-4B, 16,384-token budget", "-", "o"), ("16384", "stage", C_STAGE, "+ STAGE, 16,384-token budget", "-", "o"),
-            ("3100", "base", C_BASE, "Qwen3-4B, 3,100-token budget", (0, (2.2, 1.4)), "s"), ("3100", "stage", C_STAGE, "+ STAGE, 3,100-token budget", (0, (2.2, 1.4)), "s")]
+    arms = [("16384", "base", C_BASE, "Qwen3-4B", "-", "o"), ("16384", "stage", C_STAGE, "+ STAGE", "-", "o")]  # 16,384-token budget only
     fig, axes = plt.subplots(1, 3, figsize=(5.5, 1.9), layout="constrained", sharey=True)
     for ax, (key, title) in zip(axes, [("SCR", "Schema compliance (%)"), ("header_va", "Header-field accuracy (%)"), ("item_field_va", "Line-item field accuracy (%)")]):
         x = np.arange(len(B))
@@ -54,7 +53,7 @@ def fig_rk_budget():
         ax.set_xlim(-0.4, len(B) - 0.6); ax.set_ylim(0, 104); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_title(title, fontsize=7)
         ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0)
     axes[0].set_ylabel("Score (%)"); axes[1].set_xlabel("Prompt length (tokens, bucket size)")
-    axes[2].legend(loc="upper right", frameon=False, handletextpad=0.3, borderaxespad=0.2, fontsize=5.2)
+    axes[2].legend(loc="upper right", frameon=False, handletextpad=0.3, borderaxespad=0.2)
     fig.savefig(OUT / "fig_rk_budget.pdf"); plt.close(fig)
 
 if __name__ == "__main__":
