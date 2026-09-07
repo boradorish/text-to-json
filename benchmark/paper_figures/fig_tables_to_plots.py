@@ -193,7 +193,7 @@ def fig_main_combined():
     # The free-decoding STAGE bar is the released checkpoint of Table 2 (author's runs: temperature 0.6, seed 42, three runs);
     # the xgrammar bar uses the checkpoint retrained on the pod with the same recipe (stage_eval_sampling3.sft_xgrammar).
     TABLE2_STAGE = {"EMR": (74.27, 0.00), "SCR": (98.24, 0.00), "VA": (90.69, 0.87)}
-    groups = [(lab, tuple(TABLE2_STAGE[m][0] for m in M3), xg, sec, tuple(TABLE2_STAGE[m][1] for m in M3)) if key_ == "sft_free" else g
+    groups = [(g[0], tuple(TABLE2_STAGE[m][0] for m in M3), g[2], g[3], tuple(TABLE2_STAGE[m][1] for m in M3)) if key_ == "sft_free" else g
               for g, key_ in zip(groups, ["base_nothink_free", "base_nothink_xgrammar", "jsonschemabench_llm_full", "glaive_full", "scrapegraph_full", "sft_free", "sft_xgrammar"])]
     WW, HH = 5.5, 2.5
     fig, ax = plt.subplots(figsize=(WW, HH), layout="constrained")
