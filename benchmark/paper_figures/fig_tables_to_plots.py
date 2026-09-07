@@ -195,6 +195,8 @@ def fig_main_combined():
     TABLE2 = {"sft_free": {"EMR": (74.27, 0.00), "SCR": (98.24, 0.00), "VA": (90.69, 0.87)},
               "base_nothink_free": {"EMR": (31.37, 0.77), "SCR": (56.25, 1.59), "VA": (45.46, 0.97)}}  # untrained = default thinking mode (Table 2)
     keys_ = ["base_nothink_free", "base_nothink_xgrammar", "jsonschemabench_llm_full", "glaive_full", "scrapegraph_full", "sft_free", "sft_xgrammar"]
+    th = json.loads((ROOT / "benchmark/paper_figures/data/think_on_summary.json").read_text())["stage_eval_think_xgrammar"]["compat"]
+    TABLE2["base_nothink_xgrammar"] = {m: (th[m]["mean"], th[m]["std"]) for m in M3}  # untrained, thinking mode + xgrammar (3 seeds)
     groups = [(g[0], tuple(TABLE2[k][m][0] for m in M3), g[2], g[3], tuple(TABLE2[k][m][1] for m in M3)) if k in TABLE2 else g for g, k in zip(groups, keys_)]
     WW, HH = 5.5, 2.5
     fig, ax = plt.subplots(figsize=(WW, HH), layout="constrained")
