@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 D = json.loads((ROOT / "benchmark" / "paper_figures" / "data" / "paper_data.json").read_text())
+DATA_DIR = ROOT / "benchmark" / "paper_figures" / "data"
 OUT = ROOT / "overleaf-paper" / "tables"
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -360,3 +361,68 @@ tab_rs = r"""
 \end{table}
 """
 write("tab_realworld_short.tex", tab_rs)
+
+
+# ---------------------------------------------------------------- Table: RealKIE-FCC, generation budget 3,100 vs 16,384 (3 seeds)
+import json as _json
+_RB = _json.loads((DATA_DIR / "realkie_budget_summary.json").read_text()) if (DATA_DIR / "realkie_budget_summary.json").exists() else None
+_RS = _json.loads((DATA_DIR / "realworld_sampling3_summary.json").read_text()) if (DATA_DIR / "realworld_sampling3_summary.json").exists() else None
+def ms1(m):  # mean with small std
+    return f"{m['mean']:.1f}\\,{{\\scriptsize$\\pm${m['std']:.1f}}}"
+if _RB:
+    rows = []
+    for budget, blabel in (("3100", "3,100"), ("16384", "16,384")):
+        for arm, mlabel in (("base", "Qwen3-4B"), ("stage", "Qwen3-4B + \\method")):
+            a = _RB[budget][arm]["all"]
+            rows.append(f"{mlabel} & {blabel} & {ms1(a['PFR'])} & {ms1(a['SCR'])} & {ms1(a['header_va'])} & {ms1(a['item_field_va'])} & {ms1(a['item_recall'])} & {a['truncated']['mean']:.0f} \\\\")
+    tab_rb = r"""
+\begin{table}[h]
+\CLAUDEcolor
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llcccccc}
+\toprule
+\textbf{Model} & \shortstack{Generation\\budget} & \shortstack{Parse\\success$\uparrow$} & SCR$\uparrow$ & \shortstack{Header\\field acc.$\uparrow$} & \shortstack{Line-item\\field acc.$\uparrow$} & \shortstack{Line-item\\recall$\uparrow$} & \shortstack{Truncated\\outputs (\%)$\downarrow$} \\
+\midrule
+""" + "\n".join(rows[:2]) + r"""
+\midrule
+""" + "\n".join(rows[2:]) + r"""
+\bottomrule
+\end{tabular}
+\caption{\CLAUDE{\textbf{RealKIE-FCC under the two generation budgets.} 74 invoices, temperature-0.6 sampling, mean and standard deviation over three seeds; Figure~\ref{fig:realworld}\subref{fig:realworld:a} uses the 16,384-token rows. Under the default 3,100-token budget 22\% of the untrained model's outputs are cut off while enumerating line items, which removes their header fields from the parsed prediction; with the larger budget the two models tie on header fields and the untrained model recovers more line items, while the \method{}-trained model returns a schema-valid object in every case and keeps its output short (about 900 generated tokens under either budget).}}
+\label{tab:app_realkie_budget}
+\end{table}
+"""
+    write("tab_realkie_budget.tex", tab_rb)
+if _RS and "extractbench_131k_237" in _RS:
+    eb = _RS["extractbench_131k_237"]; order = ["<=4k", "4-8k", "8-16k", "16-32k", "32-64k", ">64k"]
+    lab = {"<=4k": "$\\leq$4k", "4-8k": "4--8k", "8-16k": "8--16k", "16-32k": "16--32k", "32-64k": "32--64k", ">64k": "$>$64k"}
+    rows = []
+    for b in order:
+        v0 = eb["base_nothink_yarn"]["buckets"][b]; v1 = eb["sft_yarn"]["buckets"][b]
+        rows.append(f"{lab[b]} & {v0['n']} & {ms1(v0['PFR'])} & {ms1(v1['PFR'])} & {ms1(v0['SCR'])} & {ms1(v1['SCR'])} & {ms1(v0['VA'])} & {ms1(v1['VA'])} \\\\")
+    a0 = eb["base_nothink_yarn"]["all"]; a1 = eb["sft_yarn"]["all"]
+    allrow = f"All & 237 & {ms1(a0['PFR'])} & {ms1(a1['PFR'])} & {ms1(a0['SCR'])} & {ms1(a1['SCR'])} & {ms1(a0['VA'])} & {ms1(a1['VA'])} \\\\"
+    tab_eb131 = r"""
+\begin{table}[h]
+\CLAUDEcolor
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrcccccc}
+\toprule
+ & & \multicolumn{2}{c}{Parse success$\uparrow$} & \multicolumn{2}{c}{SCR$\uparrow$} & \multicolumn{2}{c}{VA$\uparrow$} \\
+\cmidrule(lr){3-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8}
+\textbf{Prompt length} & $n$ & Qwen3-4B & + \method & Qwen3-4B & + \method & Qwen3-4B & + \method \\
+\midrule
+""" + "\n".join(rows) + r"""
+\midrule
+""" + allrow + r"""
+\bottomrule
+\end{tabular}
+\caption{\CLAUDE{\textbf{ExtractBench by prompt length with a 131k-token YaRN context.} All 237 digital-text documents, temperature-0.6 sampling with a 3,100-token generation budget, mean and standard deviation over three seeds (Figure~\ref{fig:realworld}\subref{fig:realworld:b} plots the single-seed schema compliance of the same runs). \method{} training raises schema compliance in every bucket and keeps most outputs schema-valid between 32k and 64k tokens, where the untrained model breaks down; value accuracy is a tie or a small deficit within the native context and is dominated by the size of the target schemas beyond it (about 1,100 gold leaves per document above 16k tokens).}}
+\label{tab:app_extractbench_131k}
+\end{table}
+"""
+    write("tab_extractbench_131k.tex", tab_eb131)
