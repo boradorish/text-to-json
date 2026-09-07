@@ -113,10 +113,10 @@ eb_rows = [
     ("Qwen3-4B", "xgrammar", "qwen3_base_nothink_xgrammar"),
     ("Qwen3-4B + \\method", "free", "qwen3_sft_free"),
     ("Qwen3-4B + \\method", "xgrammar", "qwen3_sft_xgrammar"),
-    ("Qwen2.5-3B-Instruct", "free", "qwen25_base_free"),
-    ("Qwen2.5-3B-Instruct", "xgrammar", "qwen25_base_xgrammar"),
-    ("Qwen2.5-3B-Instruct + \\method", "free", "qwen25_sft_free"),
-    ("Qwen2.5-3B-Instruct + \\method", "xgrammar", "qwen25_sft_xgrammar"),
+    ("Qwen2.5-3B", "free", "qwen25_base_free"),
+    ("Qwen2.5-3B", "xgrammar", "qwen25_base_xgrammar"),
+    ("Qwen2.5-3B + \\method", "free", "qwen25_sft_free"),
+    ("Qwen2.5-3B + \\method", "xgrammar", "qwen25_sft_xgrammar"),
 ]
 lines = []
 for model, dec, key in eb_rows:

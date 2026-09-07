@@ -136,7 +136,7 @@ def main():
     ntok131 = {s: len(tok(r["user_prompt"])["input_ids"]) for s, r in B131.items()}
     edges131 = [4096, 8192, 16384, 32768, 65536]
     eb = {}
-    for cond in ["base_nothink_yarn", "sft_yarn"]:
+    for cond in ["base_nothink_yarn", "sft_yarn", "q25_base_yarn", "q25_sft_yarn"]:
         per = {}
         for s in SEEDS:
             p = f"outputs/extractbench_sampling3/{cond}_s{s}.jsonl"
