@@ -249,14 +249,14 @@ def fig_pfr_nr():
     for i, (label, color, f) in enumerate(series):
         for xi, (lab, key, xg) in zip(x, groups):
             val = f(key); xx = xi + (i - 0.5) * w
-            ax.bar(xx, val, w, color=color, edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
-            if xg:
-                ax.bar(xx, val, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
             sd = se[key]["compat" if xg else "all"]["PFR" if i == 0 else "NR"]["std"]
             if key == "sft_free":  # released checkpoint of Table 2: PFR 0.35 +- 0.00, NR 1.29 +- 0.00
                 val, sd = (0.35, 0.00) if i == 0 else (1.29, 0.00)
             if key == "base_nothink_free":  # untrained Qwen3-4B, default thinking mode (Table 2): PFR 39.95 +- 1.43, NR 41.4 +- 1.49
                 val, sd = (39.95, 1.43) if i == 0 else (41.4, 1.49)
+            ax.bar(xx, val, w, color=color, edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
+            if xg:
+                ax.bar(xx, val, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
             ax.errorbar(xx, val, yerr=sd, fmt="none", ecolor=BAR_EDGE, elinewidth=0.5, capsize=1.2, capthick=0.5, zorder=5)
             ax.text(xx, val + sd + 0.4, f"{val:.1f}", ha="center", va="bottom", fontsize=5.4)
     ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
