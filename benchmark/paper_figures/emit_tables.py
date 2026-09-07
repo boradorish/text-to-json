@@ -99,7 +99,7 @@ tab_cost = r"""
 """ + "\n".join(lines[2:]) + r"""
 \bottomrule
 \end{tabular}
-\caption{\CLAUDE{\textbf{\method{} training adds no inference-time cost; grammar constraints add about 10\% latency and 15\% throughput.} Same 798 examples and one H200 as Table~\ref{tab:app_constrained}; batch-1 latency is the warm-cache pass, grammar compile time is measured per schema with the xgrammar cache disabled. Per-token time is 4.5\,ms in every row, so latency differences follow generated length.}}
+\caption{\CLAUDE{\textbf{\method{} training adds no inference-time cost; grammar constraints add about 10\% latency and 15\% throughput.} Same 798 examples and one H200 as Table~\ref{tab:app_constrained}; batch-1 latency is the warm-cache pass, grammar compile time is measured per schema with the xgrammar cache disabled. Per-token time is about 4.5\,ms in every row, so latency differences follow generated length.}}
 \label{tab:app_cost}
 \end{table}
 """
