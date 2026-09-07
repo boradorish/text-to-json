@@ -35,11 +35,16 @@ rows = [
     ("Qwen3-4B + \\method", "xgrammar", "sft_xgrammar"),
 ]
 import json as _json
-_TH = _json.loads((ROOT / "benchmark/paper_figures/data/think_on_summary.json").read_text())  # untrained Qwen3-4B, default thinking mode
+_T2 = _json.loads((ROOT / "benchmark/paper_figures/data/t2_ckpt_summary.json").read_text())  # released STAGE checkpoint (qwen3-4b-new) + xgrammar
 _TABLE2_BASE = {"PFR": 39.95, "EMR": 31.37, "SCR": 56.25, "NR": 41.4, "VA": 45.46}  # Table 2 row (851 examples, thinking mode)
 lines = []
 for model, dec, key in rows:
-    m = {k: v["mean"] for k, v in se_g[key]["compat"].items() if isinstance(v, dict)}
+    if key == "sft_free":  # released checkpoint, Table 2 row (851 examples)
+        m = {"PFR": 100 - 0.35, "EMR": 74.27, "SCR": 98.24, "NR": 1.29, "VA": 90.69}
+    elif key == "sft_xgrammar":  # released checkpoint + xgrammar (t2_ckpt_summary, 3 seeds)
+        m = {k: v["mean"] for k, v in _T2["t2_xgrammar"]["all"].items()}
+    else:
+        m = {k: v["mean"] for k, v in se_g[key]["compat"].items() if isinstance(v, dict)}
     cells = [f1(100 - m["PFR"]), f1(m["EMR"]), f1(m["SCR"]), f1(m["NR"]), f1(m["VA"])]
     if key == "sft_free":
         cells = [f"\\textbf{{{c}}}" for c in cells]
@@ -59,7 +64,7 @@ tab_cd = r"""
 """ + "\n".join(lines[2:]) + r"""
 \bottomrule
 \end{tabular}
-\caption{\CLAUDE{\textbf{Grammar-constrained decoding raises structure but not values; \method{} training raises both.} \bench{} restricted to the 798 of 851 test schemas that xgrammar compiles, temperature-0.6 sampling averaged over seeds 42, 43 and 44; every row disables thinking mode, and the \method{} rows use the retrained checkpoint of Appendix~\ref{app:reproducibility}. PFR is the parse-failure rate.}}
+\caption{\CLAUDE{\textbf{Grammar-constrained decoding raises structure but not values; \method{} training raises both.} \bench{}, temperature-0.6 sampling, thinking disabled in every row. The untrained rows are scored on the 798 of 851 test schemas that xgrammar compiled in that run (seeds 42, 43 and 44); the \method{} free-decoding row is the Table~\ref{tab:results} run and the \method{} xgrammar row the same checkpoint decoded under the grammar (seeds 42, 43 and 44), both on all 851 examples. PFR is the parse-failure rate.}}
 \label{tab:app_constrained}
 \end{table}
 """

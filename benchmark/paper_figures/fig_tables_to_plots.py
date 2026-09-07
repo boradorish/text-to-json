@@ -193,6 +193,8 @@ def fig_main_combined():
     # The free-decoding STAGE bar is the released checkpoint of Table 2 (author's runs: temperature 0.6, seed 42, three runs);
     # the xgrammar bar uses the checkpoint retrained on the pod with the same recipe (stage_eval_sampling3.sft_xgrammar).
     TABLE2 = {"sft_free": {"EMR": (74.27, 0.00), "SCR": (98.24, 0.00), "VA": (90.69, 0.87)}}  # untrained bars: no-thinking harness runs (Table 2 row)
+    t2x = json.loads((ROOT / "benchmark/paper_figures/data/t2_ckpt_summary.json").read_text())["t2_xgrammar"]["all"]  # Table 2 checkpoint + xgrammar, 3 seeds
+    TABLE2["sft_xgrammar"] = {m: (t2x[m]["mean"], t2x[m]["std"]) for m in M3}
     keys_ = ["base_nothink_free", "base_nothink_xgrammar", "jsonschemabench_llm_full", "glaive_full", "scrapegraph_full", "sft_free", "sft_xgrammar"]
     groups = [(g[0], tuple(TABLE2[k][m][0] for m in M3), g[2], g[3], tuple(TABLE2[k][m][1] for m in M3)) if k in TABLE2 else g for g, k in zip(groups, keys_)]
     WW, HH = 5.5, 2.5
@@ -251,6 +253,9 @@ def fig_pfr_nr():
             sd = se[key]["compat" if xg else "all"]["PFR" if i == 0 else "NR"]["std"]
             if key == "sft_free":  # released checkpoint of Table 2: PFR 0.35 +- 0.00, NR 1.29 +- 0.00
                 val, sd = (0.35, 0.00) if i == 0 else (1.29, 0.00)
+            if key == "sft_xgrammar":  # Table 2 checkpoint + xgrammar (t2_ckpt_summary, 3 seeds)
+                t2x = json.loads((ROOT / "benchmark/paper_figures/data/t2_ckpt_summary.json").read_text())["t2_xgrammar"]["all"]
+                val, sd = (100 - t2x["PFR"]["mean"], t2x["PFR"]["std"]) if i == 0 else (t2x["NR"]["mean"], t2x["NR"]["std"])
             ax.bar(xx, val, w, color=color, edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
             if xg:
                 ax.bar(xx, val, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
