@@ -262,10 +262,10 @@ def fig_pfr_nr():
             ax.errorbar(xx, val, yerr=sd, fmt="none", ecolor=BAR_EDGE, elinewidth=0.5, capsize=1.2, capthick=0.5, zorder=5)
             ax.text(xx, val + sd + 0.4, f"{val:.1f}", ha="center", va="bottom", fontsize=5.4)
     ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
-    ax.set_ylim(0, 24); ax.set_yticks([0, 5, 10, 15, 20]); ax.set_ylabel("Rate on STAGE-Eval (%), lower is better")
+    ax.set_ylim(0, 29); ax.set_yticks([0, 5, 10, 15, 20, 25]); ax.set_ylabel("Rate on STAGE-Eval (%), lower is better")
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
     for (lo, hi, text) in [(-0.4, 1.4, "no training"), (1.6, 4.4, "full fine-tuning on other data"), (4.6, 6.4, "full fine-tuning on STAGE data")]:
-        ax.plot([lo, hi], [21.5, 21.5], color=GREY, linewidth=0.6, clip_on=False); ax.text((lo + hi) / 2, 22, text, ha="center", va="bottom", fontsize=5.8, color=GREY)
+        ax.plot([lo, hi], [26.5, 26.5], color=GREY, linewidth=0.6, clip_on=False); ax.text((lo + hi) / 2, 27, text, ha="center", va="bottom", fontsize=5.8, color=GREY)
     import matplotlib.patches as mpatches
     from matplotlib.legend_handler import HandlerTuple
     handles = [mpatches.Patch(facecolor=c, edgecolor=BAR_EDGE, linewidth=0.5) for _, c, _ in series]
