@@ -192,11 +192,8 @@ def fig_main_combined():
     groups = [(lab, tuple(se_m(key, m) for m in M3), xg, sec, tuple(se_s(key, m) for m in M3)) for lab, key, xg, sec in groups]
     # The free-decoding STAGE bar is the released checkpoint of Table 2 (author's runs: temperature 0.6, seed 42, three runs);
     # the xgrammar bar uses the checkpoint retrained on the pod with the same recipe (stage_eval_sampling3.sft_xgrammar).
-    TABLE2 = {"sft_free": {"EMR": (74.27, 0.00), "SCR": (98.24, 0.00), "VA": (90.69, 0.87)},
-              "base_nothink_free": {"EMR": (31.37, 0.77), "SCR": (56.25, 1.59), "VA": (45.46, 0.97)}}  # untrained = default thinking mode (Table 2)
+    TABLE2 = {"sft_free": {"EMR": (74.27, 0.00), "SCR": (98.24, 0.00), "VA": (90.69, 0.87)}}  # untrained bars: no-thinking harness runs (Table 2 row)
     keys_ = ["base_nothink_free", "base_nothink_xgrammar", "jsonschemabench_llm_full", "glaive_full", "scrapegraph_full", "sft_free", "sft_xgrammar"]
-    th = json.loads((ROOT / "benchmark/paper_figures/data/think_on_summary.json").read_text())["stage_eval_think_xgrammar"]["compat"]
-    TABLE2["base_nothink_xgrammar"] = {m: (th[m]["mean"], th[m]["std"]) for m in M3}  # untrained, thinking mode + xgrammar (3 seeds)
     groups = [(g[0], tuple(TABLE2[k][m][0] for m in M3), g[2], g[3], tuple(TABLE2[k][m][1] for m in M3)) if k in TABLE2 else g for g, k in zip(groups, keys_)]
     WW, HH = 5.5, 2.5
     fig, ax = plt.subplots(figsize=(WW, HH), layout="constrained")
@@ -254,21 +251,16 @@ def fig_pfr_nr():
             sd = se[key]["compat" if xg else "all"]["PFR" if i == 0 else "NR"]["std"]
             if key == "sft_free":  # released checkpoint of Table 2: PFR 0.35 +- 0.00, NR 1.29 +- 0.00
                 val, sd = (0.35, 0.00) if i == 0 else (1.29, 0.00)
-            if key == "base_nothink_free":  # untrained Qwen3-4B, default thinking mode (Table 2): PFR 39.95 +- 1.43, NR 41.4 +- 1.49
-                val, sd = (39.95, 1.43) if i == 0 else (41.4, 1.49)
-            if key == "base_nothink_xgrammar":  # untrained Qwen3-4B, thinking mode + xgrammar (think_on_summary): PFR 0.3 +- 0.1, NR 0.9 +- 0.2
-                th = json.loads((ROOT / "benchmark/paper_figures/data/think_on_summary.json").read_text())["stage_eval_think_xgrammar"]["compat"]
-                val, sd = (100 - th["PFR"]["mean"], th["PFR"]["std"]) if i == 0 else (th["NR"]["mean"], th["NR"]["std"])
             ax.bar(xx, val, w, color=color, edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
             if xg:
                 ax.bar(xx, val, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
             ax.errorbar(xx, val, yerr=sd, fmt="none", ecolor=BAR_EDGE, elinewidth=0.5, capsize=1.2, capthick=0.5, zorder=5)
             ax.text(xx, val + sd + 0.4, f"{val:.1f}", ha="center", va="bottom", fontsize=5.4)
     ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
-    ax.set_ylim(0, 52); ax.set_yticks([0, 10, 20, 30, 40, 50]); ax.set_ylabel("Rate on STAGE-Eval (%), lower is better")
+    ax.set_ylim(0, 24); ax.set_yticks([0, 5, 10, 15, 20]); ax.set_ylabel("Rate on STAGE-Eval (%), lower is better")
     ax.grid(True, axis="y", linewidth=0.3, color="#DDDDDD", zorder=0); ax.set_axisbelow(True)
     for (lo, hi, text) in [(-0.4, 1.4, "no training"), (1.6, 4.4, "full fine-tuning on other data"), (4.6, 6.4, "full fine-tuning on STAGE data")]:
-        ax.plot([lo, hi], [46.5, 46.5], color=GREY, linewidth=0.6, clip_on=False); ax.text((lo + hi) / 2, 47.5, text, ha="center", va="bottom", fontsize=5.8, color=GREY)
+        ax.plot([lo, hi], [21.5, 21.5], color=GREY, linewidth=0.6, clip_on=False); ax.text((lo + hi) / 2, 22, text, ha="center", va="bottom", fontsize=5.8, color=GREY)
     import matplotlib.patches as mpatches
     from matplotlib.legend_handler import HandlerTuple
     handles = [mpatches.Patch(facecolor=c, edgecolor=BAR_EDGE, linewidth=0.5) for _, c, _ in series]
