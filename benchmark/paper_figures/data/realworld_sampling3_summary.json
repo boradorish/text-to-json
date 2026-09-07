@@ -1,5 +1,5 @@
 {
-  "protocol": "temperature 0.6, top-p 1.0, seeds 42/43/44, max_new_tokens 4096, thinking disabled for the untrained model",
+  "protocol": "temperature 0.6, top-p 1.0, seeds 42/43/44, max_new_tokens 3100, thinking disabled for the untrained model",
   "realkie_74": {
     "base_nothink": {
       "header_va": {

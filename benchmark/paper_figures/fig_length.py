@@ -3,7 +3,7 @@
 Two independent panels at final print size (2.70 x 1.95 in) for a 5.5 in column,
 composed with subcaption.
   (a) RealKIE-FCC (74 invoices): header-field value accuracy per prompt-length bucket, 16,384-token generation budget, 3 seeds
-  (b) ExtractBench (237 digital documents, 131k YaRN context): schema compliance per prompt-length bucket
+  (b) ExtractBench (237 digital documents, 131k YaRN context): schema compliance per prompt-length bucket, 3-seed means
 Inputs: benchmark/paper_figures/data/length_buckets/{realkie_header,extractbench_long}.json,
 built on the pod with benchmark/score_realkie.py and benchmark/length_bucket_analysis.py.
 """
@@ -78,7 +78,10 @@ def panel_a():
 
 
 def panel_b():
-    d = json.loads((DATA / "extractbench_long.json").read_text())
+    d3 = json.loads((ROOT / "benchmark/paper_figures/data/realworld_sampling3_summary.json").read_text())["extractbench_131k_237"]
+    # 3-seed means (same runs as appendix Figure 6); keys mapped onto the single-seed file's layout
+    d = {"runs": {"base": {b: {"n": v["n"], "SCR": v["SCR"]["mean"] / 100, "PFR": v["PFR"]["mean"] / 100} for b, v in d3["base_nothink_yarn"]["buckets"].items()},
+                  "sft": {b: {"n": v["n"], "SCR": v["SCR"]["mean"] / 100, "PFR": v["PFR"]["mean"] / 100} for b, v in d3["sft_yarn"]["buckets"].items()}}}
     buckets = ["<=4k", "4-8k", "8-16k", "16-32k", "32-64k", ">64k"]
     ns = [d["runs"]["base"][b]["n"] for b in buckets]
     assert sum(ns) == 237, ns

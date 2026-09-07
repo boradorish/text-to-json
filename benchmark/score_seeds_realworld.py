@@ -107,7 +107,7 @@ def main():
     a = ap.parse_args()
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(a.tokenizer)
-    out = {"protocol": "temperature 0.6, top-p 1.0, seeds 42/43/44, max_new_tokens 4096, thinking disabled for the untrained model"}
+    out = {"protocol": "temperature 0.6, top-p 1.0, seeds 42/43/44, max_new_tokens 3100 (16,384 for RealKIE-FCC long-output runs are scored separately), thinking disabled for the untrained model"}
     # ---- RealKIE
     B = {r["stem"]: r for r in load("benchmark/data/realworld/realkie_fcc_verified_ctx40960.jsonl")}
     ntok = {s: len(tok(r["user_prompt"])["input_ids"]) for s, r in B.items()}
@@ -136,7 +136,7 @@ def main():
     ntok131 = {s: len(tok(r["user_prompt"])["input_ids"]) for s, r in B131.items()}
     edges131 = [4096, 8192, 16384, 32768, 65536]
     eb = {}
-    for cond in ["base_nothink_yarn", "sft_yarn", "q25_base_yarn", "q25_sft_yarn"]:
+    for cond in ["base_nothink_yarn", "sft_yarn", "q25_base_32k", "q25_sft_32k"]:
         per = {}
         for s in SEEDS:
             p = f"outputs/extractbench_sampling3/{cond}_s{s}.jsonl"
