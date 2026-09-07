@@ -72,7 +72,7 @@ MODELS = [("Qwen3-4B", r"^Qwen3-4B &|^Qwen3-4B$|^Qwen3-4B\s*$", r"Qwen3-4B SFT\s
 def parse_mh() -> dict:
     out = {}
     for name, base_re, stage_re in MODELS:
-        b = meanstd_row(base_re if "Qwen2.5" not in name else r"^Qwen2\.5-3B-Instruct\s*$", TMH)
+        b = meanstd_row(base_re if "Qwen2.5" not in name else r"^Qwen2\.5-3B\s*$", TMH)
         s = meanstd_row(stage_re, TMH)
         out[name] = {"base": {"medium": b[0:3], "hard": b[3:6]}, "stage": {"medium": s[0:3], "hard": s[3:6]}}
     return out
