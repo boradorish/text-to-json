@@ -190,6 +190,11 @@ def fig_main_combined():
         for m, name in zip(M3, ("EMR", "SCR", "VA")):
             pass
     groups = [(lab, tuple(se_m(key, m) for m in M3), xg, sec, tuple(se_s(key, m) for m in M3)) for lab, key, xg, sec in groups]
+    # The free-decoding STAGE bar is the released checkpoint of Table 2 (author's runs: temperature 0.6, seed 42, three runs);
+    # the xgrammar bar uses the checkpoint retrained on the pod with the same recipe (stage_eval_sampling3.sft_xgrammar).
+    TABLE2_STAGE = {"EMR": (74.27, 0.00), "SCR": (98.24, 0.00), "VA": (90.69, 0.87)}
+    groups = [(lab, tuple(TABLE2_STAGE[m][0] for m in M3), xg, sec, tuple(TABLE2_STAGE[m][1] for m in M3)) if key_ == "sft_free" else g
+              for g, key_ in zip(groups, ["base_nothink_free", "base_nothink_xgrammar", "jsonschemabench_llm_full", "glaive_full", "scrapegraph_full", "sft_free", "sft_xgrammar"])]
     WW, HH = 5.5, 2.5
     fig, ax = plt.subplots(figsize=(WW, HH), layout="constrained")
     plt.rcParams["hatch.linewidth"] = 0.4
@@ -247,6 +252,8 @@ def fig_pfr_nr():
             if xg:
                 ax.bar(xx, val, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)
             sd = se[key]["compat" if xg else "all"]["PFR" if i == 0 else "NR"]["std"]
+            if key == "sft_free":  # released checkpoint of Table 2: PFR 0.35 +- 0.00, NR 1.29 +- 0.00
+                val, sd = (0.35, 0.00) if i == 0 else (1.29, 0.00)
             ax.errorbar(xx, val, yerr=sd, fmt="none", ecolor=BAR_EDGE, elinewidth=0.5, capsize=1.2, capthick=0.5, zorder=5)
             ax.text(xx, val + sd + 0.4, f"{val:.1f}", ha="center", va="bottom", fontsize=5.4)
     ax.set_xticks(x); ax.set_xticklabels([g[0] for g in groups], fontsize=6.0); ax.set_xlim(-0.5, len(groups) - 0.5)
