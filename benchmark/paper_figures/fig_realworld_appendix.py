@@ -22,12 +22,13 @@ def fig_eb131():
     for ax, (key, title) in zip(axes, [("PFR", "Parse success (%)"), ("SCR", "Schema compliance (%)"), ("VA", "Value accuracy (%)")]):
         x = np.arange(len(B))
         arms = [("base_nothink_yarn", C_BASE, "Qwen3-4B", "-", "o"), ("sft_yarn", C_STAGE, "Qwen3-4B + STAGE", "-", "o"),
-                ("q25_base_yarn", C_BASE, "Qwen2.5-3B", (0, (2.2, 1.4)), "s"), ("q25_sft_yarn", C_STAGE, "Qwen2.5-3B + STAGE", (0, (2.2, 1.4)), "s")]
+                ("q25_base_32k", C_BASE, "Qwen2.5-3B", (0, (2.2, 1.4)), "s"), ("q25_sft_32k", C_STAGE, "Qwen2.5-3B + STAGE", (0, (2.2, 1.4)), "s")]
         for arm, color, label, ls, marker in arms:
             if arm not in d: continue
-            y = [d[arm]["buckets"][b][key]["mean"] for b in B]; e = [d[arm]["buckets"][b][key]["std"] for b in B]
-            ax.errorbar(x, y, yerr=e, color=color, linewidth=LW, linestyle=ls, capsize=1.6, capthick=0.5, elinewidth=0.5, zorder=2)
-            ax.scatter(x, y, s=MS if marker == "o" else MS * 0.85, marker=marker, facecolors=color, edgecolors=INK, linewidths=MEW, zorder=3, label=label, clip_on=False)
+            bk = [b for b in B if b in d[arm]["buckets"]]; xs = [B.index(b) for b in bk]  # Qwen2.5-3B covers only buckets within its 32k context
+            y = [d[arm]["buckets"][b][key]["mean"] for b in bk]; e = [d[arm]["buckets"][b][key]["std"] for b in bk]
+            ax.errorbar(xs, y, yerr=e, color=color, linewidth=LW, linestyle=ls, capsize=1.6, capthick=0.5, elinewidth=0.5, zorder=2)
+            ax.scatter(xs, y, s=MS if marker == "o" else MS * 0.85, marker=marker, facecolors=color, edgecolors=INK, linewidths=MEW, zorder=3, label=label, clip_on=False)
         ax.axvspan(3.5, 5.5, color=BAND, zorder=0, linewidth=0)
         ax.set_xticks(x); ax.set_xticklabels([f"{b.replace('<=4k', '$\\leq$4k')}\n({n})" for b, n in zip(B, ns)], fontsize=5.4)
         ax.set_xlim(-0.4, len(B) - 0.6); ax.set_ylim(0, 104); ax.set_yticks([0, 20, 40, 60, 80, 100]); ax.set_title(title, fontsize=7)
@@ -41,7 +42,9 @@ def fig_rk_budget():
     accuracy); 16,384-token budget (Figure 4a protocol); 3-seed mean with std bars."""
     d = json.loads((DATA / "realkie_budget_summary.json").read_text())
     B = ["<=4k", "4-8k", "8-16k", ">16k"]; ns = [d["16384"]["base"]["buckets"][b]["n"] for b in B]
-    arms = [("16384", "base", C_BASE, "Qwen3-4B", "-", "o"), ("16384", "stage", C_STAGE, "+ STAGE", "-", "o")]  # 16,384-token budget only
+    arms = [("16384", "base", C_BASE, "Qwen3-4B", "-", "o"), ("16384", "stage", C_STAGE, "Qwen3-4B + STAGE", "-", "o"),
+            ("16384", "q25_base", C_BASE, "Qwen2.5-3B", (0, (2.2, 1.4)), "s"), ("16384", "q25_stage", C_STAGE, "Qwen2.5-3B + STAGE", (0, (2.2, 1.4)), "s")]  # 16,384-token budget only
+    arms = [a for a in arms if a[1] in d["16384"]]
     fig, axes = plt.subplots(1, 3, figsize=(5.5, 1.9), layout="constrained", sharey=True)
     for ax, (key, title) in zip(axes, [("SCR", "Schema compliance (%)"), ("header_va", "Header-field accuracy (%)"), ("item_field_va", "Line-item field accuracy (%)")]):
         x = np.arange(len(B))

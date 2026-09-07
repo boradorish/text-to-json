@@ -13,7 +13,8 @@ def bucket(n):
     return ">16k"
 def ms(v): return {"mean": statistics.mean(v), "std": statistics.pstdev(v), "per_seed": v}
 RUNS = {"3100": {"base": "outputs/realkie_sampling3/base_nothink_s{s}.jsonl", "stage": "outputs/realkie_sampling3/sft_s{s}.jsonl"},
-        "16384": {"base": "outputs/realkie_longout/base_nothink_s{s}.jsonl", "stage": "outputs/realkie_longout/sft_s{s}.jsonl"}}
+        "16384": {"base": "outputs/realkie_longout/base_nothink_s{s}.jsonl", "stage": "outputs/realkie_longout/sft_s{s}.jsonl",
+                  "q25_base": "outputs/realkie_longout/q25_base_s{s}.jsonl", "q25_stage": "outputs/realkie_longout/q25_sft_s{s}.jsonl"}}
 out = {"protocol": "temperature 0.6, top-p 1.0, seeds 42/43/44, thinking disabled for the untrained model; budgets 3,100 vs 16,384 new tokens"}
 ntok = None
 for budget, arms in RUNS.items():
