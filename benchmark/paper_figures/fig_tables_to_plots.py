@@ -254,6 +254,9 @@ def fig_pfr_nr():
                 val, sd = (0.35, 0.00) if i == 0 else (1.29, 0.00)
             if key == "base_nothink_free":  # untrained Qwen3-4B, default thinking mode (Table 2): PFR 39.95 +- 1.43, NR 41.4 +- 1.49
                 val, sd = (39.95, 1.43) if i == 0 else (41.4, 1.49)
+            if key == "base_nothink_xgrammar":  # untrained Qwen3-4B, thinking mode + xgrammar (think_on_summary): PFR 0.3 +- 0.1, NR 0.9 +- 0.2
+                th = json.loads((ROOT / "benchmark/paper_figures/data/think_on_summary.json").read_text())["stage_eval_think_xgrammar"]["compat"]
+                val, sd = (100 - th["PFR"]["mean"], th["PFR"]["std"]) if i == 0 else (th["NR"]["mean"], th["NR"]["std"])
             ax.bar(xx, val, w, color=color, edgecolor=BAR_EDGE, linewidth=0.5, zorder=3, label=label if xi == 0 else None)
             if xg:
                 ax.bar(xx, val, w, facecolor="none", edgecolor=HATCH_COLOR, linewidth=0, hatch="//", zorder=4)

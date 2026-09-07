@@ -34,12 +34,20 @@ rows = [
     ("Qwen3-4B + \\method", "free", "sft_free"),
     ("Qwen3-4B + \\method", "xgrammar", "sft_xgrammar"),
 ]
+import json as _json
+_TH = _json.loads((ROOT / "benchmark/paper_figures/data/think_on_summary.json").read_text())  # untrained Qwen3-4B, default thinking mode
+_TABLE2_BASE = {"PFR": 39.95, "EMR": 31.37, "SCR": 56.25, "NR": 41.4, "VA": 45.46}  # Table 2 row (851 examples, thinking mode)
 lines = []
 for model, dec, key in rows:
-    m = {k: v["mean"] for k, v in se_g[key]["compat"].items() if isinstance(v, dict)}
-    bold = key == "sft_free"
-    cells = [f1(100 - m["PFR"]), f1(m["EMR"]), f1(m["SCR"]), f1(m["NR"]), f1(m["VA"])]
-    if bold:
+    if key == "base_nothink_free":
+        cells = [f1(_TABLE2_BASE["PFR"]), f1(_TABLE2_BASE["EMR"]), f1(_TABLE2_BASE["SCR"]), f1(_TABLE2_BASE["NR"]), f1(_TABLE2_BASE["VA"])]
+    elif key == "base_nothink_xgrammar":
+        m = {k: v["mean"] for k, v in _TH["stage_eval_think_xgrammar"]["compat"].items()}
+        cells = [f1(100 - m["PFR"]), f1(m["EMR"]), f1(m["SCR"]), f1(m["NR"]), f1(m["VA"])]
+    else:
+        m = {k: v["mean"] for k, v in se_g[key]["compat"].items() if isinstance(v, dict)}
+        cells = [f1(100 - m["PFR"]), f1(m["EMR"]), f1(m["SCR"]), f1(m["NR"]), f1(m["VA"])]
+    if key == "sft_free":
         cells = [f"\\textbf{{{c}}}" for c in cells]
     lines.append(f"{model} & {dec} & " + " & ".join(cells) + " \\\\")
 tab_cd = r"""
@@ -57,7 +65,7 @@ tab_cd = r"""
 """ + "\n".join(lines[2:]) + r"""
 \bottomrule
 \end{tabular}
-\caption{\CLAUDE{\textbf{Grammar-constrained decoding raises structure but not values; \method{} training raises both.} \bench{} restricted to the 798 of 851 test schemas that xgrammar compiles under vLLM, so all four rows share one denominator. Qwen3-4B is run with thinking disabled. xgrammar constrains generation with each example's own JSON Schema. PFR is the parse-failure rate.}}
+\caption{\CLAUDE{\textbf{Grammar constraints repair the untrained model's structure; \method{} training raises structure and values further.} \bench{}, temperature-0.6 sampling. The untrained free-decoding row is the Table~\ref{tab:results} run (851 examples, default thinking mode, three runs with seed 42); the xgrammar rows use the 798 schemas that xgrammar compiles (seeds 42, 43 and 44), the untrained one in thinking mode and the \method{} rows with the retrained checkpoint of Appendix~\ref{app:reproducibility}. PFR is the parse-failure rate.}}
 \label{tab:app_constrained}
 \end{table}
 """
@@ -72,8 +80,8 @@ def c(label, pas, bs, key, scale=1.0, nd=2):
 
 
 cost_rows = [
-    ("Qwen3-4B", "free", "base_nothink_free"),
-    ("Qwen3-4B", "xgrammar", "base_nothink_xgrammar"),
+    ("Qwen3-4B", "free", "base_free"),  # untrained model in its default thinking mode (Table 2 setting)
+    ("Qwen3-4B", "xgrammar", "base_xgrammar"),
     ("Qwen3-4B + \\method", "free", "sft_free"),
     ("Qwen3-4B + \\method", "xgrammar", "sft_xgrammar"),
 ]
@@ -99,7 +107,7 @@ tab_cost = r"""
 """ + "\n".join(lines[2:]) + r"""
 \bottomrule
 \end{tabular}
-\caption{\CLAUDE{\textbf{\method{} training adds no inference-time cost; grammar constraints add about 10\% latency and 15\% throughput.} Same 798 examples and one H200 as Table~\ref{tab:app_constrained}; batch-1 latency is the warm-cache pass, grammar compile time is measured per schema with the xgrammar cache disabled. Per-token time is about 4.5\,ms in every row, so latency differences follow generated length.}}
+\caption{\CLAUDE{\textbf{Inference cost.} Same 798 examples and one H200 as Table~\ref{tab:app_constrained}; batch-1 latency is the warm-cache pass, grammar compile time is measured per schema with the xgrammar cache disabled. The untrained model runs in its default thinking mode, so free decoding spends most of its 2,146 generated tokens in the thinking block; the grammar suppresses that block and cuts its latency from 10.99 to 1.99 seconds. The \method{}-trained model needs neither thinking nor a grammar and is the cheapest row; adding the grammar to it costs about 7\% latency and 12\% throughput plus a 20\,ms compile step. Per-token time is about 4.5\,ms in every row.}}
 \label{tab:app_cost}
 \end{table}
 """
